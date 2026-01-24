@@ -1,0 +1,54 @@
+# FastAPI and Server
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+email-validator==2.2.0
+
+# Database
+sqlalchemy==2.0.36
+asyncpg==0.30.0
+aiosqlite==0.20.0
+alembic==1.14.0
+psycopg2-binary==2.9.10
+
+# Redis and Caching
+redis==5.2.1
+aioredis==2.0.1
+
+# Background Tasks
+celery==5.4.0
+flower==2.0.1
+
+# AI and ML
+openai==1.59.5
+numpy==1.26.4
+scikit-learn==1.6.0
+sentence-transformers==3.3.1
+pillow==11.0.0
+
+# Payment Gateways
+stripe==11.3.0
+paypalrestsdk==1.13.3
+rave-python==1.4.2
+razorpay==1.4.2
+
+# Real-time
+python-socketio==5.12.0
+
+# Utilities
+pydantic==2.10.4
+pydantic-settings==2.7.0
+httpx==0.28.1
+boto3==1.35.94
+python-slugify==8.0.4
+Faker==33.1.0
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.25.2
+
+# Monitoring
+sentry-sdk[fastapi]==2.19.2
+prometheus-client==0.21.0

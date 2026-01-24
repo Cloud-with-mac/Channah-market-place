@@ -1,0 +1,289 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Channah Admin - SophieX Dark Theme */
+    --background: 222 47% 8%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    /* Primary: Vibrant Cyan */
+    --primary: 187 100% 50%;
+    --primary-foreground: 222 47% 8%;
+    /* Secondary: Dark slate */
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    /* Accent: Electric Cyan */
+    --accent: 187 100% 50%;
+    --accent-foreground: 222 47% 8%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 33% 20%;
+    --input: 217 33% 17%;
+    --ring: 187 100% 50%;
+    --radius: 0.75rem;
+    /* Sidebar */
+    --sidebar-background: 222 47% 6%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 187 100% 50%;
+    --sidebar-primary-foreground: 222 47% 8%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 15%;
+    --sidebar-ring: 187 100% 50%;
+    /* Additional brand colors */
+    --gold: 45 90% 51%;
+    --gold-light: 45 80% 70%;
+    --gold-dark: 40 85% 40%;
+    --cyan: 187 100% 50%;
+    --cyan-light: 187 90% 65%;
+    --cyan-dark: 187 100% 35%;
+    --navy: 222 47% 11%;
+    --navy-light: 222 40% 18%;
+    --navy-dark: 222 50% 6%;
+    /* Status colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+    /* Gradient stops */
+    --gradient-start: 187 100% 50%;
+    --gradient-end: 199 89% 48%;
+  }
+
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 187 100% 50%;
+    --primary-foreground: 222 47% 8%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 187 100% 50%;
+    --accent-foreground: 222 47% 8%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 33% 20%;
+    --input: 217 33% 17%;
+    --ring: 187 100% 50%;
+    --sidebar-background: 222 47% 6%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 187 100% 50%;
+    --sidebar-primary-foreground: 222 47% 8%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 15%;
+    --sidebar-ring: 187 100% 50%;
+    --gold: 45 85% 55%;
+    --gold-light: 45 70% 65%;
+    --gold-dark: 40 80% 45%;
+    --cyan: 187 100% 50%;
+    --cyan-light: 187 90% 65%;
+    --cyan-dark: 187 100% 35%;
+    --navy: 222 47% 11%;
+    --navy-light: 222 40% 18%;
+    --navy-dark: 222 50% 6%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+    --gradient-start: 187 100% 50%;
+    --gradient-end: 199 89% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-muted;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/30 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/50;
+}
+
+/* Skeleton loading animation */
+.skeleton {
+  @apply animate-pulse bg-muted rounded;
+}
+
+/* Custom focus styles */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+}
+
+/* Gradient animation for AI chat button */
+@keyframes gradient {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.animate-gradient {
+  animation: gradient 3s ease infinite;
+}
+
+/* Shimmer effect for loading states */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Glow effect for premium items */
+.glow-primary {
+  box-shadow: 0 0 25px hsl(var(--primary) / 0.4), 0 0 50px hsl(var(--primary) / 0.2);
+}
+
+.glow-accent {
+  box-shadow: 0 0 25px hsl(var(--accent) / 0.4), 0 0 50px hsl(var(--accent) / 0.2);
+}
+
+/* Glass morphism effect */
+.glass {
+  background: rgba(30, 30, 40, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Premium gradient backgrounds - Cyan theme */
+.bg-gradient-premium {
+  background: linear-gradient(135deg, hsl(187 100% 50%) 0%, hsl(199 89% 48%) 100%);
+}
+
+.bg-gradient-premium-light {
+  background: linear-gradient(135deg, hsl(187 100% 50% / 0.1) 0%, hsl(199 89% 48% / 0.1) 100%);
+}
+
+.bg-gradient-mesh {
+  background:
+    radial-gradient(at 40% 20%, hsl(187 100% 50% / 0.15) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsl(199 89% 48% / 0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsl(187 80% 45% / 0.1) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, hsl(199 70% 50% / 0.08) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, hsl(187 60% 55% / 0.1) 0px, transparent 50%);
+}
+
+/* Text gradient */
+.text-gradient-premium {
+  background: linear-gradient(135deg, hsl(187 100% 50%) 0%, hsl(199 89% 48%) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Card hover effects */
+.card-hover {
+  @apply transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 hover:border-primary/50;
+}
+
+.card-glow:hover {
+  box-shadow: 0 20px 40px -15px hsl(var(--primary) / 0.3);
+}
+
+/* Button styles */
+.btn-premium {
+  @apply bg-gradient-to-r from-primary to-accent text-white hover:opacity-90 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5;
+}
+
+/* Admin-specific styles */
+.sidebar-item {
+  @apply flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors;
+}
+
+.sidebar-item.active {
+  @apply text-primary bg-primary/10;
+}
+
+/* Data table styles */
+.data-table-row {
+  @apply border-b border-border/50 hover:bg-muted/50 transition-colors;
+}
+
+/* Status badge styles */
+.status-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.status-badge.success {
+  @apply bg-success/10 text-success;
+}
+
+.status-badge.warning {
+  @apply bg-warning/10 text-warning;
+}
+
+.status-badge.error {
+  @apply bg-destructive/10 text-destructive;
+}
+
+.status-badge.info {
+  @apply bg-primary/10 text-primary;
+}
+
+/* AI Chat styles */
+.ai-message {
+  @apply p-4 rounded-lg bg-primary/10 border border-primary/20;
+}
+
+.user-message {
+  @apply p-4 rounded-lg bg-secondary;
+}
+
+/* Notification badge */
+.notification-badge {
+  @apply absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center;
+}
+
+/* Modern input focus */
+.input-modern:focus {
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.2), 0 4px 12px hsl(var(--primary) / 0.1);
+}
+
+/* Pulse animation for live indicators */
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.7; }
+}
+
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* Chart tooltip */
+.chart-tooltip {
+  @apply bg-card border border-border rounded-lg shadow-lg p-3;
+}
