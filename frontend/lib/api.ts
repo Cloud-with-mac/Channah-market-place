@@ -169,6 +169,13 @@ export const categoriesAPI = {
     const response = await apiClient.get(`/categories/${slug}`)
     return response.data
   },
+
+  getFeatured: async (limit: number = 8) => {
+    const response = await apiClient.get('/categories/featured', {
+      params: { limit }
+    })
+    return response.data
+  },
 }
 
 // ==================== CART API ====================
