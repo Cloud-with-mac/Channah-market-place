@@ -25,9 +25,11 @@ export default function CategoriesPage() {
     async function fetchCategories() {
       try {
         const response = await categoriesAPI.getAll()
-        const data = response.data?.results || response.data || []
+        // API already returns response.data, so no need for .data access
+        const data = Array.isArray(response) ? response : []
         setCategories(data)
-      } catch {
+      } catch (error) {
+        console.error('Failed to fetch categories:', error)
         setCategories([])
       } finally {
         setLoading(false)
