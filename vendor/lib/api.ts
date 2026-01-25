@@ -144,37 +144,37 @@ export const vendorProfileAPI = {
 // ==================== PRODUCTS API ====================
 export const vendorProductsAPI = {
   getAll: async (params?: any) => {
-    const response = await apiClient.get('/vendors/me/products', { params })
+    const response = await apiClient.get('/products/vendor/my-products', { params })
     return response.data
   },
 
   list: async (params?: any) => {
-    const response = await apiClient.get('/vendors/me/products', { params })
+    const response = await apiClient.get('/products/vendor/my-products', { params })
     return response.data
   },
 
   getById: async (id: string) => {
-    const response = await apiClient.get(`/vendors/me/products/${id}`)
+    const response = await apiClient.get(`/products/${id}`)
     return response.data
   },
 
   create: async (data: any) => {
-    const response = await apiClient.post('/vendors/me/products', data)
+    const response = await apiClient.post('/products', data)
     return response.data
   },
 
   update: async (id: string, data: any) => {
-    const response = await apiClient.put(`/vendors/me/products/${id}`, data)
+    const response = await apiClient.put(`/products/${id}`, data)
     return response.data
   },
 
   delete: async (id: string) => {
-    const response = await apiClient.delete(`/vendors/me/products/${id}`)
+    const response = await apiClient.delete(`/products/${id}`)
     return response.data
   },
 
   updateStatus: async (id: string, status: string) => {
-    const response = await apiClient.put(`/vendors/me/products/${id}/status`, { status })
+    const response = await apiClient.put(`/products/${id}/status`, { status })
     return response.data
   },
 
@@ -182,7 +182,7 @@ export const vendorProductsAPI = {
     const formData = new FormData()
     formData.append('file', file)
 
-    const response = await apiClient.post('/vendors/me/products/bulk-upload', formData, {
+    const response = await apiClient.post('/products/bulk-upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -194,20 +194,20 @@ export const vendorProductsAPI = {
 // ==================== INVENTORY API ====================
 export const vendorInventoryAPI = {
   getAll: async (params?: any) => {
-    const response = await apiClient.get('/vendors/me/inventory', { params })
+    const response = await apiClient.get('/products/vendor/my-products', { params })
     return response.data
   },
 
   updateStock: async (productId: string, quantity: number) => {
-    const response = await apiClient.put(`/vendors/me/inventory/${productId}`, {
+    const response = await apiClient.put(`/products/${productId}/inventory`, {
       quantity,
     })
     return response.data
   },
 
   getLowStock: async (threshold: number = 10) => {
-    const response = await apiClient.get('/vendors/me/inventory/low-stock', {
-      params: { threshold },
+    const response = await apiClient.get('/products/vendor/my-products', {
+      params: { threshold, low_stock: true },
     })
     return response.data
   },
