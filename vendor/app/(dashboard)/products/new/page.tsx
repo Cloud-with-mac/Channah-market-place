@@ -137,7 +137,7 @@ export default function NewProductPage() {
       // Helper to fetch flat list
       const fetchFlatList = async () => {
         const flatResponse = await categoriesAPI.list()
-        const cats = flatResponse.data || []
+        const cats = Array.isArray(flatResponse) ? flatResponse : []
         setCategoryTree(cats)
         setFlatCategories(cats.map((c: Category) => ({
           id: c.id,
@@ -150,7 +150,7 @@ export default function NewProductPage() {
 
       try {
         const response = await categoriesAPI.getTree()
-        const tree = response.data || []
+        const tree = Array.isArray(response) ? response : []
 
         // If tree is empty, try flat list instead
         if (tree.length === 0) {

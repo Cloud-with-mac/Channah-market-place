@@ -26,9 +26,9 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
       // If we have a token, validate it in the background
       if (accessToken) {
         try {
-          const response = await authAPI.getMe()
+          const response = await authAPI.getCurrentUser()
           // Update user data with fresh info from server
-          login(response.data, accessToken, refreshToken || undefined)
+          login(response, accessToken, refreshToken || undefined)
         } catch (error: any) {
           // Only logout if it's a clear auth failure (401), not a network error
           if (error?.response?.status === 401) {

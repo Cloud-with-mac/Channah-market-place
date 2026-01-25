@@ -79,8 +79,30 @@ export default function CategoriesPage() {
   const fetchCategories = React.useCallback(async () => {
     try {
       setIsLoading(true)
-      const response = await adminCategoriesAPI.list()
-      setCategories(response.data || [])
+      // Try tree endpoint first for hierarchical structure
+      let response
+      try {
+        response = await adminCategoriesAPI.getTree()
+        console.log('Categories Tree API Response:', response)
+      } catch (treeError) {
+        console.log('Tree endpoint not available, falling back to list')
+        response = await adminCategoriesAPI.list()
+        console.log('Categories List API Response:', response)
+      }
+
+      console.log('Is Array:', Array.isArray(response))
+      if (Array.isArray(response)) {
+        response.forEach((cat, idx) => {
+          console.log(`Category ${idx}:`, {
+            id: cat.id,
+            name: cat.name,
+            hasChildren: cat.children && cat.children.length > 0,
+            childrenCount: cat.children?.length || 0,
+            children: cat.children,
+          })
+        })
+      }
+      setCategories(Array.isArray(response) ? response : [])
     } catch (error) {
       console.error('Failed to fetch categories:', error)
       setCategories([])
@@ -158,14 +180,23 @@ export default function CategoriesPage() {
 
     try {
       setIsProcessing(true)
+
+      // Prepare data - convert empty strings to null for optional fields
+      const submitData = {
+        ...formData,
+        parent_id: formData.parent_id || null,
+        description: formData.description || null,
+        image_url: formData.image_url || null,
+      }
+
       if (editingCategory) {
-        await adminCategoriesAPI.update(editingCategory.id, formData)
+        await adminCategoriesAPI.update(editingCategory.id, submitData)
         toast({
           title: 'Category Updated',
           description: `${formData.name} has been updated.`,
         })
       } else {
-        await adminCategoriesAPI.create(formData)
+        await adminCategoriesAPI.create(submitData)
         toast({
           title: 'Category Created',
           description: `${formData.name} has been created.`,
@@ -225,83 +256,132 @@ export default function CategoriesPage() {
     const hasChildren = category.children && category.children.length > 0
     const isExpanded = expandedCategories.has(category.id)
 
+    console.log(`Rendering ${category.name}:`, {
+      hasChildren,
+      childrenLength: category.children?.length,
+      children: category.children,
+    })
+
     return (
       <div key={category.id}>
         <div
-          className={`flex items-center gap-2 p-3 hover:bg-muted/50 transition-colors border-b`}
-          style={{ paddingLeft: `${depth * 24 + 12}px` }}
+          className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 sm:p-4 hover:bg-muted/50 transition-colors border-b ${
+            depth > 0 ? 'bg-muted/20' : ''
+          }`}
+          style={{ paddingLeft: `${depth * 16 + 12}px` }}
         >
-          <div className="w-6 flex justify-center">
-            {hasChildren ? (
-              <button
-                onClick={() => toggleExpanded(category.id)}
-                className="p-0.5 hover:bg-muted rounded"
-              >
-                {isExpanded ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-              </button>
-            ) : (
-              <div className="w-4" />
-            )}
-          </div>
-
-          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-            {category.image_url ? (
-              <img
-                src={category.image_url}
-                alt={category.name}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <FolderTree className="h-5 w-5 text-muted-foreground" />
-            )}
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="font-medium truncate">{category.name}</p>
-              {!category.is_active && (
-                <Badge variant="secondary">Inactive</Badge>
+          {/* Mobile: Top row with expand button and name */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="w-8 flex justify-center shrink-0">
+              {hasChildren ? (
+                <button
+                  onClick={() => toggleExpanded(category.id)}
+                  className="p-1 hover:bg-primary/10 hover:text-primary rounded-md transition-colors border border-transparent hover:border-primary/20"
+                  aria-label={isExpanded ? 'Collapse' : 'Expand'}
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="h-5 w-5 text-primary" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  )}
+                </button>
+              ) : (
+                <div className="w-6" />
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {category.product_count} products • /{category.slug}
-            </p>
+
+            <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden shrink-0">
+              {category.image_url ? (
+                <img
+                  src={category.image_url}
+                  alt={category.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <FolderTree className="h-5 w-5 text-muted-foreground" />
+              )}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-medium text-sm sm:text-base truncate">{category.name}</p>
+                {!category.is_active && (
+                  <Badge variant="secondary" className="text-xs">Inactive</Badge>
+                )}
+                {depth > 0 && (
+                  <Badge variant="outline" className="text-xs hidden sm:inline-flex">
+                    Subcategory
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground truncate">
+                {category.product_count} product{category.product_count !== 1 ? 's' : ''} • /{category.slug}
+              </p>
+            </div>
+
+            {/* Mobile: Actions button */}
+            <div className="sm:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => openCreateDialog(category.id)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Subcategory
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => openEditDialog(category)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => setCategoryToDelete(category)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => openCreateDialog(category.id)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Subcategory
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openEditDialog(category)}>
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => setCategoryToDelete(category)}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Desktop: Actions menu */}
+          <div className="hidden sm:block ml-auto">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => openCreateDialog(category.id)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Subcategory
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => openEditDialog(category)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={() => setCategoryToDelete(category)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Render children if expanded */}
         {hasChildren && isExpanded && (
-          <div>
+          <div className="bg-muted/10">
             {category.children!.map((child) => renderCategoryItem(child, depth + 1))}
           </div>
         )}
