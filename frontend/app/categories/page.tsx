@@ -27,10 +27,6 @@ export default function CategoriesPage() {
         const response = await categoriesAPI.getAll()
         // API already returns response.data, so no need for .data access
         const data = Array.isArray(response) ? response : []
-        console.log('Categories data received:', data)
-        data.forEach((cat: Category) => {
-          console.log(`Category: ${cat.name}, image_url: "${cat.image_url}"`)
-        })
         setCategories(data)
       } catch (error) {
         console.error('Failed to fetch categories:', error)
