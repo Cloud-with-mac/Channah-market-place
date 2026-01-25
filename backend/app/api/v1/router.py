@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     notifications,
     search,
     upload,
+    customer_vendor_chat,
 )
 
 api_router = APIRouter()
@@ -64,3 +65,6 @@ api_router.include_router(notifications.router, prefix="/notifications", tags=["
 
 # Admin
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
+
+# Customer-Vendor Chat
+api_router.include_router(customer_vendor_chat.router, prefix="/chats", tags=["Customer-Vendor Chat"])

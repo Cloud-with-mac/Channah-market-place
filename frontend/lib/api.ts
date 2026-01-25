@@ -486,4 +486,37 @@ export const newsletterAPI = {
   },
 }
 
+// ==================== CUSTOMER-VENDOR CHAT API ====================
+export const chatAPI = {
+  createChat: async (data: any) => {
+    const response = await apiClient.post('/chats', data)
+    return response.data
+  },
+
+  getChats: async () => {
+    const response = await apiClient.get('/chats')
+    return response.data
+  },
+
+  getChat: async (chatId: string) => {
+    const response = await apiClient.get(`/chats/${chatId}`)
+    return response.data
+  },
+
+  sendMessage: async (chatId: string, data: any) => {
+    const response = await apiClient.post(`/chats/${chatId}/messages`, data)
+    return response.data
+  },
+
+  getMessages: async (chatId: string, params?: any) => {
+    const response = await apiClient.get(`/chats/${chatId}/messages`, { params })
+    return response.data
+  },
+
+  getContactedVendors: async () => {
+    const response = await apiClient.get('/chats/vendors-contacted')
+    return response.data
+  },
+}
+
 export default apiClient
