@@ -70,6 +70,22 @@ class Vendor(Base):
     rating = Column(Float, default=0.0, nullable=False)
     total_reviews = Column(Integer, default=0, nullable=False)
 
+    # Store Profile
+    website = Column(String(500), nullable=True)
+    certifications = Column(Text, nullable=True)  # JSON array of strings
+    main_products = Column(Text, nullable=True)  # JSON array of strings
+    monthly_output = Column(String(100), nullable=True)
+    export_percentage = Column(String(50), nullable=True)
+    main_markets = Column(Text, nullable=True)  # JSON array of strings
+    employees = Column(String(50), nullable=True)
+    year_established = Column(Integer, nullable=True)
+    response_rate = Column(Float, default=0.0, nullable=True)
+    response_time = Column(String(50), nullable=True)
+
+    # Fulfillment
+    processing_days = Column(Integer, default=2, nullable=False)  # Days to process/prepare order
+    shipping_days = Column(Integer, default=5, nullable=False)  # Days to ship/deliver
+
     # Settings
     is_featured = Column(Boolean, default=False, nullable=False)
     auto_approve_products = Column(Boolean, default=False, nullable=False)

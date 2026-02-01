@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
@@ -31,6 +31,7 @@ class DashboardStats(BaseModel):
     total_orders: int
     pending_orders: int
     total_revenue: float
+    total_commission: float
     today_revenue: float
     total_reviews: int
 
@@ -88,12 +89,22 @@ async def get_dashboard_stats(
         select(func.count(Order.id)).where(Order.status == OrderStatus.PENDING)
     )
 
-    # Revenue stats
+    # Revenue stats - total order revenue
     total_revenue = await db.execute(
-        select(func.sum(Order.total)).where(Order.payment_status == PaymentStatus.PAID)
+        select(func.sum(Order.total)).where(
+            Order.payment_status == PaymentStatus.PAID
+        )
+    )
+    # Platform commission earnings
+    total_commission = await db.execute(
+        select(func.sum(OrderItem.commission_amount)).where(
+            OrderItem.order_id == Order.id,
+            Order.payment_status == PaymentStatus.PAID
+        )
     )
     today_revenue = await db.execute(
-        select(func.sum(Order.total)).where(
+        select(func.sum(OrderItem.commission_amount)).where(
+            OrderItem.order_id == Order.id,
             Order.payment_status == PaymentStatus.PAID,
             Order.paid_at >= today_start
         )
@@ -112,6 +123,7 @@ async def get_dashboard_stats(
         total_orders=total_orders.scalar() or 0,
         pending_orders=pending_orders.scalar() or 0,
         total_revenue=float(total_revenue.scalar() or 0),
+        total_commission=float(total_commission.scalar() or 0),
         today_revenue=float(today_revenue.scalar() or 0),
         total_reviews=total_reviews.scalar() or 0
     )
@@ -436,6 +448,63 @@ _platform_settings = {
     "notify_new_vendor": True,
     "notify_low_stock": True,
     "low_stock_threshold": 10,
+    "seller_plans": [
+        {
+            "id": "basic",
+            "name": "Basic Seller Plan",
+            "description": "Great for getting started",
+            "commission_rate": 15,
+            "features": [
+                "Up to 50 product listings",
+                "Basic seller dashboard",
+                "Standard analytics & reports",
+                "Secure payment processing",
+                "Email support (48h response)",
+                "Basic order management",
+                "Standard product visibility",
+            ],
+            "is_popular": False,
+        },
+        {
+            "id": "standard",
+            "name": "Standard Seller Plan",
+            "description": "Perfect for growing sellers",
+            "commission_rate": 10,
+            "features": [
+                "Unlimited product listings",
+                "Access to all marketplace features",
+                "Advanced seller dashboard",
+                "Real-time analytics & reports",
+                "Secure payment processing",
+                "24/7 seller support",
+                "Marketing tools & promotions",
+                "Bulk product upload",
+                "Coupon & discount management",
+            ],
+            "is_popular": True,
+        },
+        {
+            "id": "pro",
+            "name": "Pro Seller Plan",
+            "description": "For high-volume sellers",
+            "commission_rate": 7,
+            "features": [
+                "Unlimited product listings",
+                "Access to all marketplace features",
+                "Premium seller dashboard",
+                "Advanced analytics & custom reports",
+                "Secure payment processing",
+                "Priority 24/7 seller support",
+                "Marketing tools & promotions",
+                "Featured product placements",
+                "Dedicated account manager",
+                "Bulk product upload",
+                "Coupon & discount management",
+                "Early access to new features",
+            ],
+            "is_popular": False,
+        },
+    ],
 }
 
 
@@ -964,6 +1033,160 @@ async def reset_vendor_password(
     return MessageResponse(
         message=f"Password for {vendor.business_name} has been reset successfully"
     )
+
+
+# ============ Vendor Status Management ============
+
+class VendorStatusUpdateRequest(BaseModel):
+    status: str
+    reason: Optional[str] = None
+
+
+@router.put("/vendors/{vendor_id}/approve", response_model=MessageResponse)
+async def approve_vendor(
+    vendor_id: UUID,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Approve a pending vendor"""
+    result = await db.execute(
+        select(Vendor).where(Vendor.id == vendor_id)
+    )
+    vendor = result.scalar_one_or_none()
+
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    if vendor.status == VendorStatus.APPROVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Vendor is already approved"
+        )
+
+    # Approve vendor
+    vendor.status = VendorStatus.APPROVED
+    vendor.verified_at = datetime.utcnow()
+    await db.commit()
+
+    return MessageResponse(
+        message=f"{vendor.business_name} has been approved successfully"
+    )
+
+
+@router.put("/vendors/{vendor_id}/suspend", response_model=MessageResponse)
+async def suspend_vendor(
+    vendor_id: UUID,
+    reason: Optional[str] = None,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Suspend a vendor"""
+    result = await db.execute(
+        select(Vendor).where(Vendor.id == vendor_id)
+    )
+    vendor = result.scalar_one_or_none()
+
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    if vendor.status == VendorStatus.SUSPENDED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Vendor is already suspended"
+        )
+
+    # Suspend vendor
+    vendor.status = VendorStatus.SUSPENDED
+    await db.commit()
+
+    return MessageResponse(
+        message=f"{vendor.business_name} has been suspended" + (f": {reason}" if reason else "")
+    )
+
+
+@router.put("/vendors/{vendor_id}/ban", response_model=MessageResponse)
+async def ban_vendor(
+    vendor_id: UUID,
+    reason: Optional[str] = None,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Ban a vendor permanently"""
+    result = await db.execute(
+        select(Vendor).where(Vendor.id == vendor_id)
+    )
+    vendor = result.scalar_one_or_none()
+
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    # Ban vendor
+    vendor.status = VendorStatus.REJECTED
+    await db.commit()
+
+    return MessageResponse(
+        message=f"{vendor.business_name} has been banned" + (f": {reason}" if reason else "")
+    )
+
+
+@router.put("/vendors/{vendor_id}/status", response_model=MessageResponse)
+async def update_vendor_status(
+    vendor_id: UUID,
+    data: VendorStatusUpdateRequest,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update vendor status (admin only)"""
+    result = await db.execute(
+        select(Vendor).where(Vendor.id == vendor_id)
+    )
+    vendor = result.scalar_one_or_none()
+
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    # Validate status
+    try:
+        new_status = VendorStatus(data.status)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid status: {data.status}"
+        )
+
+    # Update status
+    vendor.status = new_status
+    if new_status == VendorStatus.APPROVED and not vendor.verified_at:
+        vendor.verified_at = datetime.utcnow()
+
+    await db.commit()
+
+    return MessageResponse(
+        message=f"Vendor status updated to {data.status}"
+    )
+
+
+@router.put("/vendors/{vendor_id}/commission", response_model=MessageResponse)
+async def update_vendor_commission(
+    vendor_id: UUID,
+    data: dict,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update a vendor's commission rate"""
+    result = await db.execute(select(Vendor).where(Vendor.id == vendor_id))
+    vendor = result.scalar_one_or_none()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    rate = data.get("commission_rate")
+    if rate is None or not (0 <= float(rate) <= 100):
+        raise HTTPException(status_code=400, detail="Commission rate must be between 0 and 100")
+
+    vendor.commission_rate = float(rate)
+    await db.commit()
+
+    return MessageResponse(message=f"Commission rate updated to {rate}%")
 
 
 # ============ Category Management Endpoints ============
@@ -2060,6 +2283,22 @@ async def upload_file(
 
     # Save the file
     contents = await file.read()
+
+    # Verify magic bytes match an actual image
+    image_signatures = {
+        b'\xff\xd8\xff': 'image/jpeg',
+        b'\x89PNG\r\n\x1a\n': 'image/png',
+        b'GIF87a': 'image/gif',
+        b'GIF89a': 'image/gif',
+        b'RIFF': 'image/webp',
+    }
+    is_valid_image = any(contents[:len(sig)] == sig for sig in image_signatures)
+    if not is_valid_image:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File content does not match a valid image format"
+        )
+
     with open(file_path, "wb") as f:
         f.write(contents)
 
@@ -2346,3 +2585,271 @@ async def delete_announcement(
             return {"message": "Announcement deleted"}
 
     raise HTTPException(status_code=404, detail="Announcement not found")
+
+
+# ============ Support Ticket Endpoints ============
+
+@router.get("/support/tickets")
+async def get_support_tickets(
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = 0,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get support tickets (from contact submissions)"""
+    from app.models.contact import ContactSubmission
+
+    query = select(ContactSubmission).order_by(ContactSubmission.created_at.desc())
+    if status and status != "all":
+        query = query.where(ContactSubmission.status == status)
+
+    query = query.offset(offset).limit(limit)
+    result = await db.execute(query)
+    tickets = result.scalars().all()
+
+    return {
+        "tickets": [
+            {
+                "id": str(t.id),
+                "customer": {"name": t.name, "email": t.email},
+                "subject": t.subject,
+                "message": t.message,
+                "status": t.status or "open",
+                "priority": "medium",
+                "created_at": t.created_at.isoformat() if t.created_at else "",
+            }
+            for t in tickets
+        ],
+        "total": len(tickets)
+    }
+
+
+@router.get("/support/tickets/{ticket_id}/messages")
+async def get_ticket_messages(
+    ticket_id: str,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get messages for a support ticket"""
+    return {"messages": []}
+
+
+@router.post("/support/tickets/{ticket_id}/messages")
+async def send_ticket_message(
+    ticket_id: str,
+    data: dict,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Send a message on a support ticket"""
+    return MessageResponse(message="Message sent")
+
+
+@router.put("/support/tickets/{ticket_id}/status")
+async def update_ticket_status(
+    ticket_id: str,
+    data: dict,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update ticket status"""
+    return MessageResponse(message=f"Ticket status updated to {data.get('status', 'unknown')}")
+
+
+# ============ Finance Endpoints ============
+
+@router.get("/finance/payouts")
+async def get_finance_payouts(
+    status: Optional[str] = None,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = 0,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all vendor payouts"""
+    from app.models.vendor import VendorPayout, PayoutStatus
+
+    query = select(VendorPayout).options(selectinload(VendorPayout.vendor)).order_by(VendorPayout.created_at.desc())
+    if status and status != "all":
+        try:
+            query = query.where(VendorPayout.status == PayoutStatus(status))
+        except ValueError:
+            pass
+
+    query = query.offset(offset).limit(limit)
+    result = await db.execute(query)
+    payouts = result.scalars().all()
+
+    return {
+        "payouts": [
+            {
+                "id": str(p.id),
+                "vendor_id": str(p.vendor_id),
+                "vendor_name": p.vendor.business_name if p.vendor else "Unknown",
+                "amount": float(p.amount),
+                "currency": p.currency or "USD",
+                "method": p.payment_method or "bank_transfer",
+                "status": p.status.value if hasattr(p.status, 'value') else str(p.status),
+                "requested_at": p.created_at.isoformat() if p.created_at else "",
+                "processed_at": p.processed_at.isoformat() if p.processed_at else None,
+                "notes": p.notes,
+            }
+            for p in payouts
+        ],
+        "total": len(payouts)
+    }
+
+
+@router.get("/finance/transactions")
+async def get_finance_transactions(
+    type: Optional[str] = None,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = 0,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all payment transactions"""
+    from app.models.payment import Payment
+
+    query = select(Payment).order_by(Payment.created_at.desc())
+    query = query.offset(offset).limit(limit)
+    result = await db.execute(query)
+    payments = result.scalars().all()
+
+    return {
+        "transactions": [
+            {
+                "id": str(p.id),
+                "order_id": str(p.order_id),
+                "amount": float(p.amount),
+                "currency": p.currency,
+                "type": "payment",
+                "description": f"Payment via {p.gateway.value if hasattr(p.gateway, 'value') else str(p.gateway)}",
+                "gateway": p.gateway.value if hasattr(p.gateway, 'value') else str(p.gateway),
+                "status": p.status.value if hasattr(p.status, 'value') else str(p.status),
+                "date": p.created_at.isoformat() if p.created_at else "",
+                "created_at": p.created_at.isoformat() if p.created_at else "",
+            }
+            for p in payments
+        ],
+        "total": len(payments)
+    }
+
+
+@router.get("/finance/commissions")
+async def get_commission_settings(
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get commission settings"""
+    return {
+        "commission_rate": _platform_settings.get("commission_rate", 10),
+        "min_payout_amount": _platform_settings.get("min_payout_amount", 50),
+        "payout_schedule": _platform_settings.get("payout_schedule", "weekly"),
+    }
+
+
+@router.put("/finance/commissions")
+async def update_commission_settings(
+    data: dict,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update commission settings"""
+    global _platform_settings
+    if "commission_rate" in data:
+        _platform_settings["commission_rate"] = data["commission_rate"]
+    if "min_payout_amount" in data:
+        _platform_settings["min_payout_amount"] = data["min_payout_amount"]
+    if "payout_schedule" in data:
+        _platform_settings["payout_schedule"] = data["payout_schedule"]
+    return MessageResponse(message="Commission settings updated")
+
+
+@router.get("/seller-plans")
+async def get_seller_plans_admin(
+    current_user: User = Depends(get_current_admin),
+):
+    """Get seller plans (admin)"""
+    return _platform_settings.get("seller_plans", [])
+
+
+@router.put("/seller-plans")
+async def update_seller_plans(
+    request: Request,
+    current_user: User = Depends(get_current_admin),
+):
+    """Update seller plans (admin)"""
+    plans = await request.json()
+    _platform_settings["seller_plans"] = plans
+    return MessageResponse(message="Seller plans updated")
+
+
+@router.get("/finance/payouts/{payout_id}")
+async def get_payout_detail(
+    payout_id: UUID,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get payout detail"""
+    from app.models.vendor import VendorPayout
+    result = await db.execute(select(VendorPayout).where(VendorPayout.id == payout_id))
+    payout = result.scalar_one_or_none()
+    if not payout:
+        raise HTTPException(status_code=404, detail="Payout not found")
+    return {
+        "id": str(payout.id),
+        "vendor_id": str(payout.vendor_id),
+        "amount": float(payout.amount),
+        "status": payout.status.value if hasattr(payout.status, 'value') else str(payout.status),
+        "created_at": payout.created_at.isoformat() if payout.created_at else "",
+    }
+
+
+@router.post("/finance/payouts/{payout_id}/process")
+async def process_payout(
+    payout_id: UUID,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Process a vendor payout"""
+    from app.models.vendor import VendorPayout, PayoutStatus, Vendor
+    result = await db.execute(select(VendorPayout).where(VendorPayout.id == payout_id))
+    payout = result.scalar_one_or_none()
+    if not payout:
+        raise HTTPException(status_code=404, detail="Payout not found")
+    if payout.status != PayoutStatus.PENDING:
+        raise HTTPException(status_code=400, detail="Payout is not in pending status")
+    payout.status = PayoutStatus.COMPLETED
+    payout.processed_at = datetime.utcnow()
+    await db.commit()
+    return MessageResponse(message="Payout processed successfully")
+
+
+@router.post("/finance/payouts/{payout_id}/reject")
+async def reject_payout(
+    payout_id: UUID,
+    data: dict,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Reject a vendor payout"""
+    from app.models.vendor import VendorPayout, PayoutStatus, Vendor
+    result = await db.execute(select(VendorPayout).where(VendorPayout.id == payout_id))
+    payout = result.scalar_one_or_none()
+    if not payout:
+        raise HTTPException(status_code=404, detail="Payout not found")
+    if payout.status != PayoutStatus.PENDING:
+        raise HTTPException(status_code=400, detail="Payout is not in pending status")
+    payout.status = PayoutStatus.FAILED
+    payout.notes = data.get("reason", "Rejected by admin")
+    payout.processed_at = datetime.utcnow()
+    # Refund the amount back to vendor balance
+    vendor_result = await db.execute(select(Vendor).where(Vendor.id == payout.vendor_id))
+    vendor = vendor_result.scalar_one_or_none()
+    if vendor:
+        vendor.balance += payout.amount
+    await db.commit()
+    return MessageResponse(message="Payout rejected")

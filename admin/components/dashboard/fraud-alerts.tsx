@@ -24,42 +24,6 @@ interface FraudAlert {
   status: 'pending' | 'reviewing' | 'cleared' | 'blocked'
 }
 
-// Mock data for fallback
-const mockFraudAlerts: FraudAlert[] = [
-  {
-    id: '1',
-    order_id: 'ord-001',
-    order_number: 'ORD-2024-156',
-    customer_email: 'suspicious@tempmail.com',
-    risk_score: 85,
-    amount: 1250.00,
-    reasons: ['New account', 'High value', 'VPN detected', 'Multiple cards'],
-    timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    status: 'pending',
-  },
-  {
-    id: '2',
-    order_id: 'ord-002',
-    order_number: 'ORD-2024-157',
-    customer_email: 'user@disposable.net',
-    risk_score: 72,
-    amount: 890.00,
-    reasons: ['Disposable email', 'Address mismatch'],
-    timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-    status: 'reviewing',
-  },
-  {
-    id: '3',
-    order_id: 'ord-003',
-    order_number: 'ORD-2024-158',
-    customer_email: 'test.buyer@example.com',
-    risk_score: 65,
-    amount: 450.00,
-    reasons: ['Multiple orders', 'Different shipping'],
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    status: 'pending',
-  },
-]
 
 function getRiskColor(score: number) {
   if (score >= 80) return 'bg-destructive'
@@ -98,17 +62,17 @@ export function FraudAlerts() {
   const fetchAlerts = React.useCallback(async () => {
     try {
       setIsLoading(true)
-      const response = await dashboardAPI.getFraudAlerts()
-      if (response.data?.alerts?.length > 0) {
-        setAlerts(response.data.alerts)
-      } else {
-        // Use mock data if no real data
-        setAlerts(mockFraudAlerts)
-      }
+      // TODO: Backend endpoint not implemented yet
+      // const response = await dashboardAPI.getFraudAlerts()
+      // if (response?.alerts?.length > 0) {
+      //   setAlerts(response.alerts)
+      // } else {
+      //   setAlerts([])
+      // }
+      setAlerts([])
     } catch (error) {
       console.error('Failed to fetch fraud alerts:', error)
-      // Fallback to mock data
-      setAlerts(mockFraudAlerts)
+      setAlerts([])
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)

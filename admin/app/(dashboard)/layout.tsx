@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { AdminSidebar } from '@/components/admin/sidebar'
 import { AdminHeader } from '@/components/admin/header'
-import { useAuthStore, useSidebarStore } from '@/store'
+import { useAuthStore, useSidebarStore, useNotificationStore, useMessagesStore } from '@/store'
+import { supportAPI } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { useToast } from '@/hooks/use-toast'
 
 export default function DashboardLayout({
   children,
@@ -26,6 +28,69 @@ export default function DashboardLayout({
       router.replace('/login')
     }
   }, [isAuthenticated, _hasHydrated, router])
+
+  // Poll for new support chats and generate notifications
+  const { addNotification } = useNotificationStore()
+  const { setUnreadMessagesCount } = useMessagesStore()
+  const { toast } = useToast()
+  const knownChatIdsRef = React.useRef<Set<string>>(new Set())
+  const initialLoadRef = React.useRef(true)
+
+  React.useEffect(() => {
+    if (!isAuthenticated || !_hasHydrated) return
+
+    const checkNewChats = async () => {
+      try {
+        const chats = await supportAPI.getTickets()
+        const chatList = Array.isArray(chats) ? chats : chats?.results || chats?.items || []
+
+        // Count chats with actual unread messages
+        const unreadChats = chatList.filter((c: { status: string; unread_count?: number }) =>
+          (c.status === 'open' || c.status === 'active') && (c.unread_count ?? 0) > 0
+        )
+        setUnreadMessagesCount(unreadChats.length)
+
+        // On first load, just record existing chat IDs
+        if (initialLoadRef.current) {
+          chatList.forEach((c: { id: string }) => knownChatIdsRef.current.add(c.id))
+          initialLoadRef.current = false
+          return
+        }
+
+        // Check for new chats we haven't seen
+        chatList.forEach((c: { id: string; customer_name?: string; subject?: string; status: string }) => {
+          if (!knownChatIdsRef.current.has(c.id)) {
+            knownChatIdsRef.current.add(c.id)
+            const customerName = c.customer_name || 'A customer'
+            const subject = c.subject || 'New message'
+
+            // Add to notification store
+            addNotification({
+              id: `chat-${c.id}`,
+              type: 'system',
+              title: 'New Support Chat',
+              message: `${customerName}: ${subject}`,
+              read: false,
+              timestamp: new Date().toISOString(),
+              link: '/support',
+            })
+
+            // Show toast
+            toast({
+              title: 'New Support Chat',
+              description: `${customerName} needs help: ${subject}`,
+            })
+          }
+        })
+      } catch {
+        // Silently fail - don't interrupt the admin
+      }
+    }
+
+    checkNewChats()
+    const interval = setInterval(checkNewChats, 10000) // Poll every 10 seconds
+    return () => clearInterval(interval)
+  }, [isAuthenticated, _hasHydrated])
 
   // Show loading while hydrating
   if (!_hasHydrated) {

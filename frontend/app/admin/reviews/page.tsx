@@ -52,8 +52,8 @@ export default function AdminReviewsPage() {
   const fetchReviews = async () => {
     setIsLoading(true)
     try {
-      const response = await adminAPI.getPendingReviews(50)
-      setReviews(response.data || [])
+      const data = await adminAPI.getPendingReviews(50)
+      setReviews(data || [])
     } catch (error) {
       console.error('Failed to fetch reviews:', error)
     } finally {

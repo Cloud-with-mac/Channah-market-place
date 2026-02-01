@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Calendar,
   DollarSign,
+  Download,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -49,6 +50,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
 import { formatPrice, formatDate, getInitials } from '@/lib/utils'
 import { ordersAPI } from '@/lib/api'
+import { exportToCSV } from '@/lib/export'
 
 interface Order {
   id: string
@@ -70,7 +72,7 @@ function getStatusBadge(status: string) {
     case 'processing':
       return <Badge variant="info">Processing</Badge>
     case 'shipped':
-      return <Badge variant="info">Shipped</Badge>
+      return <Badge variant="info">Shipped to Vendora</Badge>
     case 'delivered':
       return <Badge variant="success">Delivered</Badge>
     case 'cancelled':
@@ -104,8 +106,8 @@ export default function OrdersPage() {
         search: search || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
       })
-      setOrders(response.data.orders || [])
-      setTotal(response.data.total || 0)
+      setOrders(response.orders || [])
+      setTotal(response.total || 0)
     } catch (error) {
       console.error('Failed to fetch orders:', error)
       setOrders([])
@@ -179,10 +181,16 @@ export default function OrdersPage() {
             Track and manage all marketplace orders.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchOrders}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => exportToCSV(orders, 'orders')}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchOrders}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -204,7 +212,7 @@ export default function OrdersPage() {
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="processing">Processing</SelectItem>
-            <SelectItem value="shipped">Shipped</SelectItem>
+            <SelectItem value="shipped">Shipped to Vendora</SelectItem>
             <SelectItem value="delivered">Delivered</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
             <SelectItem value="refunded">Refunded</SelectItem>
@@ -293,7 +301,7 @@ export default function OrdersPage() {
                           {order.status === 'processing' && (
                             <DropdownMenuItem onClick={() => openStatusDialog(order, 'shipped')}>
                               <Truck className="h-4 w-4 mr-2 text-info" />
-                              Mark Shipped
+                              Mark Shipped to Vendora
                             </DropdownMenuItem>
                           )}
                           {order.status === 'shipped' && (

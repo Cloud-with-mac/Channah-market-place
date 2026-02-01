@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/table'
 import { vendorProductsAPI } from '@/lib/api'
 import { useCurrencyStore } from '@/store'
+import { useToast } from '@/hooks/use-toast'
 
 interface Product {
   id: string
@@ -43,16 +44,23 @@ export default function VendorProductsPage() {
   const [products, setProducts] = React.useState<Product[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [searchQuery, setSearchQuery] = React.useState('')
+  const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     const fetchProducts = async () => {
       try {
         const response = await vendorProductsAPI.list({ limit: 50 })
-        // API returns { items: [...], total, page, limit } or { results: [...] } or array
-        const data = response.data?.items || response.data?.results || response.data || []
+        const data = Array.isArray(response) ? response : (response?.items || response?.results || [])
         setProducts(Array.isArray(data) ? data : [])
-      } catch (error) {
-        console.error('Failed to fetch products:', error)
+      } catch (err: any) {
+        const status = err?.response?.status
+        if (status === 404) {
+          setError('vendor_not_found')
+        } else if (status === 401 || status === 403) {
+          setError('not_authenticated')
+        } else {
+          console.error('Failed to fetch products:', err)
+        }
       } finally {
         setIsLoading(false)
       }
@@ -74,14 +82,49 @@ export default function VendorProductsPage() {
     return <Badge variant={variants[status] || 'outline'}>{status}</Badge>
   }
 
+  const { toast } = useToast()
+  const [deletingId, setDeletingId] = React.useState<string | null>(null)
+
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this product?')) return
+    setDeletingId(id)
     try {
       await vendorProductsAPI.delete(id)
       setProducts(products.filter(p => p.id !== id))
+      toast({ title: 'Product deleted', description: 'The product has been removed.' })
     } catch (error) {
       console.error('Failed to delete product:', error)
+      toast({ title: 'Delete failed', description: 'Could not delete the product. Please try again.', variant: 'destructive' })
+    } finally {
+      setDeletingId(null)
     }
+  }
+
+  if (error === 'vendor_not_found') {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+        <Package className="h-16 w-16 text-muted-foreground/30" />
+        <h2 className="text-xl font-semibold">Vendor Profile Not Found</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          Your vendor profile hasn&apos;t been set up yet. Please complete your vendor registration to start managing products.
+        </p>
+      </div>
+    )
+  }
+
+  if (error === 'not_authenticated') {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+        <Package className="h-16 w-16 text-muted-foreground/30" />
+        <h2 className="text-xl font-semibold">Authentication Required</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          Please log in with your vendor account to manage products.
+        </p>
+        <Button asChild>
+          <Link href="/login">Log In</Link>
+        </Button>
+      </div>
+    )
   }
 
   return (
@@ -187,7 +230,7 @@ export default function VendorProductsPage() {
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
                             <a
-                              href={`http://localhost:3000/product/${product.slug}`}
+                              href={`${process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000'}/product/${product.slug}`}
                               target="_blank"
                               rel="noopener noreferrer"
                             >

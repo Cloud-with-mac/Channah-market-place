@@ -6,6 +6,7 @@ import {
   Clock,
   Package,
   Truck,
+  MapPin,
   Home,
   AlertCircle,
 } from 'lucide-react'
@@ -31,12 +32,14 @@ interface OrderTimelineProps {
 
 const orderSteps = [
   { id: 'pending', label: 'Order Placed', icon: Clock },
+  { id: 'confirmed', label: 'Confirmed', icon: CheckCircle },
   { id: 'processing', label: 'Processing', icon: Package },
-  { id: 'shipped', label: 'Shipped', icon: Truck },
+  { id: 'shipped', label: 'Shipped to Vendora', icon: Truck },
+  { id: 'out_for_delivery', label: 'Out for Delivery', icon: MapPin },
   { id: 'delivered', label: 'Delivered', icon: Home },
 ]
 
-const statusOrder = ['pending', 'processing', 'shipped', 'delivered']
+const statusOrder = ['pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered']
 
 export function OrderTimeline({ status, createdAt, updatedAt, deliveredAt }: OrderTimelineProps) {
   const isCancelled = status === 'cancelled'

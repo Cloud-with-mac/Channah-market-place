@@ -19,6 +19,9 @@ export type SortOption =
   | 'bestselling'
   | 'name_asc'
   | 'name_desc'
+  | 'price-low'
+  | 'price-high'
+  | 'oldest'
 
 interface SortDropdownProps {
   value: SortOption

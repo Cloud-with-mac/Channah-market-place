@@ -1,11 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from typing import List
+from uuid import UUID
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.core.security import get_current_user, get_current_admin
 from app.models.user import User
+from app.models.wishlist import Wishlist
+from app.models.product import Product
 from app.schemas.user import UserResponse, UserUpdate
 from app.schemas.common import MessageResponse
 
@@ -148,3 +153,121 @@ async def update_user_role(
     await db.refresh(user)
 
     return UserResponse.model_validate(user)
+
+
+# ============ WISHLIST ENDPOINTS ============
+
+class WishlistItemResponse(BaseModel):
+    id: str
+    product_id: str
+    name: str
+    slug: str
+    price: float
+    compare_at_price: float | None
+    image: str | None
+    created_at: str
+
+class WishlistResponse(BaseModel):
+    items: List[WishlistItemResponse]
+
+
+@router.get("/me/wishlist", response_model=WishlistResponse)
+async def get_user_wishlist(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get current user's wishlist"""
+    result = await db.execute(
+        select(Wishlist)
+        .where(Wishlist.user_id == current_user.id)
+        .options(selectinload(Wishlist.product))
+        .order_by(Wishlist.created_at.desc())
+    )
+    wishlist_items = result.scalars().all()
+
+    items = []
+    for item in wishlist_items:
+        product = item.product
+        if product:
+            items.append(WishlistItemResponse(
+                id=str(item.id),
+                product_id=str(product.id),
+                name=product.name,
+                slug=product.slug,
+                price=float(product.price),
+                compare_at_price=float(product.compare_at_price) if product.compare_at_price else None,
+                image=product.images[0].url if product.images and len(product.images) > 0 else None,
+                created_at=item.created_at.isoformat()
+            ))
+
+    return WishlistResponse(items=items)
+
+
+@router.post("/me/wishlist", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+async def add_to_wishlist(
+    product_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Add product to wishlist"""
+    # Check if product exists
+    product_result = await db.execute(
+        select(Product).where(Product.id == product_id)
+    )
+    product = product_result.scalar_one_or_none()
+
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
+
+    # Check if already in wishlist
+    existing = await db.execute(
+        select(Wishlist).where(
+            Wishlist.user_id == current_user.id,
+            Wishlist.product_id == product_id
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Product already in wishlist"
+        )
+
+    # Add to wishlist
+    wishlist_item = Wishlist(
+        user_id=current_user.id,
+        product_id=product_id
+    )
+    db.add(wishlist_item)
+    await db.commit()
+
+    return MessageResponse(message="Product added to wishlist")
+
+
+@router.delete("/me/wishlist/{product_id}", response_model=MessageResponse)
+async def remove_from_wishlist(
+    product_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Remove product from wishlist"""
+    result = await db.execute(
+        select(Wishlist).where(
+            Wishlist.user_id == current_user.id,
+            Wishlist.product_id == product_id
+        )
+    )
+    wishlist_item = result.scalar_one_or_none()
+
+    if not wishlist_item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not in wishlist"
+        )
+
+    await db.delete(wishlist_item)
+    await db.commit()
+
+    return MessageResponse(message="Product removed from wishlist")

@@ -57,6 +57,59 @@
     --gradient-end: 199 89% 48%;
   }
 
+  .light {
+    /* Light mode - Bright and clean */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    /* Primary: Vibrant Cyan */
+    --primary: 187 100% 42%;
+    --primary-foreground: 0 0% 100%;
+    /* Secondary: Light gray */
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 47%;
+    /* Accent: Electric Cyan */
+    --accent: 187 100% 42%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 187 100% 42%;
+    /* Sidebar */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 187 100% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 20% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 187 100% 42%;
+    /* Additional brand colors */
+    --gold: 45 90% 51%;
+    --gold-light: 45 80% 70%;
+    --gold-dark: 40 85% 40%;
+    --cyan: 187 100% 42%;
+    --cyan-light: 187 90% 65%;
+    --cyan-dark: 187 100% 35%;
+    --navy: 222 47% 11%;
+    --navy-light: 222 40% 18%;
+    --navy-dark: 222 50% 6%;
+    /* Status colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+    /* Gradient stops */
+    --gradient-start: 187 100% 42%;
+    --gradient-end: 199 89% 48%;
+  }
+
   .dark {
     --background: 222 47% 8%;
     --foreground: 210 40% 98%;
@@ -108,7 +161,12 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors duration-300;
+  }
+
+  /* Smooth theme transitions */
+  * {
+    @apply transition-colors duration-200;
   }
 }
 

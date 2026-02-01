@@ -17,16 +17,18 @@ import {
   Truck,
   AlertCircle,
 } from 'lucide-react'
-import { ordersAPI } from '@/lib/api'
+import { ordersAPI, addressesAPI } from '@/lib/api'
 import { formatPrice, formatDate } from '@/lib/utils'
 
 interface Order {
   id: string
   order_number: string
   status: string
-  total_amount: number
+  total: number
+  total_amount?: number
   created_at: string
-  items_count: number
+  item_count: number
+  items_count?: number
 }
 
 const statusConfig: Record<string, { label: string; icon: React.ElementType; className: string }> = {
@@ -53,22 +55,32 @@ export default function AccountDashboardPage() {
   React.useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const response = await ordersAPI.list({ page_size: 5 })
-        const orders = response.data.results || []
+        const response = await ordersAPI.list({ page_size: 5 }) as any
+        const orders = Array.isArray(response) ? response : (response?.results || response?.items || [])
         setRecentOrders(orders)
 
         // Calculate stats
-        const totalOrders = response.data.count || 0
+        const totalOrders = response?.count || orders.length
         const pendingOrders = orders.filter((o: Order) =>
           ['pending', 'processing'].includes(o.status)
         ).length
+
+        // Fetch actual address count
+        let addressCount = 0
+        try {
+          const addrResponse = await addressesAPI.list()
+          const addrs = Array.isArray(addrResponse) ? addrResponse : (addrResponse?.results || addrResponse?.items || [])
+          addressCount = addrs.length
+        } catch {
+          // Ignore - default to 0
+        }
 
         setStats({
           totalOrders,
           pendingOrders,
           wishlistItems: wishlistItems.length,
           reviewsWritten: 0, // Would need a separate API call
-          savedAddresses: 2, // Would need a separate API call
+          savedAddresses: addressCount,
         })
       } catch (error: unknown) {
         // Handle 401 errors gracefully - user might not be fully authenticated yet
@@ -173,12 +185,12 @@ export default function AccountDashboardPage() {
                           Order #{order.order_number}
                         </Link>
                         <p className="text-sm text-muted-foreground">
-                          {formatDate(order.created_at)} • {order.items_count} item{order.items_count !== 1 ? 's' : ''}
+                          {formatDate(order.created_at)} • {order.item_count || order.items_count || 0} item{(order.item_count || order.items_count || 0) !== 1 ? 's' : ''}
                         </p>
                       </div>
                       <div className="flex items-center gap-4">
                         <span className="font-medium">
-                          {formatPrice(order.total_amount)}
+                          {formatPrice(order.total || order.total_amount || 0)}
                         </span>
                         <Badge variant="secondary" className={status.className}>
                           <StatusIcon className="mr-1 h-3 w-3" />

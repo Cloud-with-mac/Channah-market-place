@@ -8,135 +8,57 @@ import {
   User,
   Clock,
   CheckCircle,
-  AlertCircle,
+  XCircle,
   Sparkles,
   Bot,
-  Phone,
-  Mail,
   MoreHorizontal,
+  RefreshCw,
 } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
-import { formatRelativeTime, getInitials } from '@/lib/utils'
+import { supportAPI } from '@/lib/api'
+import { useMessagesStore, useNotificationStore } from '@/store'
 
-interface Ticket {
+interface SupportChat {
   id: string
-  customer: {
-    name: string
-    email: string
-    avatar?: string
-  }
+  customer_id: string
+  admin_id: string | null
+  status: string
   subject: string
-  status: 'open' | 'in_progress' | 'resolved' | 'closed'
-  priority: 'low' | 'medium' | 'high' | 'urgent'
   created_at: string
-  last_message: string
+  updated_at: string
+  customer_name: string | null
+  customer_email: string | null
+  admin_name: string | null
+  last_message: string | null
   unread_count: number
 }
 
-interface Message {
+interface ChatMessage {
   id: string
-  sender: 'customer' | 'admin' | 'ai'
+  chat_id: string
+  sender_id: string
+  sender_role: string
+  sender_name: string | null
   content: string
-  timestamp: string
-}
-
-// Mock tickets
-const mockTickets: Ticket[] = [
-  {
-    id: '1',
-    customer: { name: 'John Smith', email: 'john@example.com' },
-    subject: 'Order not delivered',
-    status: 'open',
-    priority: 'high',
-    created_at: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-    last_message: 'My order has not arrived yet and it\'s been 2 weeks.',
-    unread_count: 2,
-  },
-  {
-    id: '2',
-    customer: { name: 'Sarah Johnson', email: 'sarah@example.com' },
-    subject: 'Refund request',
-    status: 'in_progress',
-    priority: 'medium',
-    created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    last_message: 'I\'d like to request a refund for my recent purchase.',
-    unread_count: 0,
-  },
-  {
-    id: '3',
-    customer: { name: 'Mike Williams', email: 'mike@example.com' },
-    subject: 'Product inquiry',
-    status: 'open',
-    priority: 'low',
-    created_at: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-    last_message: 'Is this product available in blue color?',
-    unread_count: 1,
-  },
-  {
-    id: '4',
-    customer: { name: 'Emily Brown', email: 'emily@example.com' },
-    subject: 'Payment issue',
-    status: 'in_progress',
-    priority: 'urgent',
-    created_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-    last_message: 'I was charged twice for my order!',
-    unread_count: 3,
-  },
-]
-
-// Mock messages for selected ticket
-const mockMessages: Message[] = [
-  {
-    id: '1',
-    sender: 'customer',
-    content: 'Hi, I placed an order 2 weeks ago (Order #ORD-5823) and it still hasn\'t arrived. The tracking shows it\'s been stuck in transit for over a week now.',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-  },
-  {
-    id: '2',
-    sender: 'ai',
-    content: '**AI Analysis:** Based on the order details, this shipment appears to be delayed due to carrier issues. The estimated delivery was 3 days ago. **Suggested action:** Offer expedited reshipping or full refund.',
-    timestamp: new Date(Date.now() - 1000 * 60 * 55).toISOString(),
-  },
-  {
-    id: '3',
-    sender: 'customer',
-    content: 'This is really frustrating. I needed this for a gift and now it\'s too late.',
-    timestamp: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
-  },
-]
-
-function getPriorityBadge(priority: string) {
-  switch (priority) {
-    case 'urgent':
-      return <Badge variant="destructive">Urgent</Badge>
-    case 'high':
-      return <Badge className="bg-orange-500/10 text-orange-500">High</Badge>
-    case 'medium':
-      return <Badge variant="warning">Medium</Badge>
-    default:
-      return <Badge variant="secondary">Low</Badge>
-  }
+  is_read: boolean
+  created_at: string
 }
 
 function getStatusBadge(status: string) {
   switch (status) {
     case 'open':
-      return <Badge variant="info">Open</Badge>
-    case 'in_progress':
-      return <Badge variant="warning">In Progress</Badge>
-    case 'resolved':
-      return <Badge variant="success">Resolved</Badge>
+      return <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20">Open</Badge>
+    case 'active':
+      return <Badge className="bg-green-500/10 text-green-500 border-green-500/20">Active</Badge>
     case 'closed':
       return <Badge variant="secondary">Closed</Badge>
     default:
@@ -144,65 +66,160 @@ function getStatusBadge(status: string) {
   }
 }
 
+function getInitials(name: string | null) {
+  if (!name) return '?'
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+}
+
+function formatTime(dateStr: string) {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
+
 export default function SupportPage() {
   const { toast } = useToast()
+  const { setUnreadMessagesCount } = useMessagesStore()
+  const { markAsRead, notifications } = useNotificationStore()
   const [isLoading, setIsLoading] = React.useState(true)
-  const [tickets] = React.useState<Ticket[]>(mockTickets)
-  const [selectedTicket, setSelectedTicket] = React.useState<Ticket | null>(null)
-  const [messages, setMessages] = React.useState<Message[]>(mockMessages)
+  const [chats, setChats] = React.useState<SupportChat[]>([])
+  const [selectedChat, setSelectedChat] = React.useState<SupportChat | null>(null)
+  const [messages, setMessages] = React.useState<ChatMessage[]>([])
   const [newMessage, setNewMessage] = React.useState('')
-  const [isGeneratingAI, setIsGeneratingAI] = React.useState(false)
+  const [isSending, setIsSending] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState('all')
+  const [searchQuery, setSearchQuery] = React.useState('')
   const scrollRef = React.useRef<HTMLDivElement>(null)
+  const wsRef = React.useRef<WebSocket | null>(null)
 
-  React.useEffect(() => {
-    setTimeout(() => setIsLoading(false), 1000)
+  // Fetch chats
+  const fetchChats = React.useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const data = await supportAPI.getTickets()
+      const chatList = Array.isArray(data) ? data : []
+      setChats(chatList)
+    } catch (error) {
+      console.error('Failed to fetch support chats:', error)
+      setChats([])
+    } finally {
+      setIsLoading(false)
+    }
   }, [])
 
+  React.useEffect(() => {
+    fetchChats()
+    // Poll for new chats every 10 seconds
+    const interval = setInterval(fetchChats, 10000)
+    return () => clearInterval(interval)
+  }, [fetchChats])
+
+  // When on support page and chats load, recalculate unread based on actual unread_count
+  React.useEffect(() => {
+    if (chats.length > 0) {
+      const totalUnread = chats.filter(c => (c.status === 'open' || c.status === 'active') && c.unread_count > 0).length
+      setUnreadMessagesCount(totalUnread)
+    }
+  }, [chats, setUnreadMessagesCount])
+
+  // Auto-scroll
   React.useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [messages])
 
-  const filteredTickets = tickets.filter((ticket) => {
-    if (activeTab === 'all') return true
-    return ticket.status === activeTab
-  })
+  // WebSocket connection
+  React.useEffect(() => {
+    if (!selectedChat) return
 
-  const handleSendMessage = () => {
-    if (!newMessage.trim()) return
+    const wsUrl = supportAPI.getWebSocketUrl(selectedChat.id)
+    const ws = new WebSocket(wsUrl)
+    wsRef.current = ws
 
-    const message: Message = {
-      id: Date.now().toString(),
-      sender: 'admin',
-      content: newMessage,
-      timestamp: new Date().toISOString(),
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data)
+      if (data.type === 'new_message') {
+        setMessages(prev => prev.some(m => m.id === data.message.id) ? prev : [...prev, data.message])
+        // Update chat list
+        setChats(prev => prev.map(c =>
+          c.id === selectedChat.id
+            ? { ...c, last_message: data.message.content, updated_at: data.message.created_at }
+            : c
+        ))
+      }
     }
-    setMessages((prev) => [...prev, message])
-    setNewMessage('')
-    toast({
-      title: 'Message sent',
-      description: 'Your response has been sent to the customer.',
-    })
+
+    ws.onerror = () => console.error('WebSocket error')
+
+    return () => {
+      ws.close()
+      wsRef.current = null
+    }
+  }, [selectedChat?.id])
+
+  const fetchMessages = async (chatId: string) => {
+    try {
+      const data = await supportAPI.getMessages(chatId)
+      setMessages(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Failed to fetch messages:', error)
+      setMessages([])
+    }
   }
 
-  const handleGenerateAISuggestion = async () => {
-    setIsGeneratingAI(true)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+  const handleSelectChat = (chat: SupportChat) => {
+    setSelectedChat(chat)
+    fetchMessages(chat.id)
+    // Reset unread for this chat
+    setChats(prev => prev.map(c => c.id === chat.id ? { ...c, unread_count: 0 } : c))
+    // Mark related notification as read
+    const notifId = `chat-${chat.id}`
+    const notif = notifications.find(n => n.id === notifId)
+    if (notif && !notif.read) {
+      markAsRead(notifId)
+    }
+  }
 
-    const suggestion = `I sincerely apologize for the inconvenience caused by the delayed delivery. I understand how frustrating this must be, especially when you needed it for a gift.
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedChat || isSending) return
 
-I've looked into your order #ORD-5823 and can confirm the shipment is currently delayed with the carrier. To make this right, I'd like to offer you:
+    setIsSending(true)
+    try {
+      const msg = await supportAPI.sendMessage(selectedChat.id, newMessage.trim())
+      setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg])
+      setNewMessage('')
+      // Update chat list
+      setChats(prev => prev.map(c =>
+        c.id === selectedChat.id
+          ? { ...c, last_message: newMessage.trim(), updated_at: new Date().toISOString(), status: 'active' }
+          : c
+      ))
+    } catch (error) {
+      console.error('Failed to send message:', error)
+      toast({ title: 'Error', description: 'Failed to send message', variant: 'destructive' })
+    } finally {
+      setIsSending(false)
+    }
+  }
 
-1. **Full refund** for your order
-2. **Express reshipping** with priority handling (delivery within 2-3 days)
-3. **20% discount code** for your next purchase
-
-Please let me know which option works best for you, and I'll process it immediately.`
-
-    setNewMessage(suggestion)
-    setIsGeneratingAI(false)
+  const handleCloseChat = async () => {
+    if (!selectedChat) return
+    try {
+      await supportAPI.closeChat(selectedChat.id)
+      setChats(prev => prev.map(c => c.id === selectedChat.id ? { ...c, status: 'closed' } : c))
+      setSelectedChat(prev => prev ? { ...prev, status: 'closed' } : null)
+      toast({ title: 'Chat closed', description: 'The support chat has been closed.' })
+    } catch (error) {
+      console.error('Failed to close chat:', error)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -211,6 +228,19 @@ Please let me know which option works best for you, and I'll process it immediat
       handleSendMessage()
     }
   }
+
+  const filteredChats = chats.filter(chat => {
+    if (activeTab !== 'all' && chat.status !== activeTab) return false
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      return (
+        chat.subject.toLowerCase().includes(q) ||
+        (chat.customer_name || '').toLowerCase().includes(q) ||
+        (chat.customer_email || '').toLowerCase().includes(q)
+      )
+    }
+    return true
+  })
 
   if (isLoading) {
     return (
@@ -233,69 +263,95 @@ Please let me know which option works best for you, and I'll process it immediat
         <div>
           <h1 className="text-2xl font-bold font-display">Customer Support</h1>
           <p className="text-muted-foreground">
-            Manage support tickets with AI-powered suggestions
+            Live chat with customers in real-time
           </p>
         </div>
-        <Badge variant="outline" className="gap-1">
-          <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-          {tickets.filter((t) => t.status === 'open').length} Open Tickets
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={fetchChats} className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+          <Badge variant="outline" className="gap-1">
+            <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+            {chats.filter(c => c.status === 'open').length} Open
+          </Badge>
+          <Badge variant="outline" className="gap-1">
+            <span className="h-2 w-2 rounded-full bg-blue-500" />
+            {chats.filter(c => c.status === 'active').length} Active
+          </Badge>
+        </div>
       </div>
 
-      <div className="flex-1 flex gap-6 min-h-0">
-        {/* Tickets List */}
-        <div className="w-80 flex flex-col">
+      <div className="flex-1 flex flex-col lg:flex-row gap-4 lg:gap-6 min-h-0">
+        {/* Chat List */}
+        <div className="w-full lg:w-80 flex flex-col">
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search tickets..." className="pl-9" />
+            <Input
+              placeholder="Search chats..."
+              className="pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
             <TabsList className="w-full">
               <TabsTrigger value="all" className="flex-1">All</TabsTrigger>
               <TabsTrigger value="open" className="flex-1">Open</TabsTrigger>
-              <TabsTrigger value="in_progress" className="flex-1">Active</TabsTrigger>
+              <TabsTrigger value="active" className="flex-1">Active</TabsTrigger>
+              <TabsTrigger value="closed" className="flex-1">Closed</TabsTrigger>
             </TabsList>
           </Tabs>
 
-          <ScrollArea className="flex-1">
-            <div className="space-y-2 pr-4">
-              {filteredTickets.map((ticket) => (
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+            {filteredChats.length === 0 ? (
+              <div className="text-center py-12">
+                <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-sm font-medium">No chats found</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Customer support chats will appear here
+                </p>
+              </div>
+            ) : (
+              filteredChats.map((chat) => (
                 <Card
-                  key={ticket.id}
+                  key={chat.id}
                   className={cn(
                     'cursor-pointer transition-colors',
-                    selectedTicket?.id === ticket.id
+                    selectedChat?.id === chat.id
                       ? 'border-primary bg-primary/5'
                       : 'hover:bg-muted/50'
                   )}
-                  onClick={() => setSelectedTicket(ticket)}
+                  onClick={() => handleSelectChat(chat)}
                 >
                   <CardContent className="p-3">
                     <div className="flex items-start gap-3">
                       <Avatar className="h-9 w-9">
-                        <AvatarImage src={ticket.customer.avatar} />
-                        <AvatarFallback>
-                          {getInitials(ticket.customer.name)}
-                        </AvatarFallback>
+                        <AvatarFallback>{getInitials(chat.customer_name)}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-medium truncate">
-                            {ticket.customer.name}
+                            {chat.customer_name || chat.customer_email || 'Customer'}
                           </p>
                           <span className="text-xs text-muted-foreground">
-                            {formatRelativeTime(ticket.created_at)}
+                            {formatTime(chat.updated_at)}
                           </span>
                         </div>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {ticket.subject}
+                        <p className="text-xs font-medium text-muted-foreground truncate mt-0.5">
+                          {chat.subject}
                         </p>
+                        {chat.last_message && (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            {chat.last_message}
+                          </p>
+                        )}
                         <div className="flex items-center gap-2 mt-1">
-                          {getPriorityBadge(ticket.priority)}
-                          {ticket.unread_count > 0 && (
-                            <Badge variant="destructive" className="h-5 w-5 p-0 justify-center">
-                              {ticket.unread_count}
+                          {getStatusBadge(chat.status)}
+                          {chat.unread_count > 0 && (
+                            <Badge variant="destructive" className="h-5 min-w-[20px] p-0 justify-center text-[10px]">
+                              {chat.unread_count}
                             </Badge>
                           )}
                         </div>
@@ -303,184 +359,164 @@ Please let me know which option works best for you, and I'll process it immediat
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          </ScrollArea>
+              ))
+            )}
+          </div>
         </div>
 
         {/* Chat Area */}
-        {selectedTicket ? (
-          <Card className="flex-1 flex flex-col">
-            {/* Chat Header */}
-            <div className="p-4 border-b flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={selectedTicket.customer.avatar} />
-                  <AvatarFallback>
-                    {getInitials(selectedTicket.customer.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium">{selectedTicket.customer.name}</p>
-                    {getStatusBadge(selectedTicket.status)}
+        {selectedChat ? (
+          <div className="flex-1 flex flex-col xl:flex-row gap-4 lg:gap-6 min-h-0">
+            <Card className="flex-1 flex flex-col min-h-0">
+              {/* Chat Header */}
+              <div className="p-4 border-b flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback>{getInitials(selectedChat.customer_name)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">
+                        {selectedChat.customer_name || selectedChat.customer_email || 'Customer'}
+                      </p>
+                      {getStatusBadge(selectedChat.status)}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{selectedChat.subject}</p>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedTicket.subject}
-                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {selectedChat.status !== 'closed' && (
+                    <Button variant="outline" size="sm" onClick={handleCloseChat} className="gap-1">
+                      <XCircle className="h-4 w-4" />
+                      Close Chat
+                    </Button>
+                  )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon">
-                  <Phone className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <Mail className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
 
-            {/* Messages */}
-            <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={cn(
-                      'flex gap-3',
-                      message.sender === 'admin' && 'justify-end'
-                    )}
-                  >
-                    {message.sender !== 'admin' && (
-                      <Avatar className="h-8 w-8 shrink-0">
-                        {message.sender === 'ai' ? (
-                          <AvatarFallback className="bg-gradient-premium text-white">
-                            <Bot className="h-4 w-4" />
-                          </AvatarFallback>
-                        ) : (
-                          <AvatarFallback>
-                            {getInitials(selectedTicket.customer.name)}
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                    )}
-                    <div
-                      className={cn(
-                        'rounded-lg p-3 max-w-[70%]',
-                        message.sender === 'admin'
-                          ? 'bg-primary text-primary-foreground'
-                          : message.sender === 'ai'
-                          ? 'bg-gradient-premium-light border border-primary/20'
-                          : 'bg-muted'
-                      )}
-                    >
-                      {message.sender === 'ai' && (
-                        <div className="flex items-center gap-1 text-xs text-primary mb-2">
-                          <Sparkles className="h-3 w-3" />
-                          AI Suggestion
-                        </div>
-                      )}
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                      <p className="text-xs opacity-70 mt-1">
-                        {formatRelativeTime(message.timestamp)}
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto p-4" ref={scrollRef}>
+                <div className="space-y-4">
+                  {messages.length === 0 ? (
+                    <div className="text-center py-12">
+                      <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-sm font-medium">No messages yet</h3>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Start the conversation by sending a message
                       </p>
                     </div>
-                    {message.sender === 'admin' && (
-                      <Avatar className="h-8 w-8 shrink-0">
-                        <AvatarFallback className="bg-secondary">
-                          <User className="h-4 w-4" />
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                  </div>
-                ))}
+                  ) : (
+                    messages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={cn(
+                          'flex gap-3',
+                          message.sender_role === 'admin' && 'justify-end'
+                        )}
+                      >
+                        {message.sender_role !== 'admin' && (
+                          <Avatar className="h-8 w-8 shrink-0">
+                            <AvatarFallback>{getInitials(message.sender_name)}</AvatarFallback>
+                          </Avatar>
+                        )}
+                        <div
+                          className={cn(
+                            'rounded-lg p-3 max-w-[70%]',
+                            message.sender_role === 'admin'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted'
+                          )}
+                        >
+                          <p className="text-xs font-medium mb-1 opacity-80">
+                            {message.sender_name || (message.sender_role === 'admin' ? 'Admin' : 'Customer')}
+                          </p>
+                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                          <p className="text-xs opacity-60 mt-1">
+                            {formatTime(message.created_at)}
+                          </p>
+                        </div>
+                        {message.sender_role === 'admin' && (
+                          <Avatar className="h-8 w-8 shrink-0">
+                            <AvatarFallback className="bg-primary/10 text-primary">
+                              <User className="h-4 w-4" />
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
-            </ScrollArea>
 
-            {/* Input Area */}
-            <div className="p-4 border-t space-y-3">
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleGenerateAISuggestion}
-                  disabled={isGeneratingAI}
-                >
-                  <Sparkles className={cn('h-4 w-4 mr-2', isGeneratingAI && 'animate-spin')} />
-                  {isGeneratingAI ? 'Generating...' : 'AI Suggest'}
-                </Button>
-                <Button variant="outline" size="sm">
-                  Mark Resolved
-                </Button>
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type your response..."
-                  className="flex-1"
-                />
-                <Button onClick={handleSendMessage} disabled={!newMessage.trim()}>
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </Card>
+              {/* Input Area */}
+              {selectedChat.status !== 'closed' ? (
+                <div className="p-4 border-t">
+                  <div className="flex gap-2">
+                    <Input
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Type your response..."
+                      className="flex-1"
+                      disabled={isSending}
+                    />
+                    <Button onClick={handleSendMessage} disabled={!newMessage.trim() || isSending}>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 border-t text-center text-sm text-muted-foreground">
+                  This chat has been closed.
+                </div>
+              )}
+            </Card>
+
+            {/* Customer Info Sidebar */}
+            <Card className="w-full xl:w-64">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Customer Info</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Name</p>
+                  <p className="text-sm font-medium">{selectedChat.customer_name || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Email</p>
+                  <p className="text-sm text-primary break-all">{selectedChat.customer_email || '-'}</p>
+                </div>
+                <Separator />
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Subject</p>
+                  <p className="text-sm">{selectedChat.subject}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Status</p>
+                  {getStatusBadge(selectedChat.status)}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Created</p>
+                  <p className="text-sm">{new Date(selectedChat.created_at).toLocaleString()}</p>
+                </div>
+                {selectedChat.admin_name && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Assigned To</p>
+                    <p className="text-sm">{selectedChat.admin_name}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         ) : (
           <Card className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium">Select a ticket</h3>
+              <h3 className="text-lg font-medium">Select a chat</h3>
               <p className="text-sm text-muted-foreground">
-                Choose a ticket from the list to view the conversation
+                Choose a chat from the list to view the conversation
               </p>
             </div>
-          </Card>
-        )}
-
-        {/* Customer Info Sidebar */}
-        {selectedTicket && (
-          <Card className="w-64 hidden xl:block">
-            <CardHeader>
-              <CardTitle className="text-sm">Customer Info</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Email</p>
-                <p className="text-sm">{selectedTicket.customer.email}</p>
-              </div>
-              <Separator />
-              <div>
-                <p className="text-xs text-muted-foreground">Total Orders</p>
-                <p className="text-sm font-medium">12</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Customer Since</p>
-                <p className="text-sm">Jan 2024</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Total Spent</p>
-                <p className="text-sm font-medium">£1,250.00</p>
-              </div>
-              <Separator />
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Recent Orders</p>
-                <div className="space-y-2">
-                  <div className="text-xs p-2 bg-muted rounded">
-                    <p className="font-medium">#ORD-5823</p>
-                    <p className="text-muted-foreground">£89.99 • In Transit</p>
-                  </div>
-                  <div className="text-xs p-2 bg-muted rounded">
-                    <p className="font-medium">#ORD-5701</p>
-                    <p className="text-muted-foreground">£145.00 • Delivered</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
           </Card>
         )}
       </div>

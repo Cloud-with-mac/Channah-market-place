@@ -12,9 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { vendorSettingsAPI } from '@/lib/api'
 import { useAuthStore } from '@/store'
+import { useToast } from '@/hooks/use-toast'
 
 export default function VendorSettingsPage() {
   const { user, updateUser } = useAuthStore()
+  const { toast } = useToast()
   const [isLoading, setIsLoading] = React.useState(true)
   const [isSaving, setIsSaving] = React.useState(false)
   const [profile, setProfile] = React.useState({
@@ -88,8 +90,9 @@ export default function VendorSettingsPage() {
     setIsSaving(true)
     try {
       await vendorSettingsAPI.updateProfile(profile)
+      toast({ title: 'Saved', description: 'Profile settings saved successfully.' })
     } catch (error) {
-      console.error('Failed to save profile:', error)
+      toast({ title: 'Error', description: 'Failed to save profile settings.', variant: 'destructive' })
     } finally {
       setIsSaving(false)
     }
@@ -99,8 +102,9 @@ export default function VendorSettingsPage() {
     setIsSaving(true)
     try {
       await vendorSettingsAPI.updatePaymentSettings(payment)
+      toast({ title: 'Saved', description: 'Payment settings saved successfully.' })
     } catch (error) {
-      console.error('Failed to save payment settings:', error)
+      toast({ title: 'Error', description: 'Failed to save payment settings.', variant: 'destructive' })
     } finally {
       setIsSaving(false)
     }
@@ -110,8 +114,9 @@ export default function VendorSettingsPage() {
     setIsSaving(true)
     try {
       await vendorSettingsAPI.updateNotificationSettings(notifications)
+      toast({ title: 'Saved', description: 'Notification settings saved successfully.' })
     } catch (error) {
-      console.error('Failed to save notification settings:', error)
+      toast({ title: 'Error', description: 'Failed to save notification settings.', variant: 'destructive' })
     } finally {
       setIsSaving(false)
     }

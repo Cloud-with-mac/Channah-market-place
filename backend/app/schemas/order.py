@@ -142,19 +142,19 @@ class OrderTrackingResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    # Shipping address
-    shipping_first_name: str
-    shipping_last_name: str
-    shipping_city: str
-    shipping_state: Optional[str]
-    shipping_country: str
+    # Shipping address (None when email not verified)
+    shipping_first_name: Optional[str] = None
+    shipping_last_name: Optional[str] = None
+    shipping_city: Optional[str] = None
+    shipping_state: Optional[str] = None
+    shipping_country: Optional[str] = None
 
-    # Prices
-    subtotal: Decimal
-    shipping_cost: Decimal
-    tax: Decimal
-    total: Decimal
-    currency: str
+    # Prices (None when email not verified)
+    subtotal: Optional[Decimal] = None
+    shipping_cost: Optional[Decimal] = None
+    tax: Optional[Decimal] = None
+    total: Optional[Decimal] = None
+    currency: Optional[str] = None
 
     # Tracking info
     tracking_number: Optional[str]

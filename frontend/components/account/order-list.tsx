@@ -34,6 +34,7 @@ interface Order {
   total?: number
   currency?: string
   created_at: string
+  item_count?: number
   items: OrderItem[]
 }
 
@@ -134,7 +135,7 @@ export function OrderList({ orders }: OrderListProps) {
                   {/* Order Summary */}
                   <div className="flex-1">
                     <p className="text-sm text-muted-foreground">
-                      {items.length} item{items.length !== 1 ? 's' : ''}
+                      {(order.item_count || items.length)} item{(order.item_count || items.length) !== 1 ? 's' : ''}
                     </p>
                     <p className="font-semibold mt-1">
                       {formatPrice(order.total ?? order.total_amount, order.currency)}

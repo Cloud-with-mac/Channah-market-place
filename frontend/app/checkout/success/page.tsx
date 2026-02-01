@@ -12,6 +12,9 @@ import { Separator } from '@/components/ui/separator'
 function CheckoutSuccessContent() {
   const searchParams = useSearchParams()
   const orderNumber = searchParams.get('order') || 'CM-' + Math.random().toString(36).substring(2, 8).toUpperCase()
+  const deliveryParam = searchParams.get('delivery')
+  const estimatedDelivery = deliveryParam ? new Date(deliveryParam) : null
+  const daysUntilDelivery = estimatedDelivery ? Math.ceil((estimatedDelivery.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null
 
   return (
     <div className="container mx-auto px-4 py-16">
@@ -61,7 +64,7 @@ function CheckoutSuccessContent() {
               </div>
               <div className="text-left">
                 <p className="font-medium text-sm text-muted-foreground">Processing</p>
-                <p className="text-xs text-muted-foreground">1-2 business days</p>
+                <p className="text-xs text-muted-foreground">Vendor is preparing your order</p>
               </div>
             </div>
 
@@ -72,8 +75,10 @@ function CheckoutSuccessContent() {
                 <Truck className="h-5 w-5 text-muted-foreground" />
               </div>
               <div className="text-left">
-                <p className="font-medium text-sm text-muted-foreground">Shipped</p>
-                <p className="text-xs text-muted-foreground">3-7 business days</p>
+                <p className="font-medium text-sm text-muted-foreground">Estimated Delivery</p>
+                <p className="text-xs text-muted-foreground">
+                  {daysUntilDelivery ? `~${daysUntilDelivery} business days` : 'Vendor will update tracking'}
+                </p>
               </div>
             </div>
           </div>

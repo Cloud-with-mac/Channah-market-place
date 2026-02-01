@@ -50,7 +50,7 @@ export default function VendorLoginPage() {
 
     try {
       const response = await authAPI.login(data.email, data.password)
-      const { access_token, user } = response.data
+      const { access_token, user } = response
 
       // Check if user is a vendor
       if (user.role !== 'vendor') {

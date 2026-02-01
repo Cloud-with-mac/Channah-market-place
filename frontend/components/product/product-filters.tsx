@@ -516,23 +516,38 @@ export function ProductFilters({
 
   return (
     <>
-      {/* Desktop Filters */}
-      <aside className={cn('hidden lg:block w-64 flex-shrink-0', className)}>
-        <div className="sticky top-4 bg-card rounded-lg border border-border p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-lg">Filters</h2>
-            {hasActiveFilters && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleResetFilters}
-                className="text-xs h-7 text-muted-foreground hover:text-foreground"
-              >
-                Clear all
-              </Button>
-            )}
+      {/* Desktop Filters - Alibaba Style Sticky Sidebar */}
+      <aside className={cn('hidden lg:block w-72 flex-shrink-0', className)}>
+        <div className="sticky top-20 bg-background rounded-xl border border-border shadow-sm overflow-hidden">
+          {/* Header */}
+          <div className="bg-primary/5 px-5 py-4 border-b border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="h-5 w-5 text-primary" />
+                <h2 className="font-bold text-base">Filters</h2>
+                {activeFilterCount > 0 && (
+                  <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </div>
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleResetFilters}
+                  className="text-xs h-8 text-primary hover:text-primary/90 hover:bg-primary/10 font-medium"
+                >
+                  Clear all
+                </Button>
+              )}
+            </div>
           </div>
-          <FilterContent />
+
+          {/* Filter Content with scroll */}
+          <div className="max-h-[calc(100vh-12rem)] overflow-y-auto p-5">
+            <FilterContent />
+          </div>
         </div>
       </aside>
 

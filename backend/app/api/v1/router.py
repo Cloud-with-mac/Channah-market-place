@@ -18,6 +18,8 @@ from app.api.v1.endpoints import (
     upload,
     customer_vendor_chat,
     websocket,
+    contact,
+    support_chat,
 )
 
 api_router = APIRouter()
@@ -72,3 +74,9 @@ api_router.include_router(customer_vendor_chat.router, prefix="/chats", tags=["C
 
 # WebSocket
 api_router.include_router(websocket.router, tags=["WebSocket"])
+
+# Support Chat
+api_router.include_router(support_chat.router, prefix="/support-chat", tags=["Support Chat"])
+
+# Contact & Newsletter
+api_router.include_router(contact.router, tags=["Contact"])

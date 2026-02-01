@@ -137,7 +137,7 @@ export default function AdminLayout({
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                 <Avatar className="h-9 w-9">
-                  <AvatarImage src={user?.avatar_url} alt={user?.first_name || 'Admin'} />
+                  <AvatarImage src={user?.avatar_url || undefined} alt={user?.first_name || 'Admin'} />
                   <AvatarFallback>
                     {user?.first_name?.charAt(0).toUpperCase() || 'A'}
                   </AvatarFallback>

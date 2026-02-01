@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, Sparkles, Bot, ArrowRight, ShieldCheck, Zap, Globe, Loader2 } from 'lucide-react'
@@ -13,12 +13,20 @@ function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/'
-  const { login } = useAuthStore()
+  const { login, isAuthenticated } = useAuthStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace(redirect)
+    }
+  }, [isAuthenticated, redirect, router])
+
+  if (isAuthenticated) return null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,7 +34,7 @@ function LoginContent() {
     setIsLoading(true)
 
     try {
-      const { data } = await authAPI.login(email, password)
+      const data = await authAPI.login(email, password) as any
       const user = data.user
       const accessToken = data.access || data.access_token
       const refreshToken = data.refresh || data.refresh_token
@@ -55,7 +63,7 @@ function LoginContent() {
       if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
         setError('Connection timeout. Please check if the server is running.')
       } else if (err.code === 'ERR_NETWORK' || !err.response) {
-        setError('Network error. Please check your connection and ensure the backend server is running on http://localhost:8000')
+        setError('Network error. Please check your connection and try again.')
       } else {
         setError(err.response?.data?.detail || 'Login failed. Please check your credentials.')
       }
@@ -76,7 +84,7 @@ function LoginContent() {
                 <span className="text-2xl font-display">C</span>
               </div>
               <div className="flex flex-col text-left">
-                <span className="text-2xl font-bold font-display text-gradient-premium">Channah</span>
+                <span className="text-2xl font-bold font-display text-gradient-premium">Vendora</span>
                 <span className="text-[10px] font-semibold text-cyan uppercase tracking-wider -mt-1">Global Marketplace</span>
               </div>
             </Link>
@@ -204,7 +212,7 @@ function LoginContent() {
 
           <div className="pt-4 border-t border-border">
             <p className="text-center text-sm text-muted-foreground">
-              Want to sell on Channah?{' '}
+              Want to sell on Vendora?{' '}
               <Link href="/seller/login" className="text-emerald-500 hover:text-emerald-400 font-medium transition-colors">
                 Seller Login
               </Link>
@@ -237,7 +245,7 @@ function LoginContent() {
                 AI-Powered
               </Badge>
               <h2 className="text-3xl font-bold font-display mb-4">
-                Meet Channah AI
+                Meet Vendora AI
               </h2>
               <p className="text-white/70 leading-relaxed">
                 Your intelligent shopping assistant. Get personalized recommendations, compare products, find the best deals, and shop smarter.

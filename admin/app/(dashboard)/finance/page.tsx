@@ -17,8 +17,10 @@ import {
   XCircle,
   Search,
   Filter,
-  MoreVertical,
   Eye,
+  Plus,
+  Trash2,
+  Star,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -35,14 +37,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+// Dropdown imports removed - using inline buttons instead
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { formatPrice, formatNumber, formatRelativeTime } from '@/lib/utils'
-import { dashboardAPI } from '@/lib/api'
+import { dashboardAPI, financeAPI } from '@/lib/api'
+import { useToast } from '@/hooks/use-toast'
 import {
   AreaChart,
   Area,
@@ -75,7 +83,298 @@ interface Transaction {
   date: string
 }
 
+interface SellerPlan {
+  id: string
+  name: string
+  description: string
+  commission_rate: number
+  features: string[]
+  is_popular: boolean
+}
+
+function SellerPlansManager() {
+  const { toast } = useToast()
+  const [plans, setPlans] = React.useState<SellerPlan[]>([])
+  const [isLoading, setIsLoading] = React.useState(true)
+  const [isSaving, setIsSaving] = React.useState(false)
+  const [newFeature, setNewFeature] = React.useState<Record<string, string>>({})
+
+  React.useEffect(() => {
+    const fetch = async () => {
+      try {
+        const data = await financeAPI.getSellerPlans()
+        if (Array.isArray(data)) setPlans(data)
+      } catch {
+        // defaults
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetch()
+  }, [])
+
+  const updatePlan = (index: number, field: keyof SellerPlan, value: any) => {
+    setPlans(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p))
+  }
+
+  const addFeature = (planIndex: number) => {
+    const text = newFeature[planIndex] || ''
+    if (!text.trim()) return
+    setPlans(prev => prev.map((p, i) => i === planIndex ? { ...p, features: [...p.features, text.trim()] } : p))
+    setNewFeature(prev => ({ ...prev, [planIndex]: '' }))
+  }
+
+  const removeFeature = (planIndex: number, featureIndex: number) => {
+    setPlans(prev => prev.map((p, i) => i === planIndex ? { ...p, features: p.features.filter((_, fi) => fi !== featureIndex) } : p))
+  }
+
+  const setPopular = (planIndex: number) => {
+    setPlans(prev => prev.map((p, i) => ({ ...p, is_popular: i === planIndex })))
+  }
+
+  const addPlan = () => {
+    const id = `plan_${Date.now()}`
+    setPlans(prev => [...prev, { id, name: 'New Plan', description: '', commission_rate: 10, features: [], is_popular: false }])
+  }
+
+  const removePlan = (index: number) => {
+    setPlans(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      await financeAPI.updateSellerPlans(plans)
+      toast({ title: 'Saved', description: 'Seller plans updated successfully' })
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save seller plans', variant: 'destructive' })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (isLoading) {
+    return <Card><CardContent className="p-6"><Skeleton className="h-60 w-full" /></CardContent></Card>
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Seller Plans</CardTitle>
+            <CardDescription>Manage the plans displayed on the &quot;Sell on Vendora&quot; page</CardDescription>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={addPlan}>
+              <Plus className="h-4 w-4 mr-2" /> Add Plan
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save All Plans'}
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {plans.map((plan, planIndex) => (
+        <Card key={plan.id} className={plan.is_popular ? 'border-primary/50 border-2' : ''}>
+          <CardHeader className="flex flex-row items-start justify-between gap-4">
+            <div className="flex-1 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Plan Name</Label>
+                  <Input
+                    value={plan.name}
+                    onChange={(e) => updatePlan(planIndex, 'name', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Commission Rate (%)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    value={plan.commission_rate}
+                    onChange={(e) => updatePlan(planIndex, 'commission_rate', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Description</Label>
+                <Input
+                  value={plan.description}
+                  onChange={(e) => updatePlan(planIndex, 'description', e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 items-end">
+              <Button
+                variant={plan.is_popular ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPopular(planIndex)}
+              >
+                <Star className={`h-4 w-4 mr-1 ${plan.is_popular ? 'fill-current' : ''}`} />
+                {plan.is_popular ? 'Popular' : 'Set Popular'}
+              </Button>
+              {plans.length > 1 && (
+                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removePlan(planIndex)}>
+                  <Trash2 className="h-4 w-4 mr-1" /> Remove
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Label className="text-xs text-muted-foreground mb-2 block">Features</Label>
+            <div className="space-y-2">
+              {plan.features.map((feature, fi) => (
+                <div key={fi} className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                  <span className="flex-1 text-sm">{feature}</span>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeFeature(planIndex, fi)}>
+                    <XCircle className="h-3 w-3 text-muted-foreground" />
+                  </Button>
+                </div>
+              ))}
+              <div className="flex gap-2 mt-2">
+                <Input
+                  placeholder="Add a feature..."
+                  value={newFeature[planIndex] || ''}
+                  onChange={(e) => setNewFeature(prev => ({ ...prev, [planIndex]: e.target.value }))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFeature(planIndex) } }}
+                  className="text-sm"
+                />
+                <Button variant="outline" size="sm" onClick={() => addFeature(planIndex)}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  )
+}
+
+function CommissionSettings() {
+  const { toast } = useToast()
+  const [isLoading, setIsLoading] = React.useState(true)
+  const [isSaving, setIsSaving] = React.useState(false)
+  const [commissionRate, setCommissionRate] = React.useState('10')
+  const [minPayout, setMinPayout] = React.useState('10')
+  const [payoutSchedule, setPayoutSchedule] = React.useState('weekly')
+
+  React.useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const data = await financeAPI.getCommissionSettings()
+        setCommissionRate(String(data.commission_rate ?? 10))
+        setMinPayout(String(data.min_payout_amount ?? 10))
+        setPayoutSchedule(data.payout_schedule ?? 'weekly')
+      } catch {
+        // defaults are fine
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchSettings()
+  }, [])
+
+  const handleSave = async () => {
+    const rate = parseFloat(commissionRate)
+    if (isNaN(rate) || rate < 0 || rate > 100) {
+      toast({ title: 'Error', description: 'Commission rate must be between 0 and 100', variant: 'destructive' })
+      return
+    }
+    setIsSaving(true)
+    try {
+      await financeAPI.updateCommissionSettings({
+        commission_rate: rate,
+        min_payout_amount: parseFloat(minPayout) || 10,
+        payout_schedule: payoutSchedule,
+      })
+      toast({ title: 'Saved', description: 'Commission settings updated successfully' })
+    } catch {
+      toast({ title: 'Error', description: 'Failed to save settings', variant: 'destructive' })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (isLoading) {
+    return <Card><CardContent className="p-6"><Skeleton className="h-40 w-full" /></CardContent></Card>
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Commission Settings</CardTitle>
+        <CardDescription>Configure the platform commission rate applied to all sales</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6 max-w-md">
+          <div className="space-y-2">
+            <Label htmlFor="commission-rate">Default Commission Rate (%)</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="commission-rate"
+                type="number"
+                min="0"
+                max="100"
+                step="0.5"
+                value={commissionRate}
+                onChange={(e) => setCommissionRate(e.target.value)}
+                className="w-32"
+              />
+              <span className="text-muted-foreground">%</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Applied to new vendors. Existing vendors keep their current rate unless changed individually.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="min-payout">Minimum Payout Amount ($)</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="min-payout"
+                type="number"
+                min="1"
+                step="1"
+                value={minPayout}
+                onChange={(e) => setMinPayout(e.target.value)}
+                className="w-32"
+              />
+              <span className="text-muted-foreground">USD</span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="payout-schedule">Payout Schedule</Label>
+            <Select value={payoutSchedule} onValueChange={setPayoutSchedule}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="daily">Daily</SelectItem>
+                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="biweekly">Bi-weekly</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving ? 'Saving...' : 'Save Settings'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function FinancePage() {
+  const { toast } = useToast()
   const [isLoading, setIsLoading] = React.useState(true)
   const [period, setPeriod] = React.useState('30d')
   const [payoutStatus, setPayoutStatus] = React.useState('all')
@@ -83,38 +382,39 @@ export default function FinancePage() {
   const [stats, setStats] = React.useState<any>(null)
   const [revenueData, setRevenueData] = React.useState<any[]>([])
 
-  // Sample payouts data
-  const [payouts] = React.useState<Payout[]>([
-    { id: '1', vendor_name: 'TechStore Pro', amount: 2450.00, status: 'pending', method: 'Bank Transfer', requested_at: new Date().toISOString() },
-    { id: '2', vendor_name: 'Fashion Hub', amount: 1890.50, status: 'processing', method: 'PayPal', requested_at: new Date(Date.now() - 86400000).toISOString() },
-    { id: '3', vendor_name: 'Home Essentials', amount: 3200.00, status: 'completed', method: 'Bank Transfer', requested_at: new Date(Date.now() - 172800000).toISOString(), processed_at: new Date().toISOString() },
-    { id: '4', vendor_name: 'Sports Zone', amount: 780.25, status: 'failed', method: 'Bank Transfer', requested_at: new Date(Date.now() - 259200000).toISOString() },
-    { id: '5', vendor_name: 'Beauty Haven', amount: 1560.00, status: 'pending', method: 'Stripe', requested_at: new Date(Date.now() - 345600000).toISOString() },
-  ])
-
-  // Sample transactions
-  const [transactions] = React.useState<Transaction[]>([
-    { id: '1', type: 'order', description: 'Order #ORD-2024-0089', amount: 245.00, status: 'completed', date: new Date().toISOString() },
-    { id: '2', type: 'commission', description: 'Commission from TechStore Pro', amount: 24.50, status: 'completed', date: new Date().toISOString() },
-    { id: '3', type: 'refund', description: 'Refund for Order #ORD-2024-0078', amount: -89.99, status: 'completed', date: new Date(Date.now() - 86400000).toISOString() },
-    { id: '4', type: 'payout', description: 'Payout to Fashion Hub', amount: -1890.50, status: 'processing', date: new Date(Date.now() - 172800000).toISOString() },
-    { id: '5', type: 'order', description: 'Order #ORD-2024-0088', amount: 567.00, status: 'completed', date: new Date(Date.now() - 259200000).toISOString() },
-  ])
+  const [payouts, setPayouts] = React.useState<Payout[]>([])
+  const [transactions, setTransactions] = React.useState<Transaction[]>([])
+  const [selectedPayout, setSelectedPayout] = React.useState<Payout | null>(null)
+  const [detailDialogOpen, setDetailDialogOpen] = React.useState(false)
+  const [rejectDialogOpen, setRejectDialogOpen] = React.useState(false)
+  const [rejectReason, setRejectReason] = React.useState('')
+  const [isProcessing, setIsProcessing] = React.useState(false)
 
   React.useEffect(() => {
     const fetchData = async () => {
       try {
         const days = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 365
-        const [statsRes, revenueRes] = await Promise.allSettled([
+        const [statsRes, revenueRes, payoutsRes, transactionsRes] = await Promise.allSettled([
           dashboardAPI.getKPIs(),
           dashboardAPI.getRevenueChart(days),
+          financeAPI.getPayouts(),
+          financeAPI.getTransactions(),
         ])
 
         if (statsRes.status === 'fulfilled') {
-          setStats(statsRes.value.data)
+          setStats(statsRes.value)
         }
         if (revenueRes.status === 'fulfilled') {
-          setRevenueData(revenueRes.value.data || [])
+          const chartData = Array.isArray(revenueRes.value) ? revenueRes.value : revenueRes.value?.data || []
+          setRevenueData(chartData)
+        }
+        if (payoutsRes.status === 'fulfilled') {
+          const payoutList = Array.isArray(payoutsRes.value) ? payoutsRes.value : payoutsRes.value?.payouts || payoutsRes.value?.items || []
+          setPayouts(payoutList)
+        }
+        if (transactionsRes.status === 'fulfilled') {
+          const txList = Array.isArray(transactionsRes.value) ? transactionsRes.value : transactionsRes.value?.transactions || transactionsRes.value?.items || []
+          setTransactions(txList)
         }
       } catch (error) {
         console.error('Failed to fetch finance data:', error)
@@ -138,6 +438,36 @@ export default function FinancePage() {
         return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />Failed</Badge>
       default:
         return <Badge>{status}</Badge>
+    }
+  }
+
+  const handleProcessPayout = async (payout: Payout) => {
+    setIsProcessing(true)
+    try {
+      await financeAPI.processPayout(payout.id)
+      setPayouts(prev => prev.map(p => p.id === payout.id ? { ...p, status: 'completed' as const } : p))
+      toast({ title: 'Payout processed', description: `${formatPrice(payout.amount, 'USD')} to ${payout.vendor_name}` })
+    } catch (error: any) {
+      toast({ title: 'Error', description: error?.response?.data?.detail || 'Failed to process payout', variant: 'destructive' })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleRejectPayout = async () => {
+    if (!selectedPayout) return
+    setIsProcessing(true)
+    try {
+      await financeAPI.rejectPayout(selectedPayout.id, rejectReason || 'Rejected by admin')
+      setPayouts(prev => prev.map(p => p.id === selectedPayout.id ? { ...p, status: 'failed' as const } : p))
+      toast({ title: 'Payout rejected', description: `Balance refunded to ${selectedPayout.vendor_name}` })
+      setRejectDialogOpen(false)
+      setRejectReason('')
+      setSelectedPayout(null)
+    } catch (error: any) {
+      toast({ title: 'Error', description: error?.response?.data?.detail || 'Failed to reject payout', variant: 'destructive' })
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -268,6 +598,7 @@ export default function FinancePage() {
           <TabsTrigger value="payouts">Payouts</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
           <TabsTrigger value="commissions">Commissions</TabsTrigger>
+          <TabsTrigger value="seller-plans">Seller Plans</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -386,31 +717,36 @@ export default function FinancePage() {
                       <TableCell>{getPayoutStatusBadge(payout.status)}</TableCell>
                       <TableCell>{formatRelativeTime(payout.requested_at)}</TableCell>
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <Eye className="mr-2 h-4 w-4" />
-                              View Details
-                            </DropdownMenuItem>
-                            {payout.status === 'pending' && (
-                              <>
-                                <DropdownMenuItem>
-                                  <CheckCircle className="mr-2 h-4 w-4" />
-                                  Process Payout
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive">
-                                  <XCircle className="mr-2 h-4 w-4" />
-                                  Reject
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setSelectedPayout(payout); setDetailDialogOpen(true) }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {payout.status === 'pending' && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                onClick={() => handleProcessPayout(payout)}
+                                disabled={isProcessing}
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => { setSelectedPayout(payout); setRejectDialogOpen(true) }}
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -464,35 +800,92 @@ export default function FinancePage() {
         </TabsContent>
 
         <TabsContent value="commissions">
-          <Card>
-            <CardHeader>
-              <CardTitle>Commission Settings</CardTitle>
-              <CardDescription>Platform commission rates by vendor tier</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {[
-                  { tier: 'Standard', rate: 10, description: 'Default rate for new vendors' },
-                  { tier: 'Silver', rate: 8, description: 'Vendors with $5,000+ monthly sales' },
-                  { tier: 'Gold', rate: 6, description: 'Vendors with $20,000+ monthly sales' },
-                  { tier: 'Platinum', rate: 4, description: 'Vendors with $50,000+ monthly sales' },
-                ].map((tier) => (
-                  <div key={tier.tier} className="flex items-center justify-between p-4 rounded-lg border">
-                    <div>
-                      <p className="font-bold">{tier.tier}</p>
-                      <p className="text-sm text-muted-foreground">{tier.description}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-primary">{tier.rate}%</p>
-                      <p className="text-xs text-muted-foreground">commission</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <CommissionSettings />
+        </TabsContent>
+
+        <TabsContent value="seller-plans">
+          <SellerPlansManager />
         </TabsContent>
       </Tabs>
+
+      {/* View Details Dialog */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Payout Details</DialogTitle>
+            <DialogDescription>Payout request information</DialogDescription>
+          </DialogHeader>
+          {selectedPayout && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground text-xs">Vendor</Label>
+                  <p className="font-medium">{selectedPayout.vendor_name}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Amount</Label>
+                  <p className="font-bold text-lg">{formatPrice(selectedPayout.amount, 'USD')}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Payment Method</Label>
+                  <p className="font-medium capitalize">{selectedPayout.method?.replace('_', ' ')}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Status</Label>
+                  <div className="mt-1">{getPayoutStatusBadge(selectedPayout.status)}</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Requested</Label>
+                  <p className="font-medium">{formatRelativeTime(selectedPayout.requested_at)}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Processed</Label>
+                  <p className="font-medium">{selectedPayout.processed_at ? formatRelativeTime(selectedPayout.processed_at) : '-'}</p>
+                </div>
+              </div>
+              {selectedPayout.status === 'pending' && (
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => { setDetailDialogOpen(false); setSelectedPayout(selectedPayout); setRejectDialogOpen(true) }}>
+                    Reject
+                  </Button>
+                  <Button onClick={() => { setDetailDialogOpen(false); handleProcessPayout(selectedPayout) }} disabled={isProcessing}>
+                    Process Payout
+                  </Button>
+                </DialogFooter>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={(open) => { setRejectDialogOpen(open); if (!open) { setRejectReason(''); setSelectedPayout(null) } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Payout</DialogTitle>
+            <DialogDescription>
+              Reject payout of {selectedPayout ? formatPrice(selectedPayout.amount, 'USD') : ''} to {selectedPayout?.vendor_name}. The amount will be refunded to the vendor&apos;s balance.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            <Label htmlFor="reason">Reason for rejection</Label>
+            <Textarea
+              id="reason"
+              placeholder="Enter reason for rejection (optional)"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleRejectPayout} disabled={isProcessing}>
+              {isProcessing ? 'Rejecting...' : 'Reject Payout'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

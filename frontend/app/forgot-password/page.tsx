@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
                 <span className="text-2xl font-display">C</span>
               </div>
               <div className="flex flex-col text-left">
-                <span className="text-2xl font-bold font-display text-gradient-premium">Channah</span>
+                <span className="text-2xl font-bold font-display text-gradient-premium">Vendora</span>
                 <span className="text-[10px] font-semibold text-cyan uppercase tracking-wider -mt-1">Global Marketplace</span>
               </div>
             </Link>

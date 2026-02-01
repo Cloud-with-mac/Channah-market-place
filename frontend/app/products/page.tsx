@@ -78,6 +78,7 @@ function ProductsContent() {
     newArrivals: false,
     bestSellers: false,
     condition: null,
+    attributes: {},
   })
 
   // Map frontend sort options to backend ordering
@@ -90,6 +91,9 @@ function ProductsContent() {
     price_high: '-price',
     'price-asc': 'price',
     'price-desc': '-price',
+    'price-low': 'price',
+    'price-high': '-price',
+    oldest: 'created_at',
     name_asc: 'name',
     name_desc: '-name',
   }
@@ -129,7 +133,7 @@ function ProductsContent() {
           categoriesAPI.getAll(),
         ])
 
-        const transformedProducts = (productsRes.data.results || productsRes.data || []).map(
+        const transformedProducts = (productsRes.results || productsRes || []).map(
           (p: any) => ({
             id: p.id,
             name: p.name,
@@ -144,9 +148,9 @@ function ProductsContent() {
         )
 
         setProducts(transformedProducts)
-        setTotalProducts(productsRes.data.count || transformedProducts.length)
+        setTotalProducts(productsRes.count || transformedProducts.length)
 
-        const transformedCategories = (categoriesRes.data.results || categoriesRes.data || []).map(
+        const transformedCategories = (categoriesRes.results || categoriesRes || []).map(
           (c: any) => ({
             id: c.id,
             name: c.name,
@@ -269,6 +273,7 @@ function ProductsContent() {
       newArrivals: false,
       bestSellers: false,
       condition: null,
+      attributes: {},
     })
   }
 

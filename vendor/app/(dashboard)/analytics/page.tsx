@@ -16,7 +16,7 @@ export default function VendorAnalyticsPage() {
     const fetchAnalytics = async () => {
       try {
         const [salesRes, customersRes] = await Promise.allSettled([
-          vendorAnalyticsAPI.getSalesSummary('30d'),
+          vendorAnalyticsAPI.getSales('30d'),
           vendorAnalyticsAPI.getCustomerInsights(),
         ])
 

@@ -31,6 +31,17 @@ class VendorUpdate(BaseModel):
     state: Optional[str] = None
     country: Optional[str] = None
     postal_code: Optional[str] = None
+    website: Optional[str] = None
+    certifications: Optional[List[str]] = None
+    main_products: Optional[List[str]] = None
+    monthly_output: Optional[str] = None
+    export_percentage: Optional[str] = None
+    main_markets: Optional[List[str]] = None
+    employees: Optional[str] = None
+    year_established: Optional[int] = None
+    response_time: Optional[str] = None
+    processing_days: Optional[int] = None
+    shipping_days: Optional[int] = None
 
 
 class VendorBankDetails(BaseModel):
@@ -62,6 +73,18 @@ class VendorResponse(BaseSchema):
     rating: float
     total_reviews: int
     is_featured: bool
+    website: Optional[str] = None
+    certifications: Optional[List[str]] = None
+    main_products: Optional[List[str]] = None
+    monthly_output: Optional[str] = None
+    export_percentage: Optional[str] = None
+    main_markets: Optional[List[str]] = None
+    employees: Optional[str] = None
+    year_established: Optional[int] = None
+    response_rate: Optional[float] = None
+    response_time: Optional[str] = None
+    processing_days: int = 2
+    shipping_days: int = 5
     created_at: datetime
     verified_at: Optional[datetime]
 

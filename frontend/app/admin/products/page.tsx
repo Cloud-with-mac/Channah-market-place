@@ -96,8 +96,8 @@ export default function AdminProductsPage() {
       const params: Record<string, any> = { limit: 100 }
       if (statusFilter !== 'all') params.status = statusFilter
 
-      const response = await productsAPI.getAll(params)
-      setProducts(response.data?.items || response.data || [])
+      const data = await productsAPI.getAll(params)
+      setProducts(data?.items || data || [])
     } catch (error) {
       console.error('Failed to fetch products:', error)
     } finally {

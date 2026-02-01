@@ -5,7 +5,7 @@ import { Suspense } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Loader2, PackageX, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Loader2, PackageX } from 'lucide-react'
 import { ProductGrid } from '@/components/product/product-grid'
 import { ProductFilters, ProductFiltersState, CategoryFilters } from '@/components/product/product-filters'
 import { SortDropdown, SortOption } from '@/components/product/sort-dropdown'
@@ -13,7 +13,6 @@ import { Pagination } from '@/components/product/pagination'
 import { ActiveFilters, ActiveFilter } from '@/components/product/active-filters'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Button } from '@/components/ui/button'
 import { productsAPI, categoriesAPI } from '@/lib/api'
 import { useCurrencyStore } from '@/store'
 
@@ -27,108 +26,48 @@ interface Subcategory {
   count: number
 }
 
-function SubcategoriesCarousel({ subcategories, parentSlug }: { subcategories: Subcategory[]; parentSlug: string }) {
-  const scrollContainerRef = React.useRef<HTMLDivElement>(null)
-  const [canScrollLeft, setCanScrollLeft] = React.useState(false)
-  const [canScrollRight, setCanScrollRight] = React.useState(true)
+function SubcategoryCircle({ sub }: { sub: Subcategory }) {
+  const [imgSrc, setImgSrc] = React.useState(
+    sub.image_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(sub.name)}&size=128&background=random&color=fff&bold=true&format=png`
+  )
+  const [hasError, setHasError] = React.useState(false)
 
-  const checkScrollButtons = () => {
-    const container = scrollContainerRef.current
-    if (container) {
-      setCanScrollLeft(container.scrollLeft > 0)
-      setCanScrollRight(container.scrollLeft < container.scrollWidth - container.clientWidth - 10)
-    }
-  }
-
-  React.useEffect(() => {
-    checkScrollButtons()
-    const container = scrollContainerRef.current
-    if (container) {
-      container.addEventListener('scroll', checkScrollButtons)
-      window.addEventListener('resize', checkScrollButtons)
-    }
-    return () => {
-      if (container) {
-        container.removeEventListener('scroll', checkScrollButtons)
-      }
-      window.removeEventListener('resize', checkScrollButtons)
-    }
-  }, [subcategories])
-
-  const scroll = (direction: 'left' | 'right') => {
-    const container = scrollContainerRef.current
-    if (container) {
-      const scrollAmount = 300
-      container.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth',
-      })
-    }
-  }
+  const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(sub.name)}&size=128&background=random&color=fff&bold=true&format=png`
 
   return (
+    <Link
+      href={`/category/${sub.slug}`}
+      className="group flex flex-col items-center gap-2"
+    >
+      <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full overflow-hidden bg-muted border border-border/50 group-hover:border-primary/50 group-hover:shadow-md transition-all duration-300">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={hasError ? fallbackUrl : imgSrc}
+          alt={sub.name}
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+          onError={() => {
+            if (!hasError) {
+              setHasError(true)
+              setImgSrc(fallbackUrl)
+            }
+          }}
+          loading="lazy"
+        />
+      </div>
+      <span className="text-xs sm:text-sm font-medium text-center line-clamp-2 group-hover:text-primary transition-colors max-w-[80px] sm:max-w-[96px] md:max-w-[112px]">
+        {sub.name}
+      </span>
+    </Link>
+  )
+}
+
+function SubcategoriesGrid({ subcategories, parentSlug }: { subcategories: Subcategory[]; parentSlug: string }) {
+  return (
     <div className="mb-8">
-      <div className="relative">
-        {/* Left scroll button */}
-        {canScrollLeft && (
-          <Button
-            variant="outline"
-            size="icon"
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background/90 backdrop-blur-sm shadow-lg rounded-full h-10 w-10"
-            onClick={() => scroll('left')}
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-        )}
-
-        {/* Subcategories scroll container */}
-        <div
-          ref={scrollContainerRef}
-          className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 px-1"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          {subcategories.map((sub) => (
-            <Link
-              key={sub.id}
-              href={`/category/${sub.slug}`}
-              className="flex-shrink-0 group"
-            >
-              <div className="flex flex-col items-center gap-2 w-28">
-                <div className="relative w-24 h-24 rounded-full overflow-hidden bg-muted border-2 border-transparent group-hover:border-primary transition-colors">
-                  {sub.image_url ? (
-                    <Image
-                      src={sub.image_url}
-                      alt={sub.name}
-                      fill
-                      className="object-cover group-hover:scale-110 transition-transform duration-300"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/10">
-                      <span className="text-2xl font-bold text-muted-foreground/50">
-                        {sub.name.charAt(0)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <span className="text-sm font-medium text-center line-clamp-2 group-hover:text-primary transition-colors">
-                  {sub.name}
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        {/* Right scroll button */}
-        {canScrollRight && (
-          <Button
-            variant="outline"
-            size="icon"
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/90 backdrop-blur-sm shadow-lg rounded-full h-10 w-10"
-            onClick={() => scroll('right')}
-          >
-            <ChevronRight className="h-5 w-5" />
-          </Button>
-        )}
+      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-9 gap-4 md:gap-6">
+        {subcategories.map((sub) => (
+          <SubcategoryCircle key={sub.id} sub={sub} />
+        ))}
       </div>
     </div>
   )
@@ -184,20 +123,17 @@ function CategoryContent() {
     },
   })
 
-  // Fetch filter options only for subcategories (categories without children)
+  // Fetch filter options for all categories (parent and subcategory)
   React.useEffect(() => {
     const fetchFilters = async () => {
-      // Only fetch filters if this is a subcategory (no children)
-      // We check after category data is loaded
-      if (category && (!category.children || category.children.length === 0)) {
+      if (category) {
         try {
           const response = await productsAPI.getFilters(slug)
-          setCategoryFilters(response.data)
+          setCategoryFilters(response as any)
         } catch (error) {
           console.error('Failed to fetch category filters:', error)
+          setCategoryFilters(null)
         }
-      } else {
-        setCategoryFilters(null)
       }
     }
     fetchFilters()
@@ -211,7 +147,7 @@ function CategoryContent() {
       try {
         // Fetch category info
         const categoryRes = await categoriesAPI.getBySlug(slug)
-        const categoryData = categoryRes.data
+        const categoryData = categoryRes
         setCategory(categoryData)
 
         // Build query params for products
@@ -273,7 +209,7 @@ function CategoryContent() {
         const productsRes = await productsAPI.getAll(queryParams)
 
         // Transform API response
-        const transformedProducts = (productsRes.data.results || productsRes.data || []).map(
+        const transformedProducts = (productsRes.results || productsRes || []).map(
           (p: any) => ({
             id: p.id,
             name: p.name,
@@ -283,24 +219,23 @@ function CategoryContent() {
             image: p.primary_image || p.images?.[0]?.url || p.image || null,
             rating: p.rating || 0,
             reviewCount: p.review_count || 0,
-            vendorName: p.vendor?.business_name || p.vendor_name || 'Channah Vendor',
+            vendorName: p.vendor?.business_name || p.vendor_name || 'Vendora Vendor',
           })
         )
 
         setProducts(transformedProducts)
-        setTotalProducts(productsRes.data.count || productsRes.data.total || transformedProducts.length)
+        setTotalProducts(productsRes.count || productsRes.total || transformedProducts.length)
 
         // Set subcategories from category children
         if (categoryData?.children) {
-          setSubcategories(
-            categoryData.children.map((c: any) => ({
-              id: c.id,
-              name: c.name,
-              slug: c.slug,
-              image_url: c.image_url,
-              count: c.product_count || 0,
-            }))
-          )
+          const mappedSubcategories = categoryData.children.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            slug: c.slug,
+            image_url: c.image_url,
+            count: c.product_count || 0,
+          }))
+          setSubcategories(mappedSubcategories)
         } else {
           setSubcategories([])
         }
@@ -529,7 +464,7 @@ function CategoryContent() {
 
       {/* Subcategories Carousel */}
       {subcategories.length > 0 && (
-        <SubcategoriesCarousel subcategories={subcategories} parentSlug={slug} />
+        <SubcategoriesGrid subcategories={subcategories} parentSlug={slug} />
       )}
 
       <div className={showFilters ? "flex gap-8" : ""}>
@@ -594,9 +529,9 @@ function CategoryContent() {
 
           {/* Product Grid or Empty State */}
           {isLoading ? (
-            <ProductGrid products={[]} isLoading={true} columns={3} />
+            <ProductGrid products={[]} isLoading={true} columns={4} />
           ) : products.length > 0 ? (
-            <ProductGrid products={products} isLoading={false} columns={3} />
+            <ProductGrid products={products} isLoading={false} columns={4} />
           ) : (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <PackageX className="h-16 w-16 text-muted-foreground/50 mb-4" />

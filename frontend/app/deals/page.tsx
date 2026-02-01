@@ -20,20 +20,6 @@ interface Product {
   quantity: number
 }
 
-// Mock deals data - in production, this would come from the API
-const generateMockDeals = (products: Product[]) => {
-  const now = new Date()
-  return products.slice(0, 12).map((product, index) => ({
-    product,
-    deal: {
-      end_date: new Date(now.getTime() + (index + 1) * 3600000 * (index % 3 + 1)).toISOString(),
-      discount_percent: [15, 20, 25, 30, 35, 40, 45, 50][index % 8],
-      total_quantity: 50 + index * 10,
-      sold_quantity: Math.floor(Math.random() * 30) + 10,
-    },
-  }))
-}
-
 export default function DealsPage() {
   const [deals, setDeals] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
@@ -48,17 +34,20 @@ export default function DealsPage() {
   React.useEffect(() => {
     const fetchDeals = async () => {
       try {
-        const response = await productsAPI.getAll({ limit: 12 })
-        const data = response.data
-        const products = Array.isArray(data) ? data : (data.results || data.items || [])
-        setDeals(generateMockDeals(products))
+        const data = await productsAPI.getAll({ limit: 24 })
+        const products = Array.isArray(data) ? data : (data?.results || data?.items || [])
+        // Filter products that have a compare_at_price (i.e., are on sale)
+        const saleProducts = products.filter((p: any) =>
+          p.compare_at_price && parseFloat(String(p.compare_at_price)) > parseFloat(String(p.price))
+        )
+        // If no sale products, show all products as potential deals
+        setDeals(saleProducts.length > 0 ? saleProducts : products.slice(0, 12))
       } catch (error) {
         console.error('Failed to fetch deals:', error)
       } finally {
         setIsLoading(false)
       }
     }
-
     fetchDeals()
   }, [])
 
@@ -190,13 +179,23 @@ export default function DealsPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-            {deals.map((item, index) => (
-              <FlashDealCard
-                key={item.product.id || index}
-                product={item.product}
-                deal={item.deal}
-              />
-            ))}
+            {deals.map((product: any, index: number) => {
+              const discountPercent = product.compare_at_price
+                ? Math.round((1 - parseFloat(String(product.price)) / parseFloat(String(product.compare_at_price))) * 100)
+                : 0
+              return (
+                <FlashDealCard
+                  key={product.id || index}
+                  product={product}
+                  deal={{
+                    end_date: mainSaleEnd.toISOString(),
+                    discount_percent: discountPercent > 0 ? discountPercent : 10,
+                    total_quantity: product.quantity || 50,
+                    sold_quantity: Math.floor((product.quantity || 50) * 0.3),
+                  }}
+                />
+              )
+            })}
           </div>
         )}
       </div>

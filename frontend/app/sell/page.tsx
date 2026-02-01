@@ -1,9 +1,12 @@
 'use client'
 
+import * as React from 'react'
 import Link from 'next/link'
 import { Store, Package, TrendingUp, Globe, Shield, Headphones, ArrowRight, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 
 const benefits = [
   {
@@ -61,8 +64,97 @@ const steps = [
   },
 ]
 
-export default function SellOnChannahPage() {
+interface SellerPlan {
+  id: string
+  name: string
+  description: string
+  commission_rate: number
+  features: string[]
+  is_popular: boolean
+}
+
+const fallbackPlans: SellerPlan[] = [
+  {
+    id: 'basic',
+    name: 'Basic Seller Plan',
+    description: 'Great for getting started',
+    commission_rate: 15,
+    features: [
+      'Up to 50 product listings',
+      'Basic seller dashboard',
+      'Standard analytics & reports',
+      'Secure payment processing',
+      'Email support (48h response)',
+      'Basic order management',
+      'Standard product visibility',
+    ],
+    is_popular: false,
+  },
+  {
+    id: 'standard',
+    name: 'Standard Seller Plan',
+    description: 'Perfect for growing sellers',
+    commission_rate: 10,
+    features: [
+      'Unlimited product listings',
+      'Access to all marketplace features',
+      'Advanced seller dashboard',
+      'Real-time analytics & reports',
+      'Secure payment processing',
+      '24/7 seller support',
+      'Marketing tools & promotions',
+      'Bulk product upload',
+      'Coupon & discount management',
+    ],
+    is_popular: true,
+  },
+  {
+    id: 'pro',
+    name: 'Pro Seller Plan',
+    description: 'For high-volume sellers',
+    commission_rate: 7,
+    features: [
+      'Unlimited product listings',
+      'Access to all marketplace features',
+      'Premium seller dashboard',
+      'Advanced analytics & custom reports',
+      'Secure payment processing',
+      'Priority 24/7 seller support',
+      'Marketing tools & promotions',
+      'Featured product placements',
+      'Dedicated account manager',
+      'Bulk product upload',
+      'Coupon & discount management',
+      'Early access to new features',
+    ],
+    is_popular: false,
+  },
+]
+
+export default function SellOnVendoraPage() {
   const vendorPortalUrl = process.env.NEXT_PUBLIC_VENDOR_URL || 'http://localhost:5000'
+  const [plans, setPlans] = React.useState<SellerPlan[]>(fallbackPlans)
+  const [isLoading, setIsLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+        const res = await fetch(`${apiUrl}/vendors/seller-plans`)
+        if (res.ok) {
+          const data = await res.json()
+          if (Array.isArray(data) && data.length > 0) {
+            setPlans(data)
+          }
+        }
+      } catch {
+        // Use fallback plans
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchPlans()
+  }, [])
 
   return (
     <div className="min-h-screen bg-background">
@@ -75,7 +167,7 @@ export default function SellOnChannahPage() {
               Join 10,000+ Sellers
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-display">
-              Sell on <span className="text-gradient-premium">Channah</span>
+              Sell on <span className="text-gradient-premium">Vendora</span>
             </h1>
             <p className="text-xl text-muted-foreground">
               Join our global marketplace and reach millions of customers worldwide.
@@ -102,7 +194,7 @@ export default function SellOnChannahPage() {
       <section className="py-20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold font-display mb-4">Why Sell on Channah?</h2>
+            <h2 className="text-3xl font-bold font-display mb-4">Why Sell on Vendora?</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               Everything you need to succeed in e-commerce, all in one platform.
             </p>
@@ -152,48 +244,65 @@ export default function SellOnChannahPage() {
         </div>
       </section>
 
-      {/* Pricing Section */}
+      {/* Pricing Section - Sliding Plans */}
       <section className="py-20">
         <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto">
-            <Card className="border-2 border-primary/50">
-              <CardHeader className="text-center">
-                <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-3 py-1 text-sm font-medium text-primary mb-4 mx-auto">
-                  Most Popular
-                </div>
-                <CardTitle className="text-2xl">Standard Seller Plan</CardTitle>
-                <CardDescription>Perfect for most sellers</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="text-center">
-                  <span className="text-4xl font-bold">10%</span>
-                  <span className="text-muted-foreground ml-2">commission per sale</span>
-                </div>
-                <ul className="space-y-3">
-                  {[
-                    'Unlimited product listings',
-                    'Access to all marketplace features',
-                    'Dedicated seller dashboard',
-                    'Real-time analytics & reports',
-                    'Secure payment processing',
-                    '24/7 seller support',
-                    'Marketing tools & promotions',
-                  ].map((feature) => (
-                    <li key={feature} className="flex items-center gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button size="lg" className="w-full" asChild>
-                  <a href={`${vendorPortalUrl}/register`}>
-                    Start Selling Now
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </a>
-                </Button>
-              </CardContent>
-            </Card>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold font-display mb-4">Choose Your Plan</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Select the plan that best fits your business needs.
+            </p>
           </div>
+
+          {isLoading ? (
+            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-96 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {plans.map((plan) => (
+                <Card
+                  key={plan.id}
+                  className={cn(
+                    'border-2 relative flex flex-col',
+                    plan.is_popular ? 'border-primary/50 shadow-lg' : 'border-border'
+                  )}
+                >
+                  <CardHeader className="text-center">
+                    {plan.is_popular && (
+                      <div className="inline-flex items-center gap-2 bg-primary/10 rounded-full px-3 py-1 text-sm font-medium text-primary mb-4 mx-auto">
+                        Most Popular
+                      </div>
+                    )}
+                    <CardTitle className="text-xl">{plan.name}</CardTitle>
+                    <CardDescription>{plan.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-col flex-1 space-y-6">
+                    <div className="text-center">
+                      <span className="text-4xl font-bold">{plan.commission_rate}%</span>
+                      <span className="text-muted-foreground ml-2 text-sm">commission per sale</span>
+                    </div>
+                    <ul className="space-y-3 flex-1">
+                      {plan.features.map((feature) => (
+                        <li key={feature} className="flex items-center gap-3">
+                          <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+                          <span className="text-sm">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button size="lg" className="w-full" variant={plan.is_popular ? 'default' : 'outline'} asChild>
+                      <a href={`${vendorPortalUrl}/register`}>
+                        Start Selling Now
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </a>
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -205,7 +314,7 @@ export default function SellOnChannahPage() {
               Ready to Grow Your Business?
             </h2>
             <p className="text-white/80 text-lg">
-              Join thousands of successful sellers on Channah and start reaching customers worldwide today.
+              Join thousands of successful sellers on Vendora and start reaching customers worldwide today.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <Button size="lg" variant="secondary" asChild>

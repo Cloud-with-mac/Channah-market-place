@@ -24,6 +24,8 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatRelativeTime } from '@/lib/utils'
+import { systemAPI } from '@/lib/api'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   LineChart,
   Line,
@@ -54,11 +56,11 @@ interface SystemMetric {
 }
 
 export default function SystemHealthPage() {
+  const [isLoading, setIsLoading] = React.useState(true)
   const [isRefreshing, setIsRefreshing] = React.useState(false)
   const [lastUpdated, setLastUpdated] = React.useState(new Date())
 
-  // Sample service statuses
-  const services: ServiceStatus[] = [
+  const defaultServices: ServiceStatus[] = [
     { name: 'API Server', status: 'healthy', latency: 45, uptime: 99.98, last_check: new Date().toISOString(), icon: Server },
     { name: 'Database', status: 'healthy', latency: 12, uptime: 99.99, last_check: new Date().toISOString(), icon: Database },
     { name: 'Redis Cache', status: 'healthy', latency: 2, uptime: 99.95, last_check: new Date().toISOString(), icon: Zap },
@@ -67,8 +69,7 @@ export default function SystemHealthPage() {
     { name: 'CDN', status: 'healthy', latency: 25, uptime: 99.99, last_check: new Date().toISOString(), icon: Wifi },
   ]
 
-  // Sample metrics data
-  const metricsData: SystemMetric[] = Array.from({ length: 24 }, (_, i) => ({
+  const defaultMetrics: SystemMetric[] = Array.from({ length: 24 }, (_, i) => ({
     timestamp: new Date(Date.now() - (23 - i) * 3600000).toISOString(),
     cpu: Math.floor(Math.random() * 30) + 20,
     memory: Math.floor(Math.random() * 20) + 45,
@@ -76,22 +77,43 @@ export default function SystemHealthPage() {
     network: Math.floor(Math.random() * 50) + 10,
   }))
 
-  // Current system stats
-  const currentStats = {
+  const [services, setServices] = React.useState<ServiceStatus[]>(defaultServices)
+  const [metricsData, setMetricsData] = React.useState<SystemMetric[]>(defaultMetrics)
+  const [currentStats, setCurrentStats] = React.useState({
     cpu: 35,
     memory: 62,
     disk: 65,
     activeConnections: 1247,
     requestsPerSec: 856,
     avgResponseTime: 48,
+  })
+
+  const fetchHealthData = async () => {
+    try {
+      setIsLoading(true)
+      const data = await systemAPI.getSystemHealth()
+      if (data) {
+        if (data.services) setServices(data.services)
+        if (data.metrics) setMetricsData(data.metrics)
+        if (data.current) setCurrentStats(data.current)
+      }
+    } catch (error) {
+      console.error('Failed to fetch system health:', error)
+      // Keep default values on error
+    } finally {
+      setIsLoading(false)
+      setLastUpdated(new Date())
+    }
   }
 
-  const handleRefresh = () => {
+  React.useEffect(() => {
+    fetchHealthData()
+  }, [])
+
+  const handleRefresh = async () => {
     setIsRefreshing(true)
-    setTimeout(() => {
-      setLastUpdated(new Date())
-      setIsRefreshing(false)
-    }, 1000)
+    await fetchHealthData()
+    setIsRefreshing(false)
   }
 
   const getStatusIcon = (status: ServiceStatus['status']) => {
@@ -121,6 +143,21 @@ export default function SystemHealthPage() {
     : services.some(s => s.status === 'down')
     ? 'down'
     : 'degraded'
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-32 rounded-xl" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-32 rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-[400px] rounded-xl" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

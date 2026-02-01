@@ -88,8 +88,8 @@ export default function AdminUsersPage() {
       if (roleFilter !== 'all') params.role = roleFilter
       if (statusFilter !== 'all') params.is_active = statusFilter === 'active'
 
-      const response = await adminAPI.listUsers(params)
-      setUsers(response.data || [])
+      const data = await adminAPI.listUsers(params)
+      setUsers(data || [])
     } catch (error) {
       console.error('Failed to fetch users:', error)
     } finally {

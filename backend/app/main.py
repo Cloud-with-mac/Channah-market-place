@@ -6,6 +6,10 @@ from contextlib import asynccontextmanager
 import logging
 import os
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 from app.core.config import settings
 from app.core.database import init_db
 from app.api.v1.router import api_router
@@ -38,6 +42,11 @@ app = FastAPI(
     lifespan=lifespan,
     # redirect_slashes=True by default - handles both /path and /path/
 )
+
+# Rate limiting
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS middleware
 app.add_middleware(

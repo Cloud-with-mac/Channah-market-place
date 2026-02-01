@@ -77,7 +77,8 @@ def serialize_cart(cart: Cart) -> CartResponse:
                 price=product.price,
                 primary_image=product.images[0].url if product.images and len(product.images) > 0 else None,
                 quantity=product.quantity,
-                vendor_name=product.vendor.business_name if product.vendor else "Unknown"
+                vendor_name=product.vendor.business_name if product.vendor else "Unknown",
+                shipping_cost=product.shipping_cost or 0
             ),
             variant_name=None,
             created_at=item.created_at
@@ -148,11 +149,14 @@ async def add_to_cart(
         raise HTTPException(status_code=400, detail="Insufficient stock")
 
     # Check for existing cart item
-    existing_item = None
-    for item in cart.items:
-        if item.product_id == item_data.product_id and item.variant_id == item_data.variant_id:
-            existing_item = item
-            break
+    existing_result = await db.execute(
+        select(CartItem).where(
+            CartItem.cart_id == cart.id,
+            CartItem.product_id == item_data.product_id,
+            CartItem.variant_id == item_data.variant_id if item_data.variant_id else CartItem.variant_id.is_(None)
+        )
+    )
+    existing_item = existing_result.scalar_one_or_none()
 
     if existing_item:
         # Update quantity

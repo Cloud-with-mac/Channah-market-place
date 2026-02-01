@@ -10,6 +10,10 @@ import { AddToCartSection } from '@/components/product/add-to-cart-section'
 import { ProductTabs } from '@/components/product/product-tabs'
 import { ProductReviews } from '@/components/product/product-reviews'
 import { RelatedProducts } from '@/components/product/related-products'
+import { BulkPricingTiers } from '@/components/product/bulk-pricing-tiers'
+import { SupplierInfoPanel } from '@/components/product/supplier-info-panel'
+import { RequestQuoteDialog } from '@/components/product/request-quote-dialog'
+import { TradeAssurancePanel } from '@/components/product/trade-assurance-panel'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
@@ -112,29 +116,32 @@ export default function ProductDetailPage() {
     const fetchProduct = async () => {
       setIsLoading(true)
       try {
-        const response = await productsAPI.getBySlug(slug)
-        const data = response.data
+        const data = await productsAPI.getBySlug(slug)
 
         // Transform API response
         const transformedProduct = {
           id: data.id,
           name: data.name,
           slug: data.slug,
-          description: data.description || mockProduct.description,
-          price: parseFloat(data.price),
-          compareAtPrice: data.compare_at_price ? parseFloat(data.compare_at_price) : undefined,
+          description: data.description || 'No description available.',
+          price: typeof data.price === 'string' ? parseFloat(data.price) : data.price,
+          compareAtPrice: data.compare_at_price ? (typeof data.compare_at_price === 'string' ? parseFloat(data.compare_at_price) : data.compare_at_price) : undefined,
           images: data.images?.length > 0
             ? data.images.map((img: any, idx: number) => ({
                 id: img.id || String(idx),
                 url: img.url || img.image,
                 alt: img.alt || data.name,
               }))
-            : mockProduct.images,
+            : [{ id: '1', url: '/placeholder-product.jpg', alt: data.name || 'Product' }],
           rating: data.rating || 4.0,
           reviewCount: data.review_count || 0,
           vendor: {
-            name: data.vendor?.business_name || data.vendor_name || 'Channah Vendor',
+            name: data.vendor?.business_name || data.vendor_name || 'Vendora Vendor',
             slug: data.vendor?.slug || 'vendor',
+            logo: data.vendor?.logo,
+            location: data.vendor?.location,
+            verified: data.vendor?.verified,
+            goldSupplier: data.vendor?.gold_supplier,
           },
           category: data.category
             ? {
@@ -146,9 +153,24 @@ export default function ProductDetailPage() {
           sku: data.sku,
           inStock: (data.stock ?? data.quantity ?? 0) > 0,
           stockQuantity: data.stock ?? data.quantity ?? 0,
+          moq: data.moq || data.minimum_order_quantity || 1,
+          bulkPricing: Array.isArray(data.bulk_pricing) && data.bulk_pricing.length > 0
+            ? data.bulk_pricing.map((tier: any) => ({
+                minQuantity: tier.min_qty,
+                maxQuantity: tier.max_qty || undefined,
+                price: tier.price,
+                discount: Math.round((1 - tier.price / Number(data.price)) * 100),
+              }))
+            : undefined,
+          rawVariants: data.variants || [],
           variants: transformVariantsFromAPI(data.variants || []),
           specifications: data.specifications || {},
+          attributes: (data.attributes || []).reduce((acc: Record<string, string>, attr: any) => {
+            if (attr.name && attr.value) acc[attr.name] = attr.value
+            return acc
+          }, {}),
           shippingInfo: data.shipping_info,
+          shippingCost: Number(data.shipping_cost || 0),
           // Store category info for variant requirement check
           categoryName: data.category?.name || '',
         }
@@ -169,16 +191,7 @@ export default function ProductDetailPage() {
         if (err?.response?.status === 404) {
           setError(true)
         } else {
-          // Use mock data as fallback
-          setProduct(mockProduct)
-          const defaultVariants: Record<string, string> = {}
-          mockProduct.variants.forEach((v) => {
-            const availableOption = v.options?.find((o) => o.available)
-            if (availableOption) {
-              defaultVariants[v.name] = availableOption.id
-            }
-          })
-          setSelectedVariants(defaultVariants)
+          setError(true)
         }
       } finally {
         setIsLoading(false)
@@ -236,13 +249,22 @@ export default function ProductDetailPage() {
         </BreadcrumbItem>
       </Breadcrumb>
 
-      {/* Product Details */}
-      <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
-        {/* Left: Gallery */}
-        <ProductGallery images={product.images} productName={product.name} />
+      {/* Product Details - Enhanced B2B Layout */}
+      <div className="grid lg:grid-cols-12 gap-6 lg:gap-8">
+        {/* Left Column: Gallery & Bulk Pricing (5 columns) */}
+        <div className="lg:col-span-5 space-y-6">
+          <ProductGallery images={product.images} productName={product.name} />
 
-        {/* Right: Info & Actions */}
-        <div className="space-y-6">
+          {/* Bulk Pricing Tiers - B2B Feature */}
+          <BulkPricingTiers
+            basePrice={product.price}
+            moq={product.moq || 1}
+            tiers={product.bulkPricing}
+          />
+        </div>
+
+        {/* Center Column: Product Info & Actions (4 columns) */}
+        <div className="lg:col-span-4 space-y-6">
           <ProductInfo
             name={product.name}
             price={product.price}
@@ -280,9 +302,67 @@ export default function ProductDetailPage() {
             image={product.images[0]?.url || ''}
             inStock={product.inStock}
             maxQuantity={product.stockQuantity}
-            selectedVariantId={Object.values(selectedVariants).join('-') || undefined}
+            selectedVariantId={(() => {
+              // Find the raw variant that matches the selected options
+              if (!product.rawVariants?.length || !Object.keys(selectedVariants).length) return undefined
+              // selectedVariants is like {Size: "size-L", Color: "color-Blue"}
+              // We need to extract the value part after the key prefix
+              const selectedOpts: Record<string, string> = {}
+              for (const [groupName, optionId] of Object.entries(selectedVariants)) {
+                // optionId format is "key-value" e.g. "size-M" or "color-Blue"
+                const key = groupName.toLowerCase()
+                const prefix = key + '-'
+                const value = (optionId as string).startsWith(prefix)
+                  ? (optionId as string).slice(prefix.length)
+                  : optionId as string
+                selectedOpts[key] = value
+              }
+              const match = product.rawVariants.find((v: any) => {
+                if (!v.id || v.name === '__variants_enabled__') return false
+                let opts = v.options
+                if (typeof opts === 'string') { try { opts = JSON.parse(opts) } catch { return false } }
+                if (!opts || typeof opts !== 'object') return false
+                return Object.entries(selectedOpts).every(([k, val]) => opts[k] === val)
+              })
+              return match?.id || undefined
+            })()}
             variants={product.variants}
             selectedVariants={selectedVariants}
+            vendorName={product.vendor.name}
+            vendorSlug={product.vendor.slug}
+          />
+
+          {/* Shipping Cost */}
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Shipping:</span>
+            {product.shippingCost > 0 ? (
+              <span className="font-medium">₦{product.shippingCost.toLocaleString()} per item</span>
+            ) : (
+              <span className="font-medium text-green-600">Free Shipping</span>
+            )}
+          </div>
+
+          {/* Request Quote Button - B2B Feature */}
+          <RequestQuoteDialog
+            productId={product.id}
+            productName={product.name}
+            vendorName={product.vendor.name}
+          />
+        </div>
+
+        {/* Right Sidebar: Supplier Info & Trade Assurance (3 columns) */}
+        <div className="lg:col-span-3 space-y-6">
+          {/* Supplier Information Panel - B2B Feature */}
+          <SupplierInfoPanel vendor={product.vendor} />
+
+          {/* Trade Assurance & Logistics - B2B Feature */}
+          <TradeAssurancePanel
+            moq={product.moq || 1}
+            sampleAvailable={true}
+            samplePrice={product.price * 1.5}
+            leadTime="7-15 days"
+            shippingMethods={['Sea Freight', 'Air Freight', 'Express Delivery']}
+            paymentTerms={['PayPal', 'Credit Card', 'Debit Card']}
           />
         </div>
       </div>
@@ -292,6 +372,7 @@ export default function ProductDetailPage() {
         <ProductTabs
           description={product.description}
           specifications={product.specifications}
+          attributes={product.attributes}
           shippingInfo={product.shippingInfo}
         />
       </div>

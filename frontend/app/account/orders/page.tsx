@@ -55,8 +55,8 @@ function OrdersContent() {
         params.status = statusFilter
       }
 
-      const response = await ordersAPI.list(params)
-      const newOrders = response.data.results || response.data || []
+      const response = await ordersAPI.list(params) as any
+      const newOrders = Array.isArray(response) ? response : (response?.results || response?.items || [])
 
       if (append) {
         setOrders(prev => [...prev, ...newOrders])
@@ -64,7 +64,7 @@ function OrdersContent() {
         setOrders(Array.isArray(newOrders) ? newOrders : [])
       }
 
-      setHasMore(!!response.data.next)
+      setHasMore(!!response?.next)
     } catch (error: any) {
       console.error('Failed to fetch orders:', error)
       if (!append) {
@@ -112,7 +112,7 @@ function OrdersContent() {
             <SelectItem value="all">All Orders</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="processing">Processing</SelectItem>
-            <SelectItem value="shipped">Shipped</SelectItem>
+            <SelectItem value="shipped">Shipped to Vendora</SelectItem>
             <SelectItem value="delivered">Delivered</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>

@@ -14,8 +14,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
 export const metadata: Metadata = {
-  title: 'About Us - Channah-Market',
-  description: 'Learn about Channah-Market, your trusted online marketplace.',
+  title: 'About Us - Vendora-Market',
+  description: 'Learn about Vendora-Market, your trusted online marketplace.',
 }
 
 const values = [
@@ -41,12 +41,6 @@ const values = [
   },
 ]
 
-const stats = [
-  { value: '50K+', label: 'Happy Customers' },
-  { value: '10K+', label: 'Products' },
-  { value: '500+', label: 'Verified Vendors' },
-  { value: '99%', label: 'Satisfaction Rate' },
-]
 
 const features = [
   {
@@ -77,7 +71,7 @@ export default function AboutPage() {
       {/* Hero Section */}
       <div className="text-center max-w-3xl mx-auto mb-16">
         <h1 className="text-4xl md:text-5xl font-bold font-display mb-4">
-          About Channah-Market
+          About Vendora-Market
         </h1>
         <p className="text-lg text-muted-foreground">
           We&apos;re building the future of online shopping by connecting buyers with
@@ -86,27 +80,13 @@ export default function AboutPage() {
         </p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
-        {stats.map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="p-6 text-center">
-              <p className="text-3xl md:text-4xl font-bold text-primary mb-1">
-                {stat.value}
-              </p>
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
       {/* Our Story */}
       <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
         <div>
           <h2 className="text-3xl font-bold font-display mb-4">Our Story</h2>
           <div className="space-y-4 text-muted-foreground">
             <p>
-              Channah-Market was founded with a simple vision: to create a marketplace
+              Vendora-Market was founded with a simple vision: to create a marketplace
               where quality meets affordability, and where both buyers and sellers
               can thrive together.
             </p>

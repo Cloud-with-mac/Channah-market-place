@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
+import { contactAPI } from '@/lib/api'
 
 const contactSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -95,12 +96,10 @@ export default function ContactPage() {
   const onSubmit = async (data: ContactFormData) => {
     setIsSubmitting(true)
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500))
-
+      await contactAPI.submit(data)
       toast({
         title: 'Message Sent!',
-        description: 'We\'ll get back to you as soon as possible.',
+        description: "We'll get back to you as soon as possible.",
       })
       reset()
     } catch (error) {

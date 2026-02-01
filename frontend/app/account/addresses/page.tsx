@@ -20,7 +20,7 @@ export default function AddressesPage() {
   const fetchAddresses = React.useCallback(async () => {
     try {
       const response = await addressesAPI.list()
-      setAddresses(response.data.results || response.data || [])
+      setAddresses(Array.isArray(response) ? response : (response?.results || response?.items || []))
     } catch (error) {
       console.error('Failed to fetch addresses:', error)
     } finally {

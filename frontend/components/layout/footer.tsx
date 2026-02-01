@@ -20,6 +20,13 @@ const footerLinks = {
     { name: 'Saved Addresses', href: '/account/addresses' },
     { name: 'Notifications', href: '/notifications' },
   ],
+  tools: [
+    { name: 'Shipping Calculator', href: '/tools/shipping' },
+    { name: 'Tax & Duty Calculator', href: '/tools/tax-calculator' },
+    { name: 'Request Quote', href: '/products' },
+    { name: 'Bulk Orders', href: '/bulk-order' },
+    { name: 'Trade Documents', href: '/documents' },
+  ],
   help: [
     { name: 'Help Center', href: '/help' },
     { name: 'Contact Us', href: '/contact' },
@@ -28,7 +35,7 @@ const footerLinks = {
     { name: 'Track Order', href: '/track-order' },
   ],
   company: [
-    { name: 'About Channah', href: '/about' },
+    { name: 'About Vendora', href: '/about' },
     { name: 'Careers', href: '/careers' },
     { name: 'Press & Media', href: '/press' },
     { name: 'Blog', href: '/blog' },
@@ -98,7 +105,7 @@ export function Footer() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="text-center md:text-left">
               <h3 className="text-2xl font-bold font-display mb-2">
-                Join the Channah Community
+                Join the Vendora Community
               </h3>
               <p className="text-sm text-white/80 max-w-md">
                 Subscribe for exclusive deals, new arrivals, and 10% off your first order! Shop worldwide.
@@ -155,9 +162,9 @@ export function Footer() {
 
       {/* Main footer */}
       <div className="container py-12">
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-8">
           {/* Brand */}
-          <div className="col-span-2">
+          <div className="col-span-2 md:col-span-2">
             <Link href="/" className="flex items-center gap-2.5 mb-5 group">
               <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan to-cyan-light text-navy font-bold shadow-lg shadow-cyan/20 group-hover:shadow-xl group-hover:shadow-cyan/30 transition-shadow">
                 <span className="text-2xl font-display">C</span>
@@ -167,7 +174,7 @@ export function Footer() {
               </div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold font-display leading-tight text-gradient-premium">
-                  Channah
+                  Vendora
                 </span>
                 <span className="text-[10px] font-semibold text-cyan uppercase tracking-wider -mt-0.5">Global Marketplace</span>
               </div>
@@ -267,6 +274,23 @@ export function Footer() {
             </ul>
           </div>
 
+          {/* B2B Tools */}
+          <div>
+            <h4 className="font-semibold mb-4 text-foreground">B2B Tools</h4>
+            <ul className="space-y-2.5">
+              {footerLinks.tools.map((link) => (
+                <li key={link.name}>
+                  <Link
+                    href={link.href}
+                    className="text-sm text-muted-foreground hover:text-cyan transition-colors"
+                  >
+                    {link.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
           {/* Help */}
           <div>
             <h4 className="font-semibold mb-4 text-foreground">Help</h4>
@@ -308,7 +332,7 @@ export function Footer() {
         <div className="container py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <span>&copy; {new Date().getFullYear()} Channah Global Ltd. All rights reserved.</span>
+              <span>&copy; {new Date().getFullYear()} Vendora Global Ltd. All rights reserved.</span>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link

@@ -57,6 +57,7 @@ import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { formatDate, formatPrice, getInitials } from '@/lib/utils'
 import { vendorsAPI } from '@/lib/api'
+import { exportToCSV } from '@/lib/export'
 
 interface Vendor {
   id: string
@@ -73,90 +74,10 @@ interface Vendor {
   rating: number
   total_reviews: number
   total_products: number
+  commission_rate: number
   logo?: string
 }
 
-// Mock data
-const mockVendors: Vendor[] = [
-  {
-    id: '1',
-    business_name: 'TechGadgets Pro',
-    slug: 'techgadgets-pro',
-    owner_name: 'John Smith',
-    email: 'contact@techgadgets.com',
-    phone: '+44 7700 900123',
-    status: 'approved',
-    created_at: '2024-01-01',
-    verified_at: '2024-01-03',
-    total_sales: 125000,
-    balance: 4500,
-    rating: 4.9,
-    total_reviews: 234,
-    total_products: 156,
-  },
-  {
-    id: '2',
-    business_name: 'Fashion Hub',
-    slug: 'fashion-hub',
-    owner_name: 'Sarah Johnson',
-    email: 'hello@fashionhub.com',
-    phone: '+44 7700 900456',
-    status: 'approved',
-    created_at: '2024-01-05',
-    verified_at: '2024-01-07',
-    total_sales: 89000,
-    balance: 2800,
-    rating: 4.8,
-    total_reviews: 189,
-    total_products: 342,
-  },
-  {
-    id: '3',
-    business_name: 'Home Essentials',
-    slug: 'home-essentials',
-    owner_name: 'Mike Williams',
-    email: 'info@homeessentials.com',
-    phone: '+44 7700 900789',
-    status: 'pending',
-    created_at: '2024-01-18',
-    total_sales: 0,
-    balance: 0,
-    rating: 0,
-    total_reviews: 0,
-    total_products: 0,
-  },
-  {
-    id: '4',
-    business_name: 'Sports World',
-    slug: 'sports-world',
-    owner_name: 'Emily Brown',
-    email: 'contact@sportsworld.com',
-    phone: '+44 7700 900321',
-    status: 'pending',
-    created_at: '2024-01-19',
-    total_sales: 0,
-    balance: 0,
-    rating: 0,
-    total_reviews: 0,
-    total_products: 0,
-  },
-  {
-    id: '5',
-    business_name: 'Electronics Plus',
-    slug: 'electronics-plus',
-    owner_name: 'David Lee',
-    email: 'info@electronicsplus.com',
-    phone: '+44 7700 900654',
-    status: 'suspended',
-    created_at: '2023-12-01',
-    verified_at: '2023-12-05',
-    total_sales: 45000,
-    balance: 1200,
-    rating: 3.2,
-    total_reviews: 67,
-    total_products: 89,
-  },
-]
 
 function getStatusBadge(status: string) {
   switch (status) {
@@ -195,7 +116,13 @@ export default function VendorsPage() {
         search: search || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
       })
-      const vendorData = response.data.vendors || response.data || []
+
+      if (!response) {
+        setVendors([])
+        return
+      }
+
+      const vendorData = response.vendors || response.results || response || []
       const fetchedVendors = Array.isArray(vendorData) ? vendorData.map((v: any) => ({
         id: v.id,
         business_name: v.business_name,
@@ -211,13 +138,12 @@ export default function VendorsPage() {
         rating: v.rating || 0,
         total_reviews: v.total_reviews || 0,
         total_products: v.total_products || 0,
+        commission_rate: v.commission_rate ?? 10,
         logo: v.logo_url,
       })) : []
-      // Show actual data from database, not mock data
       setVendors(fetchedVendors)
     } catch (error) {
       console.error('Failed to fetch vendors:', error)
-      // Only use mock data on error
       setVendors([])
     } finally {
       setIsLoading(false)
@@ -296,9 +222,11 @@ export default function VendorsPage() {
 
   const generatePassword = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
+    const array = new Uint32Array(12)
+    crypto.getRandomValues(array)
     let password = ''
     for (let i = 0; i < 12; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length))
+      password += chars.charAt(array[i] % chars.length)
     }
     setNewPassword(password)
   }
@@ -339,14 +267,11 @@ export default function VendorsPage() {
       setNewPassword('')
       setSendEmailNotification(true)
     } catch (error: any) {
-      // If API fails, show success anyway for demo (since backend might not have this endpoint yet)
       toast({
-        title: 'Password Reset',
-        description: `Password for ${resetPasswordVendor.business_name} has been reset.${sendEmailNotification ? ' An email notification will be sent.' : ''}`,
+        title: 'Error',
+        description: error.response?.data?.detail || 'Failed to reset password. Please try again.',
+        variant: 'destructive',
       })
-      setResetPasswordVendor(null)
-      setNewPassword('')
-      setSendEmailNotification(true)
     } finally {
       setIsResettingPassword(false)
     }
@@ -386,7 +311,7 @@ export default function VendorsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => exportToCSV(vendors, 'vendors')}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -502,6 +427,7 @@ export default function VendorsPage() {
                     <th className="p-4 text-left text-sm font-medium">Sales</th>
                     <th className="p-4 text-left text-sm font-medium">Rating</th>
                     <th className="p-4 text-left text-sm font-medium">Balance</th>
+                    <th className="p-4 text-left text-sm font-medium">Commission</th>
                     <th className="p-4 text-left text-sm font-medium">Joined</th>
                     <th className="p-4 text-right text-sm font-medium">Actions</th>
                   </tr>
@@ -553,6 +479,31 @@ export default function VendorsPage() {
                       </td>
                       <td className="p-4 text-sm">
                         {formatPrice(vendor.balance, 'GBP')}
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.5"
+                            defaultValue={vendor.commission_rate}
+                            className="w-20 h-8 text-sm"
+                            onBlur={async (e) => {
+                              const newRate = parseFloat(e.target.value)
+                              if (isNaN(newRate) || newRate === vendor.commission_rate) return
+                              try {
+                                await vendorsAPI.updateCommission(vendor.id, newRate)
+                                setVendors(prev => prev.map(v => v.id === vendor.id ? { ...v, commission_rate: newRate } : v))
+                                toast({ title: 'Updated', description: `Commission set to ${newRate}%` })
+                              } catch {
+                                e.target.value = String(vendor.commission_rate)
+                                toast({ title: 'Error', description: 'Failed to update commission', variant: 'destructive' })
+                              }
+                            }}
+                          />
+                          <span className="text-xs text-muted-foreground">%</span>
+                        </div>
                       </td>
                       <td className="p-4 text-sm text-muted-foreground">
                         {formatDate(vendor.created_at)}

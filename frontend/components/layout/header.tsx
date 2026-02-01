@@ -19,7 +19,13 @@ import {
   MapPin,
   Crown,
   Loader2,
+  FileText,
+  Grid3x3,
+  Beaker,
+  Sun,
+  Moon,
 } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -30,9 +36,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useAuthStore, useCartStore, useSearchStore } from '@/store'
+import { useAuthStore, useCartStore, useSearchStore, useSampleCartStore } from '@/store'
 import { CurrencySelector } from '@/components/currency-selector'
 import { categoriesAPI } from '@/lib/api'
+import { MegaMenu } from './mega-menu'
 
 interface Category {
   id: string
@@ -45,18 +52,24 @@ export function Header() {
   const router = useRouter()
   const { user, isAuthenticated, logout } = useAuthStore()
   const { itemCount, openCart } = useCartStore()
+  const { itemCount: sampleItemCount, openCart: openSampleCart } = useSampleCartStore()
   const { query, setQuery, openSearch } = useSearchStore()
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [megaMenuOpen, setMegaMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [categories, setCategories] = useState<Category[]>([])
   const [loadingCategories, setLoadingCategories] = useState(true)
+
+  useEffect(() => { setMounted(true) }, [])
 
   // Fetch categories from database
   useEffect(() => {
     async function fetchCategories() {
       try {
         const res = await categoriesAPI.getAll()
-        const cats = res.data?.results || res.data || []
+        const cats = res.results || res || []
         setCategories(cats)
       } catch (error) {
         console.error('Failed to fetch categories:', error)
@@ -85,20 +98,26 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
-      {/* Top bar - SophieX Dark Theme */}
-      <div className="hidden md:block bg-gradient-to-r from-cyan-dark via-primary to-cyan text-primary-foreground">
+      {/* Top bar - B2B Focus */}
+      <div className="hidden md:block bg-gradient-to-r from-primary via-primary to-accent text-primary-foreground">
         <div className="container flex h-9 items-center justify-between text-xs">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5 font-medium">
-              <span className="animate-pulse">✨</span>
-              Free worldwide shipping on orders over £50
+              <span>🌍</span>
+              Ship to 200+ countries with trade assurance
             </span>
             <span className="text-white/30">|</span>
-            <span className="text-white/90">24/7 Customer Support</span>
+            <span className="text-white/90">Verified Suppliers</span>
+            <span className="text-white/30">|</span>
+            <span className="text-white/90">Buyer Protection</span>
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/sell" className="hover:text-white/80 transition-colors font-medium">
+              Sell on Vendora
+            </Link>
+            <span className="text-white/30">|</span>
             <Link href="/help" className="hover:text-white/80 transition-colors">
-              Help Centre
+              Help Center
             </Link>
           </div>
         </div>
@@ -115,40 +134,40 @@ export function Header() {
             {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
 
-          {/* Logo - SophieX Dark Theme */}
+          {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan to-cyan-light text-navy font-bold shadow-lg shadow-cyan/20 group-hover:shadow-xl group-hover:shadow-cyan/30 group-hover:scale-105 transition-all duration-300">
-              <span className="text-2xl font-display">C</span>
-              <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-background border-2 border-cyan flex items-center justify-center">
-                <div className="h-2 w-2 rounded-full bg-gradient-to-br from-cyan to-cyan-light" />
+            <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold shadow-lg shadow-primary/20 group-hover:shadow-xl group-hover:shadow-primary/30 group-hover:scale-105 transition-all duration-300">
+              <span className="text-2xl font-display">V</span>
+              <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-background border-2 border-primary flex items-center justify-center">
+                <div className="h-2 w-2 rounded-full bg-gradient-to-br from-primary to-accent" />
               </div>
             </div>
             <div className="hidden sm:flex flex-col">
-              <span className="text-xl font-bold font-display leading-tight text-gradient-premium">
-                Channah
+              <span className="text-xl font-bold font-display leading-tight">
+                Vendora
               </span>
-              <span className="text-[10px] font-semibold text-cyan uppercase tracking-wider -mt-0.5">Global Marketplace</span>
+              <span className="text-[10px] font-semibold text-primary uppercase tracking-wider -mt-0.5">B2B Marketplace</span>
             </div>
           </Link>
 
-          {/* Search bar - SophieX Dark Theme */}
+          {/* Search bar */}
           <form
             onSubmit={handleSearch}
             className="hidden md:flex flex-1 max-w-2xl mx-4"
           >
             <div className="relative w-full group">
-              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground group-focus-within:text-cyan transition-colors" />
+              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <input
                 type="search"
-                placeholder="Search products, brands, sellers worldwide..."
-                className="w-full rounded-2xl border-2 border-border bg-card py-3 pl-12 pr-28 text-sm focus:outline-none focus:border-cyan focus:bg-navy-light focus:shadow-lg focus:shadow-cyan/10 transition-all duration-300 placeholder:text-muted-foreground"
+                placeholder="Search for products, suppliers, or categories..."
+                className="w-full rounded-2xl border-2 border-border bg-card py-3 pl-12 pr-28 text-sm focus:outline-none focus:border-primary focus:shadow-lg focus:shadow-primary/10 transition-all duration-300 placeholder:text-muted-foreground"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               <Button
                 type="submit"
                 size="sm"
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-xl px-5 h-9 bg-gradient-to-r from-cyan to-cyan-light text-navy hover:opacity-90 shadow-md shadow-cyan/20 hover:shadow-lg hover:shadow-cyan/30 transition-all"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-xl px-5 h-9 bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
               >
                 Search
               </Button>
@@ -164,6 +183,18 @@ export function Header() {
             >
               <Search size={20} />
             </button>
+
+            {/* Theme Toggle */}
+            {mounted && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                aria-label="Toggle theme"
+              >
+                {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+              </Button>
+            )}
 
             {/* Currency Selector */}
             <CurrencySelector />
@@ -182,6 +213,23 @@ export function Header() {
                 <Heart size={20} />
                 <span className="sr-only">Wishlist</span>
               </Link>
+            </Button>
+
+            {/* Sample Cart */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative hover:bg-purple-50 dark:hover:bg-purple-950/20"
+              onClick={openSampleCart}
+              title="Sample Orders"
+            >
+              <Beaker size={20} className="text-purple-600" />
+              {sampleItemCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-[10px] font-bold text-white shadow-md shadow-purple/20">
+                  {sampleItemCount > 99 ? '99+' : sampleItemCount}
+                </span>
+              )}
+              <span className="sr-only">Sample Cart</span>
             </Button>
 
             {/* Cart */}
@@ -302,73 +350,69 @@ export function Header() {
         </div>
       </div>
 
-      {/* Categories bar - SophieX Dark Theme */}
-      <nav className="hidden lg:block border-t border-border bg-card/50">
+      {/* Categories bar - Alibaba Style */}
+      <nav className="hidden lg:block border-t border-border bg-card/50 relative">
         <div className="container">
-          <ul className="flex items-center h-11 text-sm">
-            {/* All Categories Dropdown */}
+          <ul className="flex items-center h-12 text-sm">
+            {/* All Categories Mega Menu */}
             <li className="shrink-0">
-              <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-1.5 font-medium hover:text-cyan px-3 py-1.5 rounded-lg hover:bg-cyan/10 transition-colors">
-                  <Menu size={16} />
-                  All Categories
-                  <ChevronDown size={14} />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-64 p-2 bg-card border-border max-h-[70vh] overflow-y-auto">
-                  {loadingCategories ? (
-                    <div className="flex items-center justify-center py-4">
-                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : categories.length > 0 ? (
-                    categories.map((cat) => (
-                      <DropdownMenuItem key={cat.id} asChild>
-                        <Link href={`/category/${cat.slug}`} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-cyan/10">
-                          <span className="font-medium">{cat.name}</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    ))
-                  ) : (
-                    <div className="px-3 py-4 text-sm text-muted-foreground text-center">
-                      No categories yet
-                    </div>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <button
+                className="flex items-center gap-2 font-semibold hover:text-primary px-4 py-2 rounded-lg hover:bg-primary/5 transition-colors h-12 bg-primary text-primary-foreground"
+                onMouseEnter={() => setMegaMenuOpen(true)}
+                onMouseLeave={() => setMegaMenuOpen(false)}
+                onClick={() => setMegaMenuOpen(!megaMenuOpen)}
+              >
+                <Grid3x3 size={16} />
+                All Categories
+                <ChevronDown size={14} />
+              </button>
             </li>
             <li className="text-border shrink-0 mx-1">|</li>
+            {/* Quick Links */}
             <li className="shrink-0">
-              <Link href="/deals" className="px-2 py-1.5 rounded-lg hover:bg-cyan/10 hover:text-cyan font-medium transition-colors flex items-center gap-1 whitespace-nowrap">
-                <span className="text-cyan">🔥</span>
-                Deals
+              <Link href="/deals" className="px-3 py-2 rounded-lg hover:bg-primary/5 hover:text-primary transition-colors flex items-center gap-1.5 whitespace-nowrap font-medium">
+                <span>🔥</span>
+                Hot Deals
               </Link>
             </li>
-            {/* Categories - show up to 8 */}
-            {navbarCategories.map((cat) => (
-              <li key={cat.id} className="shrink-0">
-                <Link href={`/category/${cat.slug}`} className="px-2 py-1.5 rounded-lg hover:bg-cyan/10 hover:text-cyan transition-colors whitespace-nowrap text-sm">
-                  {cat.name}
-                </Link>
-              </li>
-            ))}
-            {/* Spacer */}
-            <li className="flex-1" />
-            {/* Right side links */}
             <li className="shrink-0">
-              <Link href="/new-arrivals" className="px-2 py-1.5 rounded-lg hover:bg-cyan/10 hover:text-cyan transition-colors whitespace-nowrap text-sm">
+              <Link href="/new-arrivals" className="px-3 py-2 rounded-lg hover:bg-primary/5 hover:text-primary transition-colors whitespace-nowrap">
                 New Arrivals
               </Link>
             </li>
             <li className="shrink-0">
-              <Link href="/best-sellers" className="px-2 py-1.5 rounded-lg hover:bg-cyan/10 hover:text-cyan transition-colors whitespace-nowrap text-sm">
+              <Link href="/best-sellers" className="px-3 py-2 rounded-lg hover:bg-primary/5 hover:text-primary transition-colors whitespace-nowrap">
                 Best Sellers
               </Link>
             </li>
             <li className="shrink-0">
-              <Link href="/vendors" className="px-2 py-1.5 rounded-lg hover:bg-cyan/10 hover:text-cyan transition-colors whitespace-nowrap text-sm">
-                Sellers
+              <Link href="/vendors" className="px-3 py-2 rounded-lg hover:bg-primary/5 hover:text-primary transition-colors whitespace-nowrap">
+                Find Suppliers
               </Link>
             </li>
+            {/* Spacer */}
+            <li className="flex-1" />
+            {/* Request Quote Button - B2B Feature */}
+            <li className="shrink-0">
+              <Button size="sm" variant="outline" className="border-primary/30 hover:bg-primary hover:text-primary-foreground" asChild>
+                <Link href="/products" className="flex items-center gap-2">
+                  <FileText size={16} />
+                  Request Quote
+                </Link>
+              </Button>
+            </li>
           </ul>
+        </div>
+
+        {/* Mega Menu */}
+        <div
+          onMouseEnter={() => setMegaMenuOpen(true)}
+          onMouseLeave={() => setMegaMenuOpen(false)}
+        >
+          <MegaMenu
+            isOpen={megaMenuOpen}
+            onClose={() => setMegaMenuOpen(false)}
+          />
         </div>
       </nav>
 

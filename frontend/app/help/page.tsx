@@ -57,7 +57,7 @@ const categories = [
   },
   {
     icon: Store,
-    title: 'Selling on Channah',
+    title: 'Selling on Vendora',
     description: 'Become a vendor and start selling',
     href: '#selling',
   },
@@ -156,11 +156,11 @@ const faqSections = [
   },
   {
     id: 'selling',
-    title: 'Selling on Channah',
+    title: 'Selling on Vendora',
     faqs: [
       {
         question: 'How do I become a seller?',
-        answer: 'Visit our "Sell on Channah" page and complete the registration form. You\'ll need to provide business information, bank details, and agree to our seller terms. Applications are typically reviewed within 2-3 business days.',
+        answer: 'Visit our "Sell on Vendora" page and complete the registration form. You\'ll need to provide business information, bank details, and agree to our seller terms. Applications are typically reviewed within 2-3 business days.',
       },
       {
         question: 'What are the seller fees?',

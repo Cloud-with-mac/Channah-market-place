@@ -25,6 +25,7 @@ class CartItemProductResponse(BaseSchema):
     primary_image: Optional[str]
     quantity: int  # Available stock
     vendor_name: str
+    shipping_cost: Decimal = Decimal("0")
 
 
 class CartItemResponse(BaseSchema):

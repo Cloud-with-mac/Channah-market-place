@@ -376,6 +376,22 @@ async def analyze_product_image(
     try:
         # Read and encode image
         contents = await image.read()
+
+        # Verify magic bytes match an actual image
+        image_signatures = {
+            b'\xff\xd8\xff': 'image/jpeg',
+            b'\x89PNG\r\n\x1a\n': 'image/png',
+            b'GIF87a': 'image/gif',
+            b'GIF89a': 'image/gif',
+            b'RIFF': 'image/webp',
+        }
+        is_valid_image = any(contents[:len(sig)] == sig for sig in image_signatures)
+        if not is_valid_image:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File content does not match a valid image format"
+            )
+
         base64_image = base64.b64encode(contents).decode("utf-8")
 
         response = client.chat.completions.create(

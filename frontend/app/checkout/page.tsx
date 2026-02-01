@@ -75,29 +75,15 @@ export default function CheckoutPage() {
     setError(null)
 
     try {
-      // Step 1: Sync frontend cart to backend
-      // First clear the backend cart
+      // Ensure backend cart is in sync — add all frontend items
       try {
         await cartAPI.clear()
       } catch {
-        // Cart might not exist yet, that's OK
+        // Cart might not exist yet
       }
 
-      // Add all items to backend cart
-      let addedCount = 0
       for (const item of items) {
-        try {
-          await cartAPI.addItem(item.productId, item.quantity, item.variantId)
-          addedCount++
-        } catch (itemErr: any) {
-          console.error(`Failed to add item ${item.name} to cart:`, itemErr)
-          // Continue with other items
-        }
-      }
-
-      // If no items were added, clear localStorage and show error
-      if (addedCount === 0) {
-        throw new Error('Unable to process cart items. Please try adding items to cart again.')
+        await cartAPI.addItem(item.productId, item.quantity, item.variantId)
       }
 
       // Apply coupon if any
@@ -109,7 +95,7 @@ export default function CheckoutPage() {
         }
       }
 
-      // Step 2: Create order with nested shipping_address (backend expects this format)
+      // Create order — backend reads items from the cart
       const orderData = {
         shipping_address: {
           first_name: shippingData?.firstName || '',
@@ -128,8 +114,7 @@ export default function CheckoutPage() {
         currency: currency.code,
       }
 
-      const response = await ordersAPI.create(orderData)
-      const order = response.data
+      const order = await ordersAPI.create(orderData)
 
       // Mark order as complete BEFORE clearing cart to prevent "empty cart" flash
       setOrderComplete(true)
@@ -137,8 +122,9 @@ export default function CheckoutPage() {
       // Clear frontend cart after successful order
       clearCart()
 
-      // Redirect to success page
-      router.push(`/checkout/success?order=${order.order_number}`)
+      // Redirect to success page with estimated delivery info
+      const estimatedDelivery = order.estimated_delivery ? `&delivery=${encodeURIComponent(order.estimated_delivery)}` : ''
+      router.push(`/checkout/success?order=${order.order_number}${estimatedDelivery}`)
     } catch (err: any) {
       console.error('Checkout error:', err)
       console.error('Error response:', err?.response?.data)
@@ -168,8 +154,8 @@ export default function CheckoutPage() {
     setCurrentStep(0)
   }
 
-  // Calculate shipping (free over $50)
-  const shipping = subtotal >= 50 ? 0 : 5.99
+  // Calculate shipping from vendor-set per-product shipping costs
+  const shipping = items.reduce((sum, item) => sum + (item.shippingCost || 0) * item.quantity, 0)
   const finalTotal = total + shipping
 
   return (

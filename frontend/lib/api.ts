@@ -1,4 +1,19 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios'
+import { toastEmitter } from './toast-emitter'
+import type {
+  RegisterRequest,
+  LoginResponse,
+  UserProfile,
+  UpdateProfileRequest,
+  ChangePasswordRequest,
+  Product,
+  ProductSearchParams,
+  CategoryFiltersResponse,
+  Cart,
+  OrderCreateRequest,
+  Order,
+  OrderListItem,
+} from './api-types'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
@@ -37,23 +52,37 @@ apiClient.interceptors.response.use(
 
       try {
         const refreshToken = localStorage.getItem('refresh_token')
-        if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-            refresh_token: refreshToken,
-          })
+        if (!refreshToken) throw new Error('No refresh token')
 
-          const { access_token } = response.data
-          localStorage.setItem('access_token', access_token)
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+          refresh_token: refreshToken,
+        })
 
-          originalRequest.headers.Authorization = `Bearer ${access_token}`
-          return apiClient(originalRequest)
-        }
+        const { access_token } = response.data
+        localStorage.setItem('access_token', access_token)
+
+        originalRequest.headers.Authorization = `Bearer ${access_token}`
+        return apiClient(originalRequest)
       } catch (refreshError) {
         localStorage.removeItem('access_token')
         localStorage.removeItem('refresh_token')
-        window.location.href = '/login'
+        localStorage.removeItem('auth-storage')
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+          window.location.href = '/login'
+        }
         return Promise.reject(refreshError)
       }
+    }
+
+    // Emit toast for non-401 errors
+    if (error.response?.status !== 401) {
+      const detail = error.response?.data?.detail
+      const message = typeof detail === 'string'
+        ? detail
+        : Array.isArray(detail)
+          ? detail.map((e: any) => e.msg || String(e)).join(', ')
+          : error.response?.data?.message || 'Something went wrong'
+      toastEmitter.emit(message)
     }
 
     return Promise.reject(error)
@@ -62,12 +91,12 @@ apiClient.interceptors.response.use(
 
 // ==================== AUTH API ====================
 export const authAPI = {
-  register: async (data: any) => {
+  register: async (data: RegisterRequest): Promise<LoginResponse> => {
     const response = await apiClient.post('/auth/register', data)
     return response.data
   },
 
-  login: async (email: string, password: string) => {
+  login: async (email: string, password: string): Promise<LoginResponse> => {
     const formData = new URLSearchParams()
     formData.append('username', email)
     formData.append('password', password)
@@ -91,50 +120,84 @@ export const authAPI = {
     localStorage.removeItem('refresh_token')
   },
 
-  getCurrentUser: async () => {
+  getCurrentUser: async (): Promise<UserProfile> => {
     const response = await apiClient.get('/users/me')
     return response.data
   },
 
-  updateProfile: async (data: any) => {
+  updateProfile: async (data: UpdateProfileRequest): Promise<UserProfile> => {
     const response = await apiClient.put('/users/me', data)
     return response.data
   },
 
-  changePassword: async (data: any) => {
+  changePassword: async (data: ChangePasswordRequest) => {
     const response = await apiClient.post('/auth/change-password', data)
     return response.data
   },
 
   forgotPassword: async (email: string) => {
-    const response = await apiClient.post('/auth/forgot-password', { email })
+    const response = await apiClient.post('/auth/password-reset', { email })
     return response.data
   },
 
-  resetPassword: async (token: string, password: string) => {
-    const response = await apiClient.post('/auth/reset-password', { token, password })
+  resetPassword: async (data: { token: string; password: string; password_confirm?: string }) => {
+    const response = await apiClient.post('/auth/password-reset/confirm', data)
+    return response.data
+  },
+
+  updateAvatar: async (formData: FormData) => {
+    const response = await apiClient.post('/auth/me/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  },
+
+  deleteAccount: async () => {
+    const response = await apiClient.delete('/users/me')
     return response.data
   },
 }
 
 // ==================== PRODUCTS API ====================
 export const productsAPI = {
-  getAll: async (params?: any) => {
+  getAll: async (params?: ProductSearchParams) => {
     const response = await apiClient.get('/products', { params })
     return response.data
   },
 
-  getById: async (id: string) => {
+  getById: async (id: string): Promise<Product> => {
     const response = await apiClient.get(`/products/${id}`)
     return response.data
   },
 
-  getBySlug: async (slug: string) => {
-    const response = await apiClient.get(`/products/slug/${slug}`)
+  getBySlug: async (slug: string): Promise<Product> => {
+    const response = await apiClient.get(`/products/${slug}`)
     return response.data
   },
 
-  search: async (query: string, params?: any) => {
+  getNewArrivals: async (limit: number = 12) => {
+    const response = await apiClient.get('/products', {
+      params: {
+        limit,
+        sort_by: 'created_at',
+        sort_order: 'desc',
+      },
+    })
+    return response.data
+  },
+
+  getBestSellers: async (limit: number = 12) => {
+    const response = await apiClient.get('/products', {
+      params: {
+        limit,
+        sort_by: 'sales_count',
+        sort_order: 'desc',
+      },
+    })
+    return response.data
+  },
+
+  search: async (query: string, params?: ProductSearchParams) => {
     const response = await apiClient.get('/search', { params: { q: query, ...params } })
     return response.data
   },
@@ -147,8 +210,15 @@ export const productsAPI = {
     return response.data
   },
 
-  getFilters: async (categorySlug: string) => {
+  getFilters: async (categorySlug: string): Promise<CategoryFiltersResponse> => {
     const response = await apiClient.get(`/products/filters/${categorySlug}`)
+    return response.data
+  },
+
+  getFeatured: async (limit: number = 8) => {
+    const response = await apiClient.get('/products', {
+      params: { limit, featured: true, sort_by: 'sales_count', sort_order: 'desc' },
+    })
     return response.data
   },
 }
@@ -170,6 +240,11 @@ export const categoriesAPI = {
     return response.data
   },
 
+  getTree: async () => {
+    const response = await apiClient.get('/categories/tree')
+    return response.data
+  },
+
   getFeatured: async (limit: number = 8) => {
     const response = await apiClient.get('/categories/featured', {
       params: { limit }
@@ -180,32 +255,42 @@ export const categoriesAPI = {
 
 // ==================== CART API ====================
 export const cartAPI = {
-  get: async () => {
+  get: async (): Promise<Cart> => {
     const response = await apiClient.get('/cart')
     return response.data
   },
 
-  addItem: async (productId: string, quantity: number = 1, variantId?: string) => {
-    const response = await apiClient.post('/cart/items', {
-      product_id: productId,
-      quantity,
-      variant_id: variantId,
-    })
+  addItem: async (productId: string, quantity: number = 1, variantId?: string): Promise<Cart> => {
+    const body: any = { product_id: productId, quantity }
+    // Only send variant_id if it's a valid UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (variantId && uuidRegex.test(variantId)) body.variant_id = variantId
+    const response = await apiClient.post('/cart/items', body)
     return response.data
   },
 
-  updateItem: async (itemId: string, quantity: number) => {
+  updateItem: async (itemId: string, quantity: number): Promise<Cart> => {
     const response = await apiClient.put(`/cart/items/${itemId}`, { quantity })
     return response.data
   },
 
-  removeItem: async (itemId: string) => {
+  removeItem: async (itemId: string): Promise<Cart> => {
     const response = await apiClient.delete(`/cart/items/${itemId}`)
     return response.data
   },
 
   clear: async () => {
     const response = await apiClient.delete('/cart')
+    return response.data
+  },
+
+  applyCoupon: async (code: string) => {
+    const response = await apiClient.post('/cart/coupon', { coupon_code: code })
+    return response.data
+  },
+
+  removeCoupon: async () => {
+    const response = await apiClient.delete('/cart/coupon')
     return response.data
   },
 }
@@ -218,7 +303,7 @@ export const wishlistAPI = {
   },
 
   add: async (productId: string) => {
-    const response = await apiClient.post('/users/me/wishlist', { product_id: productId })
+    const response = await apiClient.post(`/users/me/wishlist?product_id=${productId}`, {})
     return response.data
   },
 
@@ -230,22 +315,27 @@ export const wishlistAPI = {
 
 // ==================== ORDERS API ====================
 export const ordersAPI = {
-  getAll: async (params?: any) => {
+  getAll: async (params?: { page?: number; page_size?: number; status?: string }): Promise<OrderListItem[]> => {
     const response = await apiClient.get('/orders', { params })
     return response.data
   },
 
-  getById: async (id: string) => {
+  list: async (params?: { page?: number; page_size?: number; status?: string }): Promise<OrderListItem[]> => {
+    const response = await apiClient.get('/orders', { params })
+    return response.data
+  },
+
+  getById: async (id: string): Promise<Order> => {
     const response = await apiClient.get(`/orders/${id}`)
     return response.data
   },
 
-  getByOrderNumber: async (orderNumber: string) => {
-    const response = await apiClient.get(`/orders/number/${orderNumber}`)
+  getByOrderNumber: async (orderNumber: string): Promise<Order> => {
+    const response = await apiClient.get(`/orders/${orderNumber}`)
     return response.data
   },
 
-  create: async (data: any) => {
+  create: async (data: OrderCreateRequest): Promise<Order> => {
     const response = await apiClient.post('/orders', data)
     return response.data
   },
@@ -255,8 +345,9 @@ export const ordersAPI = {
     return response.data
   },
 
-  trackOrder: async (orderNumber: string) => {
-    const response = await apiClient.get(`/orders/${orderNumber}/track`)
+  trackOrder: async (orderNumber: string, email?: string) => {
+    const params = email ? { email } : {}
+    const response = await apiClient.get(`/orders/${orderNumber}/tracking`, { params })
     return response.data
   },
 }
@@ -264,6 +355,11 @@ export const ordersAPI = {
 // ==================== ADDRESSES API ====================
 export const addressesAPI = {
   getAll: async () => {
+    const response = await apiClient.get('/addresses')
+    return response.data
+  },
+
+  list: async () => {
     const response = await apiClient.get('/addresses')
     return response.data
   },
@@ -289,7 +385,7 @@ export const addressesAPI = {
   },
 
   setDefault: async (id: string) => {
-    const response = await apiClient.post(`/addresses/${id}/set-default`)
+    const response = await apiClient.put(`/addresses/${id}/default-shipping`)
     return response.data
   },
 }
@@ -297,7 +393,7 @@ export const addressesAPI = {
 // ==================== REVIEWS API ====================
 export const reviewsAPI = {
   getByProduct: async (productId: string, params?: any) => {
-    const response = await apiClient.get(`/products/${productId}/reviews`, { params })
+    const response = await apiClient.get(`/reviews/product/${productId}`, { params })
     return response.data
   },
 
@@ -352,6 +448,11 @@ export const notificationsAPI = {
     return response.data
   },
 
+  list: async () => {
+    const response = await apiClient.get('/notifications')
+    return response.data
+  },
+
   markAsRead: async (id: string) => {
     const response = await apiClient.put(`/notifications/${id}/read`)
     return response.data
@@ -378,10 +479,11 @@ export const aiAPI = {
     return response.data
   },
 
-  getRecommendations: async (productId?: string, categoryId?: string) => {
+  getRecommendations: async (productId?: string, categoryId?: string, limit?: number) => {
     const response = await apiClient.post('/ai/recommendations', {
       product_id: productId,
       category_id: categoryId,
+      limit,
     })
     return response.data
   },
@@ -417,6 +519,11 @@ export const aiAPI = {
     const response = await apiClient.get('/ai/personalized-feed')
     return response.data
   },
+
+  generateDescription: async (data: { name: string; category?: string; features?: string[]; tone?: string; target_audience?: string }) => {
+    const response = await apiClient.post('/ai/generate-description', data)
+    return response.data
+  },
 }
 
 // ==================== VENDORS API ====================
@@ -432,7 +539,7 @@ export const vendorsAPI = {
   },
 
   getBySlug: async (slug: string) => {
-    const response = await apiClient.get(`/vendors/slug/${slug}`)
+    const response = await apiClient.get(`/vendors/${slug}`)
     return response.data
   },
 
@@ -469,6 +576,14 @@ export const uploadAPI = {
         'Content-Type': 'multipart/form-data',
       },
     })
+    return response.data
+  },
+}
+
+// ==================== CONTACT API ====================
+export const contactAPI = {
+  submit: async (data: { name: string; email: string; subject: string; message: string; order_number?: string }) => {
+    const response = await apiClient.post('/contact', data)
     return response.data
   },
 }
@@ -515,6 +630,142 @@ export const chatAPI = {
 
   getContactedVendors: async () => {
     const response = await apiClient.get('/chats/vendors-contacted')
+    return response.data
+  },
+}
+
+// ==================== ADMIN API ====================
+export const adminAPI = {
+  getStats: async () => {
+    const response = await apiClient.get('/admin/stats')
+    return response.data
+  },
+
+  getUsers: async (params?: any) => {
+    const response = await apiClient.get('/admin/users', { params })
+    return response.data
+  },
+
+  getOrders: async (params?: any) => {
+    const response = await apiClient.get('/admin/orders', { params })
+    return response.data
+  },
+
+  getVendors: async (params?: any) => {
+    const response = await apiClient.get('/admin/vendors', { params })
+    return response.data
+  },
+
+  getSettings: async () => {
+    const response = await apiClient.get('/admin/settings')
+    return response.data
+  },
+
+  updateSettings: async (data: any) => {
+    const response = await apiClient.put('/admin/settings', data)
+    return response.data
+  },
+
+  getDashboard: async () => {
+    const response = await apiClient.get('/admin/dashboard')
+    return response.data
+  },
+
+  getRecentOrders: async (limit?: number) => {
+    const response = await apiClient.get('/admin/orders', { params: { limit, sort: '-created_at' } })
+    return response.data
+  },
+
+  getTopProducts: async (limit?: number) => {
+    const response = await apiClient.get('/admin/products', { params: { limit, sort: '-sales' } })
+    return response.data
+  },
+
+  getTopVendors: async (limit?: number) => {
+    const response = await apiClient.get('/admin/vendors', { params: { limit, sort: '-revenue' } })
+    return response.data
+  },
+
+  updateProductStatus: async (productId: string, status: string) => {
+    const response = await apiClient.put(`/admin/products/${productId}/status`, { status })
+    return response.data
+  },
+
+  listPendingVendors: async () => {
+    const response = await apiClient.get('/admin/vendors', { params: { status: 'pending' } })
+    return response.data
+  },
+
+  approveVendor: async (vendorId: string) => {
+    const response = await apiClient.put(`/admin/vendors/${vendorId}/approve`)
+    return response.data
+  },
+
+  rejectVendor: async (vendorId: string) => {
+    const response = await apiClient.put(`/admin/vendors/${vendorId}/reject`)
+    return response.data
+  },
+
+  suspendVendor: async (vendorId: string) => {
+    const response = await apiClient.put(`/admin/vendors/${vendorId}/suspend`)
+    return response.data
+  },
+
+  listUsers: async (params?: any) => {
+    const response = await apiClient.get('/admin/users', { params })
+    return response.data
+  },
+
+  updateUserStatus: async (userId: string, status: string | boolean) => {
+    const response = await apiClient.put(`/admin/users/${userId}/status`, { status })
+    return response.data
+  },
+
+  updateUserRole: async (userId: string, role: string) => {
+    const response = await apiClient.put(`/admin/users/${userId}/role`, { role })
+    return response.data
+  },
+
+  getPendingReviews: async (limit?: number) => {
+    const response = await apiClient.get('/admin/reviews', { params: { status: 'pending', limit } })
+    return response.data
+  },
+
+  approveReview: async (reviewId: string) => {
+    const response = await apiClient.put(`/admin/reviews/${reviewId}/approve`)
+    return response.data
+  },
+
+  deleteReview: async (reviewId: string) => {
+    const response = await apiClient.delete(`/admin/reviews/${reviewId}`)
+    return response.data
+  },
+}
+
+// ==================== SUPPORT CHAT API ====================
+export const supportChatAPI = {
+  createChat: async (data: { subject: string; message: string }) => {
+    const response = await apiClient.post('/support-chat', data)
+    return response.data
+  },
+
+  getChats: async () => {
+    const response = await apiClient.get('/support-chat')
+    return response.data
+  },
+
+  getMessages: async (chatId: string) => {
+    const response = await apiClient.get(`/support-chat/${chatId}/messages`)
+    return response.data
+  },
+
+  sendMessage: async (chatId: string, content: string) => {
+    const response = await apiClient.post(`/support-chat/${chatId}/messages`, { content })
+    return response.data
+  },
+
+  closeChat: async (chatId: string) => {
+    const response = await apiClient.put(`/support-chat/${chatId}/close`)
     return response.data
   },
 }

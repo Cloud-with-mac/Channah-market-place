@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, UploadFile, File, Request
 from fastapi.security import OAuth2PasswordRequestForm
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 import uuid
 import os
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,10 +25,28 @@ from app.schemas.user import (
 from app.schemas.common import MessageResponse
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
+
+
+def verify_image_magic_bytes(contents: bytes) -> bool:
+    """Verify file is actually an image by checking magic bytes."""
+    signatures = {
+        b'\xff\xd8\xff': 'image/jpeg',      # JPEG
+        b'\x89PNG\r\n\x1a\n': 'image/png',  # PNG
+        b'GIF87a': 'image/gif',              # GIF87a
+        b'GIF89a': 'image/gif',              # GIF89a
+        b'RIFF': 'image/webp',               # WebP (starts with RIFF)
+    }
+    for sig in signatures:
+        if contents[:len(sig)] == sig:
+            return True
+    return False
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/minute")
 async def register(
+    request: Request,
     user_data: UserCreate,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
@@ -94,7 +114,9 @@ async def register(
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
@@ -174,7 +196,9 @@ async def refresh_token(
 
 
 @router.post("/password-reset", response_model=MessageResponse)
+@limiter.limit("3/minute")
 async def request_password_reset(
+    request: Request,
     data: PasswordReset,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
@@ -295,6 +319,13 @@ async def update_avatar(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="File too large. Maximum size: 5MB"
+        )
+
+    # Verify magic bytes match an actual image
+    if not verify_image_magic_bytes(contents):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File content does not match a valid image format"
         )
 
     # Create uploads directory if it doesn't exist

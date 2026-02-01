@@ -28,7 +28,7 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
-import { authAPI } from '@/lib/api'
+import { authAPI, profileAPI } from '@/lib/api'
 import { formatRelativeTime, getInitials } from '@/lib/utils'
 
 interface AdminProfile {
@@ -91,14 +91,14 @@ export default function ProfilePage() {
   React.useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await authAPI.getMe()
-        if (response.data) {
-          setProfile(response.data)
+        const userData = await authAPI.getCurrentUser()
+        if (userData) {
+          setProfile(userData)
           setFormData({
-            first_name: response.data.first_name,
-            last_name: response.data.last_name,
-            email: response.data.email,
-            phone: response.data.phone || '',
+            first_name: userData.first_name,
+            last_name: userData.last_name,
+            email: userData.email,
+            phone: userData.phone || '',
           })
         }
       } catch (error) {
@@ -116,8 +116,7 @@ export default function ProfilePage() {
     setIsSaving(true)
 
     try {
-      // In production, this would call an API endpoint
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await profileAPI.update(formData)
       setProfile({ ...profile, ...formData })
       toast({
         title: 'Profile Updated',
@@ -158,8 +157,7 @@ export default function ProfilePage() {
     setIsSaving(true)
 
     try {
-      // In production, this would call an API endpoint
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await profileAPI.changePassword({ current_password: passwordData.current_password, new_password: passwordData.new_password })
       setPasswordData({ current_password: '', new_password: '', confirm_password: '' })
       toast({
         title: 'Password Changed',
@@ -178,8 +176,7 @@ export default function ProfilePage() {
 
   const handleNotificationUpdate = async () => {
     try {
-      // In production, this would call an API endpoint
-      await new Promise(resolve => setTimeout(resolve, 500))
+      await profileAPI.updateNotificationPreferences(notifications)
       toast({
         title: 'Preferences Saved',
         description: 'Your notification preferences have been updated.',

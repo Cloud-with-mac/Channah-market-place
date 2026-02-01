@@ -32,7 +32,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { useAuthStore, useSidebarStore, useNotificationStore, useThemeStore } from '@/store'
+import { useAuthStore, useSidebarStore, useNotificationStore, useThemeStore, useMessagesStore } from '@/store'
 import { getInitials, formatRelativeTime } from '@/lib/utils'
 import { CommandSearch } from './command-search'
 
@@ -40,8 +40,9 @@ export function AdminHeader() {
   const router = useRouter()
   const { user, logout } = useAuthStore()
   const { setMobileOpen, isCollapsed } = useSidebarStore()
-  const { unreadCount, notifications, markAsRead } = useNotificationStore()
+  const { unreadCount, notifications, markAsRead, markAllAsRead } = useNotificationStore()
   const { theme, setTheme } = useThemeStore()
+  const { unreadMessagesCount } = useMessagesStore()
   const [searchOpen, setSearchOpen] = React.useState(false)
 
   // Keyboard shortcut for search (Ctrl+K)
@@ -59,6 +60,13 @@ export function AdminHeader() {
   const handleLogout = () => {
     logout()
     router.push('/login')
+  }
+
+  const handleNotificationClick = (notification: typeof notifications[0]) => {
+    markAsRead(notification.id)
+    if (notification.link) {
+      router.push(notification.link)
+    }
   }
 
   return (
@@ -109,12 +117,19 @@ export function AdminHeader() {
             variant="ghost"
             size="icon"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="relative hover:bg-muted"
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
-            {theme === 'dark' ? (
-              <Sun className="h-5 w-5" />
-            ) : (
-              <Moon className="h-5 w-5" />
-            )}
+            <div className="relative">
+              {theme === 'dark' ? (
+                <Sun className="h-5 w-5 text-amber-400 hover:text-amber-300 transition-all hover:rotate-90 duration-500 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
+              ) : (
+                <Moon className="h-5 w-5 text-slate-700 hover:text-slate-900 transition-all hover:-rotate-12 duration-300" />
+              )}
+            </div>
+            <span className="sr-only">
+              {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            </span>
           </Button>
 
           {/* Notifications */}
@@ -132,44 +147,53 @@ export function AdminHeader() {
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-80 p-0">
-              <div className="flex items-center justify-between p-4 border-b">
-                <h4 className="font-semibold">Notifications</h4>
+            <PopoverContent align="end" className="w-[calc(100vw-2rem)] sm:w-96 max-w-md p-0">
+              <div className="flex items-center justify-between p-3 sm:p-4 border-b">
+                <h4 className="text-sm sm:text-base font-semibold">Notifications</h4>
                 {unreadCount > 0 && (
-                  <Button variant="ghost" size="sm" className="text-xs">
-                    Mark all as read
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-[10px] sm:text-xs h-7 sm:h-8"
+                    onClick={markAllAsRead}
+                  >
+                    Mark all read
                   </Button>
                 )}
               </div>
-              <ScrollArea className="h-[300px]">
+              <ScrollArea className="h-[250px] sm:h-[300px] md:h-[350px]">
                 {notifications.length === 0 ? (
-                  <div className="p-4 text-center text-muted-foreground">
-                    No notifications
+                  <div className="flex flex-col items-center justify-center py-8 sm:py-12 px-4 text-center">
+                    <Bell className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-3 sm:mb-4" />
+                    <p className="text-xs sm:text-sm font-medium mb-1">No notifications</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      You're all caught up! Notifications will appear here.
+                    </p>
                   </div>
                 ) : (
                   <div className="divide-y">
                     {notifications.map((notification) => (
                       <div
                         key={notification.id}
-                        className={`p-4 hover:bg-muted/50 cursor-pointer ${
+                        className={`p-3 sm:p-4 hover:bg-muted/50 cursor-pointer transition-colors ${
                           !notification.read ? 'bg-primary/5' : ''
                         }`}
-                        onClick={() => markAsRead(notification.id)}
+                        onClick={() => handleNotificationClick(notification)}
                       >
-                        <div className="flex gap-3">
+                        <div className="flex gap-2 sm:gap-3">
                           <div
-                            className={`h-2 w-2 mt-2 rounded-full shrink-0 ${
+                            className={`h-2 w-2 mt-1.5 sm:mt-2 rounded-full shrink-0 ${
                               !notification.read ? 'bg-primary' : 'bg-transparent'
                             }`}
                           />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium">
+                            <p className="text-xs sm:text-sm font-medium line-clamp-1">
                               {notification.title}
                             </p>
-                            <p className="text-xs text-muted-foreground truncate">
+                            <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2 mt-0.5">
                               {notification.message}
                             </p>
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                               {formatRelativeTime(notification.timestamp)}
                             </p>
                           </div>
@@ -179,11 +203,13 @@ export function AdminHeader() {
                   </div>
                 )}
               </ScrollArea>
-              <div className="p-2 border-t">
-                <Button variant="ghost" className="w-full" size="sm" asChild>
-                  <Link href="/notifications">View all notifications</Link>
-                </Button>
-              </div>
+              {notifications.length > 0 && (
+                <div className="p-2 border-t">
+                  <Button variant="ghost" className="w-full text-xs sm:text-sm" size="sm" asChild>
+                    <Link href="/notifications">View all notifications</Link>
+                  </Button>
+                </div>
+              )}
             </PopoverContent>
           </Popover>
 
@@ -191,12 +217,14 @@ export function AdminHeader() {
           <Button variant="ghost" size="icon" className="relative" asChild>
             <Link href="/support">
               <MessageSquare className="h-5 w-5" />
-              <Badge
-                variant="destructive"
-                className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
-              >
-                5
-              </Badge>
+              {unreadMessagesCount > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+                >
+                  {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                </Badge>
+              )}
             </Link>
           </Button>
 

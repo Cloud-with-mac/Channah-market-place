@@ -36,6 +36,7 @@ const navigation = [
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Payouts', href: '/payouts', icon: Wallet },
   { name: 'Reviews', href: '/reviews', icon: Star },
+  { name: 'Store Profile', href: '/store-profile', icon: Store },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
@@ -122,7 +123,7 @@ export function VendorSidebar() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <a
-                    href="http://localhost:3000"
+                    href={process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000'}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cn(

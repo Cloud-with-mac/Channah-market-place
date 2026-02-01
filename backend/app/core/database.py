@@ -60,8 +60,9 @@ async def init_db():
         User, Vendor, VendorPayout, Category, Product, ProductImage,
         ProductVariant, ProductAttribute, Cart, CartItem, Order, OrderItem,
         OrderStatusHistory, Review, Wishlist, Address, Payment, PaymentMethod,
-        Notification, Conversation, Message
+        Notification, Conversation, Message, SupportChat, SupportChatMessage
     )
+    from app.models.contact import ContactSubmission, NewsletterSubscriber
 
     async with engine.begin() as conn:
         # Enable WAL mode for better concurrent access (SQLite only)

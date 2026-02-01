@@ -12,31 +12,8 @@ import {
   Legend,
 } from 'recharts'
 import { formatPrice } from '@/lib/utils'
-
-// Generate mock data
-function generateChartData(days: number) {
-  const data = []
-  const today = new Date()
-
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date(today)
-    date.setDate(date.getDate() - i)
-
-    const baseRevenue = 3000 + Math.random() * 5000
-    const dayOfWeek = date.getDay()
-    const weekendMultiplier = dayOfWeek === 0 || dayOfWeek === 6 ? 1.3 : 1
-    const revenue = Math.round(baseRevenue * weekendMultiplier)
-    const orders = Math.floor(revenue / 50) + Math.floor(Math.random() * 20)
-
-    data.push({
-      date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-      revenue,
-      orders,
-    })
-  }
-
-  return data
-}
+import { dashboardAPI } from '@/lib/api'
+import { BarChart3, Loader2 } from 'lucide-react'
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -56,7 +33,44 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export function RevenueChart() {
-  const data = React.useMemo(() => generateChartData(30), [])
+  const [data, setData] = React.useState<any[]>([])
+  const [isLoading, setIsLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    async function fetchData() {
+      try {
+        const result = await dashboardAPI.getRevenueChart()
+        if (Array.isArray(result) && result.length > 0) {
+          setData(result)
+        } else {
+          setData([])
+        }
+      } catch {
+        setData([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (isLoading) {
+    return (
+      <div className="h-[300px] w-full flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="h-[300px] w-full flex flex-col items-center justify-center text-muted-foreground">
+        <BarChart3 className="h-12 w-12 mb-3 opacity-50" />
+        <p className="text-sm">No revenue data yet</p>
+        <p className="text-xs mt-1">Revenue chart will appear once orders are placed</p>
+      </div>
+    )
+  }
 
   return (
     <div className="h-[300px] w-full">

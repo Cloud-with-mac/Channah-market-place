@@ -16,6 +16,7 @@ import {
   ImageIcon,
   Loader2,
   Tag,
+  Download,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -48,6 +49,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { productsAPI } from '@/lib/api'
+import { exportToCSV } from '@/lib/export'
 
 interface ProductVariant {
   id: string
@@ -155,11 +157,18 @@ export default function ProductsPage() {
         search: debouncedSearch || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
       })
-      setProducts(response.data.products || [])
-      setTotal(response.data.total || 0)
+
+      if (response) {
+        setProducts(response.products || [])
+        setTotal(response.total || 0)
+      } else {
+        setProducts([])
+        setTotal(0)
+      }
     } catch (error) {
       console.error('Failed to fetch products:', error)
       setProducts([])
+      setTotal(0)
     } finally {
       setIsLoading(false)
     }
@@ -239,6 +248,10 @@ export default function ProductsPage() {
             Manage all products across the marketplace.
           </p>
         </div>
+        <Button variant="outline" size="sm" onClick={() => exportToCSV(products, 'products')}>
+          <Download className="h-4 w-4 mr-2" />
+          Export
+        </Button>
       </div>
 
       {/* Filters */}

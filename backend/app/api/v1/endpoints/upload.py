@@ -11,6 +11,21 @@ from app.models.user import User
 router = APIRouter()
 
 
+def verify_image_magic_bytes(contents: bytes) -> bool:
+    """Verify file is actually an image by checking magic bytes."""
+    signatures = {
+        b'\xff\xd8\xff': 'image/jpeg',      # JPEG
+        b'\x89PNG\r\n\x1a\n': 'image/png',  # PNG
+        b'GIF87a': 'image/gif',              # GIF87a
+        b'GIF89a': 'image/gif',              # GIF89a
+        b'RIFF': 'image/webp',               # WebP (starts with RIFF)
+    }
+    for sig in signatures:
+        if contents[:len(sig)] == sig:
+            return True
+    return False
+
+
 class UploadResponse(BaseModel):
     url: str
     filename: str
@@ -98,6 +113,13 @@ async def upload_image(
             detail=f"File too large. Maximum size: {MAX_FILE_SIZE / 1024 / 1024}MB"
         )
 
+    # Verify magic bytes match an actual image
+    if not verify_image_magic_bytes(contents):
+        raise HTTPException(
+            status_code=400,
+            detail="File content does not match a valid image format"
+        )
+
     # Upload file
     if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
         url = await upload_to_s3(file, "images")
@@ -132,6 +154,10 @@ async def upload_multiple_images(
 
         if len(contents) > MAX_FILE_SIZE:
             continue  # Skip oversized files
+
+        # Verify magic bytes match an actual image
+        if not verify_image_magic_bytes(contents):
+            continue  # Skip files with invalid magic bytes
 
         if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
             url = await upload_to_s3(file, "images")
@@ -204,6 +230,13 @@ async def upload_avatar(
             detail="Avatar too large. Maximum size: 2MB"
         )
 
+    # Verify magic bytes match an actual image
+    if not verify_image_magic_bytes(contents):
+        raise HTTPException(
+            status_code=400,
+            detail="File content does not match a valid image format"
+        )
+
     if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
         url = await upload_to_s3(file, f"avatars/{current_user.id}")
     else:
@@ -238,6 +271,13 @@ async def upload_vendor_logo(
             detail="Logo too large. Maximum size: 5MB"
         )
 
+    # Verify magic bytes match an actual image
+    if not verify_image_magic_bytes(contents):
+        raise HTTPException(
+            status_code=400,
+            detail="File content does not match a valid image format"
+        )
+
     if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
         url = await upload_to_s3(file, "vendor-logos")
     else:
@@ -270,6 +310,13 @@ async def upload_vendor_banner(
         raise HTTPException(
             status_code=400,
             detail=f"Banner too large. Maximum size: {MAX_FILE_SIZE / 1024 / 1024}MB"
+        )
+
+    # Verify magic bytes match an actual image
+    if not verify_image_magic_bytes(contents):
+        raise HTTPException(
+            status_code=400,
+            detail="File content does not match a valid image format"
         )
 
     if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:

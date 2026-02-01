@@ -45,9 +45,12 @@ export default function VendorsPage() {
     const fetchVendors = async () => {
       try {
         const response = await vendorsAPI.getAll({ status: 'approved' })
-        // Handle paginated response
-        const data = response.data
-        const vendorsList = Array.isArray(data) ? data : (data.results || [])
+        // Handle paginated response - API client already returns response.data
+        if (!response) {
+          setVendors([])
+          return
+        }
+        const vendorsList = Array.isArray(response) ? response : (response.results || response.vendors || [])
         setVendors(vendorsList)
       } catch (error) {
         console.error('Failed to fetch vendors:', error)

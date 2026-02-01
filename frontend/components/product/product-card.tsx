@@ -3,13 +3,16 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Heart, ShoppingCart, Star, Eye, Zap, TrendingUp, Package, LogIn } from 'lucide-react'
+import { useState } from 'react'
+import { Heart, ShoppingCart, Star, Eye, Zap, TrendingUp, Package, LogIn, Scale } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { calculateDiscount, cn } from '@/lib/utils'
 import { useCartStore, useWishlistStore, useAuthStore } from '@/store'
+import { useComparisonStore } from '@/store/comparison-store'
 import { toast } from '@/hooks/use-toast'
 import { usePrices } from '@/hooks/use-price'
+import { QuickViewModal } from './quick-view-modal'
 
 interface Product {
   id: string
@@ -33,20 +36,24 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, variant = 'default', showQuickView = true }: ProductCardProps) {
+  const [quickViewOpen, setQuickViewOpen] = useState(false)
   const router = useRouter()
   const { addItem: addToCart, openCart } = useCartStore()
   const { addItem, removeItem, isInWishlist } = useWishlistStore()
   const { isAuthenticated } = useAuthStore()
+  const { addProduct: addToComparison, removeProduct: removeFromComparison, isInComparison, products: comparisonProducts } = useComparisonStore()
   const { formattedPrice, formattedComparePrice } = usePrices(product.price, product.compareAtPrice)
   const isWishlisted = isInWishlist(product.id)
-  const discount = product.compareAtPrice
+  const isComparing = isInComparison(product.id)
+  const discountInfo = product.compareAtPrice
     ? calculateDiscount(product.price, product.compareAtPrice)
-    : 0
+    : { amount: 0, percentage: 0 }
+  const discount = discountInfo.percentage
 
   // Use slug if available, otherwise fall back to product ID
   const productSlug = product.slug || product.id
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
 
@@ -60,21 +67,30 @@ export function ProductCard({ product, variant = 'default', showQuickView = true
       return
     }
 
-    addToCart({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      quantity: 1,
-    })
-    openCart()
-    toast({
-      title: 'Added to cart',
-      description: `${product.name} has been added to your cart`,
-    })
+    try {
+      await addToCart({
+        id: product.id,
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.image,
+        quantity: 1,
+      })
+      openCart()
+      toast({
+        title: 'Added to cart',
+        description: `${product.name} has been added to your cart`,
+      })
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to add item to cart. Please try again.',
+        variant: 'destructive',
+      })
+    }
   }
 
-  const handleToggleWishlist = (e: React.MouseEvent) => {
+  const handleToggleWishlist = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
 
@@ -88,20 +104,66 @@ export function ProductCard({ product, variant = 'default', showQuickView = true
       return
     }
 
-    if (isWishlisted) {
-      removeItem(product.id)
-      toast({ title: 'Removed from wishlist' })
+    try {
+      if (isWishlisted) {
+        await removeItem(product.id)
+        toast({ title: 'Removed from wishlist' })
+      } else {
+        await addItem({
+          id: `wishlist-${product.id}`,
+          productId: product.id,
+          name: product.name,
+          slug: productSlug,
+          price: product.price,
+          compareAtPrice: product.compareAtPrice,
+          image: product.image,
+        })
+        toast({ title: 'Added to wishlist' })
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update wishlist. Please try again.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleToggleComparison = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (isComparing) {
+      removeFromComparison(product.id)
+      toast({ title: 'Removed from comparison' })
     } else {
-      addItem({
-        id: `wishlist-${product.id}`,
-        productId: product.id,
+      if (comparisonProducts.length >= 4) {
+        toast({
+          title: 'Comparison limit reached',
+          description: 'You can compare up to 4 products at a time',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      addToComparison({
+        id: product.id,
         name: product.name,
         slug: productSlug,
         price: product.price,
         compareAtPrice: product.compareAtPrice,
         image: product.image,
+        rating: product.rating,
+        reviewCount: product.reviewCount,
+        vendor: {
+          name: product.vendorName || 'Unknown Vendor',
+          slug: 'vendor',
+        },
       })
-      toast({ title: 'Added to wishlist' })
+      toast({
+        title: 'Added to comparison',
+        description: `${comparisonProducts.length + 1} of 4 products`,
+      })
     }
   }
 
@@ -197,6 +259,7 @@ export function ProductCard({ product, variant = 'default', showQuickView = true
         <div className="absolute top-3 right-3 flex flex-col gap-2">
           <button
             onClick={handleToggleWishlist}
+            aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
             className={cn(
               'p-2.5 rounded-xl shadow-lg transition-all duration-300 transform',
               isWishlisted
@@ -206,13 +269,26 @@ export function ProductCard({ product, variant = 'default', showQuickView = true
           >
             <Heart className={cn('h-4 w-4', isWishlisted && 'fill-current')} />
           </button>
+          <button
+            onClick={handleToggleComparison}
+            aria-label={isComparing ? 'Remove from comparison' : 'Add to comparison'}
+            className={cn(
+              'p-2.5 rounded-xl shadow-lg transition-all duration-300 transform',
+              isComparing
+                ? 'bg-gradient-to-r from-primary to-accent text-white scale-100'
+                : 'bg-white/95 backdrop-blur-md text-gray-500 hover:bg-primary/10 hover:text-primary scale-90 group-hover:scale-100'
+            )}
+          >
+            <Scale className="h-4 w-4" />
+          </button>
           {showQuickView && (
             <button
+              aria-label="Quick view"
               className="p-2.5 rounded-xl bg-white/95 backdrop-blur-md text-gray-500 shadow-lg hover:bg-primary hover:text-white transition-all duration-300 transform scale-90 group-hover:scale-100"
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
-                // Quick view modal would go here
+                setQuickViewOpen(true)
               }}
             >
               <Eye className="h-4 w-4" />
@@ -235,20 +311,25 @@ export function ProductCard({ product, variant = 'default', showQuickView = true
 
       {/* Content */}
       <div className="p-4">
-        {/* Vendor */}
-        {product.vendorName && (
-          <p className="text-xs font-medium text-primary/80 mb-1 tracking-wide">
-            {product.vendorName}
-          </p>
-        )}
-
         {/* Name */}
         <h3 className="font-semibold text-sm mb-2 line-clamp-2 min-h-[2.5rem] group-hover:text-primary transition-colors">
           {product.name}
         </h3>
 
+        {/* Price */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className="font-bold text-lg text-primary">
+            {formattedPrice}
+          </span>
+          {formattedComparePrice && (
+            <span className="text-sm text-muted-foreground line-through">
+              {formattedComparePrice}
+            </span>
+          )}
+        </div>
+
         {/* Rating */}
-        <div className="flex items-center gap-1.5 mb-2">
+        <div className="flex items-center gap-1.5 mb-3">
           <div className="flex items-center gap-0.5">
             {[1, 2, 3, 4, 5].map((star) => (
               <Star
@@ -263,29 +344,45 @@ export function ProductCard({ product, variant = 'default', showQuickView = true
             ))}
           </div>
           <span className="text-xs font-medium text-muted-foreground">
-            ({product.reviewCount})
+            {product.rating}
           </span>
-        </div>
-
-        {/* Price */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-lg text-primary">
-              {formattedPrice}
-            </span>
-            {formattedComparePrice && (
-              <span className="text-sm text-muted-foreground line-through">
-                {formattedComparePrice}
-              </span>
-            )}
-          </div>
-          {product.salesCount && product.salesCount > 50 && (
-            <span className="text-[10px] text-muted-foreground">
-              {product.salesCount}+ sold
+          {product.reviewCount > 0 && (
+            <span className="text-xs text-muted-foreground">
+              ({product.reviewCount})
             </span>
           )}
         </div>
+
+        {/* Supplier Info - Alibaba Style */}
+        <div className="pt-3 border-t border-border/50">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="h-6 w-6 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0">
+              <span className="text-xs font-bold text-primary">
+                {product.vendorName?.charAt(0) || 'V'}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-foreground truncate">
+                {product.vendorName || 'Verified Supplier'}
+              </p>
+            </div>
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-primary/30 text-primary">
+              Verified
+            </Badge>
+          </div>
+
+          {product.salesCount && product.salesCount > 0 && (
+            <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+              <span>{product.salesCount}+ sold</span>
+              <span className="flex items-center gap-1">
+                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                <span className="font-medium text-foreground">{product.rating}</span>
+              </span>
+            </div>
+          )}
+        </div>
       </div>
+      <QuickViewModal productSlug={product.slug} open={quickViewOpen} onOpenChange={setQuickViewOpen} />
     </Link>
   )
 }

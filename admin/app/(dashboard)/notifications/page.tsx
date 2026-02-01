@@ -41,6 +41,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { notificationsAPI } from '@/lib/api'
 
 interface Notification {
   id: string
@@ -52,80 +53,6 @@ interface Notification {
   link?: string
 }
 
-// Mock notifications data
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'order',
-    title: 'New Order Received',
-    message: 'Order #ORD-2024-001 has been placed for £245.00',
-    read: false,
-    timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-    link: '/orders',
-  },
-  {
-    id: '2',
-    type: 'vendor',
-    title: 'Vendor Application',
-    message: 'New vendor application from "TechGadgets Pro" pending review',
-    read: false,
-    timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    link: '/vendors',
-  },
-  {
-    id: '3',
-    type: 'alert',
-    title: 'Low Stock Alert',
-    message: '5 products are running low on stock and need attention',
-    read: false,
-    timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-    link: '/products',
-  },
-  {
-    id: '4',
-    type: 'user',
-    title: 'New User Registration',
-    message: 'John Smith has registered as a new customer',
-    read: true,
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    link: '/users',
-  },
-  {
-    id: '5',
-    type: 'review',
-    title: 'New Review Posted',
-    message: 'A 1-star review needs moderation on "Wireless Headphones"',
-    read: false,
-    timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-    link: '/reviews',
-  },
-  {
-    id: '6',
-    type: 'system',
-    title: 'System Update',
-    message: 'Platform updated to version 2.5.0 with new features',
-    read: true,
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '7',
-    type: 'order',
-    title: 'Order Refund Requested',
-    message: 'Refund requested for Order #ORD-2024-098 - £89.99',
-    read: true,
-    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    link: '/orders',
-  },
-  {
-    id: '8',
-    type: 'vendor',
-    title: 'Vendor Payout Due',
-    message: '3 vendor payouts are due for processing this week',
-    read: true,
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    link: '/finance',
-  },
-]
 
 function getNotificationIcon(type: string) {
   switch (type) {
@@ -182,7 +109,7 @@ function getRelativeTime(timestamp: string) {
 
 export default function NotificationsPage() {
   const { toast } = useToast()
-  const [notifications, setNotifications] = React.useState<Notification[]>(mockNotifications)
+  const [notifications, setNotifications] = React.useState<Notification[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [search, setSearch] = React.useState('')
   const [typeFilter, setTypeFilter] = React.useState<string>('all')
@@ -190,11 +117,19 @@ export default function NotificationsPage() {
   const [selectedNotifications, setSelectedNotifications] = React.useState<string[]>([])
 
   React.useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 500)
-    return () => clearTimeout(timer)
+    const fetchNotifications = async () => {
+      try {
+        const data = await notificationsAPI.list()
+        const items = Array.isArray(data) ? data : data?.notifications || data?.items || []
+        setNotifications(items)
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error)
+        setNotifications([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchNotifications()
   }, [])
 
   const filteredNotifications = notifications.filter((notification) => {
@@ -225,10 +160,15 @@ export default function NotificationsPage() {
     )
   }
 
-  const handleMarkAsRead = (id: string) => {
+  const handleMarkAsRead = async (id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     )
+    try {
+      await notificationsAPI.markAsRead(id)
+    } catch (error) {
+      console.error('Failed to mark as read:', error)
+    }
     toast({
       title: 'Marked as read',
       description: 'Notification has been marked as read.',
@@ -245,19 +185,29 @@ export default function NotificationsPage() {
     })
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id))
     setSelectedNotifications((prev) => prev.filter((i) => i !== id))
+    try {
+      await notificationsAPI.delete(id)
+    } catch (error) {
+      console.error('Failed to delete notification:', error)
+    }
     toast({
       title: 'Notification deleted',
       description: 'Notification has been removed.',
     })
   }
 
-  const handleBulkMarkAsRead = () => {
+  const handleBulkMarkAsRead = async () => {
     setNotifications((prev) =>
       prev.map((n) => (selectedNotifications.includes(n.id) ? { ...n, read: true } : n))
     )
+    try {
+      await Promise.allSettled(selectedNotifications.map((id) => notificationsAPI.markAsRead(id)))
+    } catch (error) {
+      console.error('Failed to bulk mark as read:', error)
+    }
     setSelectedNotifications([])
     toast({
       title: 'Marked as read',
@@ -265,8 +215,13 @@ export default function NotificationsPage() {
     })
   }
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     setNotifications((prev) => prev.filter((n) => !selectedNotifications.includes(n.id)))
+    try {
+      await Promise.allSettled(selectedNotifications.map((id) => notificationsAPI.delete(id)))
+    } catch (error) {
+      console.error('Failed to bulk delete:', error)
+    }
     setSelectedNotifications([])
     toast({
       title: 'Notifications deleted',
@@ -274,17 +229,27 @@ export default function NotificationsPage() {
     })
   }
 
-  const handleMarkAllAsRead = () => {
+  const handleMarkAllAsRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    try {
+      await notificationsAPI.markAllAsRead()
+    } catch (error) {
+      console.error('Failed to mark all as read:', error)
+    }
     toast({
       title: 'All marked as read',
       description: 'All notifications have been marked as read.',
     })
   }
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     setNotifications([])
     setSelectedNotifications([])
+    try {
+      await notificationsAPI.clearAll()
+    } catch (error) {
+      console.error('Failed to clear all:', error)
+    }
     toast({
       title: 'All cleared',
       description: 'All notifications have been cleared.',

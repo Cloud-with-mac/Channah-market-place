@@ -30,6 +30,7 @@ import { ProductCard } from '@/components/product/product-card'
 import { CategoryCard } from '@/components/category/category-card'
 import { CountdownTimer } from '@/components/deals'
 import { productsAPI, categoriesAPI } from '@/lib/api'
+import { AnimatedSection } from '@/components/ui/animated-section'
 
 interface Product {
   id: string
@@ -59,32 +60,6 @@ const features = [
   { icon: CreditCard, title: 'Easy Returns', description: '30-day policy' },
 ]
 
-const testimonials = [
-  {
-    id: 1,
-    name: 'Sarah Mitchell',
-    role: 'Fashion Enthusiast',
-    content: 'Channah has transformed my shopping experience. The quality of products and delivery speed is exceptional!',
-    rating: 5,
-    avatar: 'S',
-  },
-  {
-    id: 2,
-    name: 'James Chen',
-    role: 'Tech Professional',
-    content: 'As a vendor, I\'ve seen my business grow 3x since joining Channah. The platform is truly empowering entrepreneurs.',
-    rating: 5,
-    avatar: 'J',
-  },
-  {
-    id: 3,
-    name: 'Emma Thompson',
-    role: 'Home Decorator',
-    content: 'The variety of home goods available is amazing. I\'ve furnished my entire apartment through Channah!',
-    rating: 5,
-    avatar: 'E',
-  },
-]
 
 function ProductSkeleton() {
   return (
@@ -171,22 +146,23 @@ export default function HomePage() {
       try {
         // Fetch products for each category section
         const categoryPromises = categorySections.map(cat =>
-          productsAPI.getAll({ category: cat.slug, limit: 8 }).catch(() => ({ data: [] }))
+          productsAPI.getAll({ category: cat.slug, limit: 8 }).catch(() => [])
         )
 
         const [categoriesRes, ...categoryResults] = await Promise.all([
-          categoriesAPI.getFeatured(8).catch(() => ({ data: [] })),
+          categoriesAPI.getFeatured(8).catch(() => []),
           ...categoryPromises,
         ])
 
         // Map products to their category slugs
         const productsMap: Record<string, Product[]> = {}
         categorySections.forEach((cat, index) => {
-          productsMap[cat.slug] = categoryResults[index]?.data?.results || categoryResults[index]?.data || []
+          const res = categoryResults[index]
+          productsMap[cat.slug] = Array.isArray(res) ? res : (res?.results || res?.items || [])
         })
 
         setCategoryProducts(productsMap)
-        setCategories(categoriesRes.data?.results || categoriesRes.data || [])
+        setCategories(Array.isArray(categoriesRes) ? categoriesRes : (categoriesRes?.results || categoriesRes?.items || []))
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -199,79 +175,107 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-navy-dark via-navy to-cyan-dark/30 text-white">
-        <div className="absolute inset-0 bg-gradient-mesh opacity-60" />
-        <div className="absolute top-20 right-10 h-80 w-80 rounded-full bg-cyan/20 blur-[100px] animate-pulse" />
-        <div className="absolute bottom-10 left-10 h-96 w-96 rounded-full bg-cyan-dark/30 blur-[120px]" />
-
-        <div className="container relative py-16 md:py-24 lg:py-32">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div className="space-y-6 animate-fade-up">
-              <Badge className="px-4 py-2 text-sm bg-cyan/15 text-cyan border-cyan/30 backdrop-blur-sm">
-                <Sparkles className="mr-2 h-4 w-4 text-cyan-light" />
-                Welcome to the Global Marketplace
+      {/* Hero Section - Alibaba Style with Integrated Search */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-background via-background to-primary/5 border-b">
+        <div className="container relative py-12 md:py-16">
+          <div className="max-w-5xl mx-auto">
+            {/* Main Heading */}
+            <div className="text-center mb-8">
+              <Badge className="px-4 py-2 text-sm bg-primary/10 text-primary border-primary/20 mb-4">
+                <Sparkles className="mr-2 h-4 w-4" />
+                The Leading B2B Marketplace
               </Badge>
-              <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold font-display leading-tight">
-                Shop Quality,<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan via-cyan-light to-cyan">Shop Worldwide</span>
+              <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold font-display leading-tight mb-4">
+                Find Quality Suppliers<br />
+                <span className="text-primary">Ship Worldwide</span>
               </h1>
-              <p className="text-lg md:text-xl text-white/80 max-w-lg leading-relaxed">
-                Discover unique products from trusted sellers around the world. From fashion to electronics, find everything you need.
+              <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto">
+                Connect with verified suppliers and manufacturers. Get competitive quotes and trade assurance.
               </p>
-              <div className="flex flex-wrap gap-4 pt-4">
-                <Button size="lg" className="bg-gradient-to-r from-cyan to-cyan-light text-navy hover:opacity-90 font-semibold shadow-xl" asChild>
-                  <Link href="/products">
-                    Start Shopping
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-                <Button size="lg" variant="outline" className="border-cyan/30 text-cyan hover:bg-cyan/10" asChild>
-                  <Link href="/sell">Become a Seller</Link>
-                </Button>
-              </div>
+            </div>
 
-              {/* Stats */}
-              <div className="flex gap-10 pt-8 border-t border-cyan/10 mt-8">
-                <div className="text-center">
-                  <p className="text-4xl font-bold text-cyan">{Object.values(categoryProducts).flat().length > 0 ? `${Object.values(categoryProducts).flat().length}+` : '0'}</p>
-                  <p className="text-sm text-white/60 mt-1">Products</p>
+            {/* Search Bar - Alibaba Style */}
+            <div className="bg-card rounded-2xl shadow-2xl border-2 border-border p-2 mb-6">
+              <div className="flex gap-2">
+                <div className="flex-1 flex items-center gap-3 px-4">
+                  <Package className="h-5 w-5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search for products, suppliers, or categories..."
+                    className="flex-1 bg-transparent border-0 outline-none text-foreground placeholder:text-muted-foreground py-3"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const searchValue = (e.target as HTMLInputElement).value
+                        if (searchValue.trim()) {
+                          window.location.href = `/search?q=${encodeURIComponent(searchValue)}`
+                        }
+                      }
+                    }}
+                  />
                 </div>
-                <div className="text-center">
-                  <p className="text-4xl font-bold text-cyan">{categories.length > 0 ? `${categories.length}+` : '0'}</p>
-                  <p className="text-sm text-white/60 mt-1">Categories</p>
-                </div>
+                <Button
+                  size="lg"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 font-semibold"
+                  onClick={() => {
+                    const input = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement
+                    if (input && input.value.trim()) {
+                      window.location.href = `/search?q=${encodeURIComponent(input.value)}`
+                    }
+                  }}
+                >
+                  Search
+                </Button>
               </div>
             </div>
 
-            <div className="hidden md:block relative">
-              <div className="relative h-[500px] lg:h-[550px] w-full">
-                <div className="absolute top-0 right-0 h-64 w-64 rounded-3xl bg-cyan/10 backdrop-blur-md transform rotate-6 animate-float border border-cyan/20" />
-                <div className="absolute bottom-10 left-0 h-48 w-48 rounded-3xl bg-cyan-dark/20 backdrop-blur-md transform -rotate-12 border border-cyan/10" />
-                <HeroImageCarousel />
+            {/* Quick Stats */}
+            <div className="grid grid-cols-3 gap-6 max-w-2xl mx-auto">
+              <div className="text-center">
+                <p className="text-2xl md:text-3xl font-bold text-primary">{Object.values(categoryProducts).flat().length > 0 ? `${Object.values(categoryProducts).flat().length}+` : '200K+'}</p>
+                <p className="text-xs md:text-sm text-muted-foreground mt-1">Products</p>
               </div>
+              <div className="text-center">
+                <p className="text-2xl md:text-3xl font-bold text-primary">{categories.length > 0 ? `${categories.length * 100}+` : '5K+'}</p>
+                <p className="text-xs md:text-sm text-muted-foreground mt-1">Suppliers</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl md:text-3xl font-bold text-primary">{categories.length > 0 ? categories.length : '50+'}</p>
+                <p className="text-xs md:text-sm text-muted-foreground mt-1">Categories</p>
+              </div>
+            </div>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-wrap gap-4 justify-center mt-8">
+              <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg" asChild>
+                <Link href="/products">
+                  Browse Products
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" className="border-primary/30 hover:bg-primary/5" asChild>
+                <Link href="/sell">Become a Supplier</Link>
+              </Button>
             </div>
           </div>
         </div>
-
-        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent" />
       </section>
 
       {/* Features */}
-      <section className="py-16 border-b border-border bg-gradient-to-b from-background to-card/30">
+      <AnimatedSection delay={0}>
+      <section className="py-12 border-b border-border bg-card/30">
         <div className="container">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {features.map((feature) => (
               <div
                 key={feature.title}
-                className="group flex items-center gap-4 p-5 md:p-6 rounded-2xl bg-card hover:bg-gradient-to-br hover:from-cyan/5 hover:to-cyan-light/5 border border-border hover:border-cyan/30 transition-all duration-300"
+                className="group flex items-center gap-3 p-4 rounded-xl bg-background hover:bg-primary/5 border border-border hover:border-primary/30 transition-all duration-300"
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan/10 to-cyan-light/10">
-                  <feature.icon className="h-7 w-7 text-cyan" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                  <feature.icon className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm md:text-base">{feature.title}</h3>
-                  <p className="text-xs md:text-sm text-muted-foreground">{feature.description}</p>
+                  <h3 className="font-semibold text-sm">{feature.title}</h3>
+                  <p className="text-xs text-muted-foreground">{feature.description}</p>
                 </div>
               </div>
             ))}
@@ -279,77 +283,151 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Categories */}
-      <section className="py-16">
+      </AnimatedSection>
+
+      {/* Categories - Alibaba Grid Style */}
+      <AnimatedSection delay={0.1}>
+      <section className="py-12 bg-background">
         <div className="container">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-display">Shop by Category</h2>
-              <p className="text-muted-foreground mt-1">Explore our product categories</p>
+              <p className="text-sm text-muted-foreground mt-1">Browse millions of products from verified suppliers</p>
             </div>
-            <Button variant="outline" asChild>
+            <Button variant="outline" size="sm" asChild>
               <Link href="/categories">
                 View All
                 <ChevronRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {loading ? (
-              Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="aspect-square rounded-xl" />
-              ))
-            ) : categories.length > 0 ? (
-              categories.map((category) => (
-                <CategoryCard
-                  key={category.id}
-                  category={{
-                    id: category.id,
-                    name: category.name,
-                    slug: category.slug,
-                    image: category.image_url || '',
-                    productCount: category.product_count || 0,
-                  }}
-                />
-              ))
-            ) : (
-              <div className="col-span-full text-center py-8 text-muted-foreground">
-                <p>No categories yet. Add categories from the admin dashboard.</p>
-              </div>
-            )}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+              {loading ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <Skeleton key={i} className="h-24 rounded-lg" />
+                ))
+              ) : categories.length > 0 ? (
+                categories.slice(0, 8).map((category) => (
+                  <Link
+                    key={category.id}
+                    href={`/category/${category.slug}`}
+                    className="group flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-primary/5 border border-transparent hover:border-primary/20 transition-all"
+                  >
+                    <div className="relative h-12 w-12 rounded-full bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center">
+                      {category.image_url ? (
+                        <img
+                          src={category.image_url}
+                          alt={category.name}
+                          className="h-8 w-8 object-contain"
+                        />
+                      ) : (
+                        <Package className="h-6 w-6 text-primary" />
+                      )}
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                        {category.name}
+                      </p>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="col-span-full text-center py-8 text-muted-foreground">
+                  <p className="text-sm">No categories available</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </section>
 
+      </AnimatedSection>
+
+      {/* Featured Suppliers - Alibaba Style */}
+      <AnimatedSection delay={0.2}>
+      <section className="py-12 bg-card/30">
+        <div className="container">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold font-display">Featured Suppliers</h2>
+              <p className="text-sm text-muted-foreground mt-1">Connect with verified manufacturers and wholesalers</p>
+            </div>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/vendors">
+                View All Suppliers
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {([] as Array<{ name: string; rating: number; products: number; location: string; verified: boolean }>).map((supplier, index) => (
+              <Link
+                key={index}
+                href="/vendors"
+                className="group bg-background border border-border rounded-xl p-4 hover:shadow-lg hover:border-primary/30 transition-all"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0">
+                    <span className="text-lg font-bold text-primary">
+                      {supplier.name.charAt(0)}
+                    </span>
+                  </div>
+                  {supplier.verified && (
+                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-primary/30 text-primary">
+                      <Shield className="h-2.5 w-2.5 mr-1" />
+                      Verified
+                    </Badge>
+                  )}
+                </div>
+                <h3 className="font-semibold text-sm mb-2 line-clamp-1 group-hover:text-primary transition-colors">
+                  {supplier.name}
+                </h3>
+                <div className="flex items-center gap-1 mb-2">
+                  <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                  <span className="text-sm font-medium">{supplier.rating}</span>
+                  <span className="text-xs text-muted-foreground ml-1">({supplier.products} products)</span>
+                </div>
+                <p className="text-xs text-muted-foreground">{supplier.location}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      </AnimatedSection>
+
       {/* Flash Sale Section */}
+      <AnimatedSection delay={0}>
       <section className="py-12">
         <div className="container">
-          <div className="relative rounded-3xl bg-cyan overflow-hidden p-8 md:p-12">
-            <div className="max-w-xl">
-              <Badge className="bg-cyan-dark/30 text-navy border-0 mb-4">
+          <div className="relative rounded-2xl bg-gradient-to-br from-primary to-primary/80 overflow-hidden p-8 md:p-12">
+            <div className="absolute top-0 right-0 h-64 w-64 bg-white/10 rounded-full blur-3xl" />
+            <div className="relative max-w-xl">
+              <Badge className="bg-white/20 text-white border-0 mb-4">
                 <Zap className="h-3 w-3 mr-1" />
                 Flash Sale
               </Badge>
-              <h2 className="text-4xl md:text-5xl font-bold font-display text-navy mb-4">
+              <h2 className="text-3xl md:text-5xl font-bold font-display text-white mb-4">
                 Up to 50% Off
               </h2>
-              <p className="text-navy/80 mb-6 text-lg">
+              <p className="text-white/90 mb-6 text-lg">
                 Amazing deals on selected products! Limited time offer.
               </p>
 
               <div className="mb-8">
                 <div className="flex items-center gap-2 mb-3">
-                  <Timer className="h-5 w-5 text-navy" />
-                  <span className="text-navy font-medium">Sale ends in:</span>
+                  <Timer className="h-5 w-5 text-white" />
+                  <span className="text-white font-medium">Sale ends in:</span>
                 </div>
                 <CountdownTimer
                   endDate={new Date(Date.now() + 24 * 60 * 60 * 1000)}
                   size="lg"
-                  className="[&_div]:bg-cyan-dark/20 [&_div]:text-navy [&_span]:text-navy/60"
+                  className="[&_div]:bg-white/20 [&_div]:text-white [&_span]:text-white/60"
                 />
               </div>
 
-              <Button size="lg" className="bg-navy text-white hover:bg-navy-light font-bold shadow-lg" asChild>
+              <Button size="lg" className="bg-white text-primary hover:bg-white/90 font-bold shadow-lg" asChild>
                 <Link href="/deals">
                   Shop Now
                   <ArrowRight className="ml-2 h-5 w-5" />
@@ -360,32 +438,34 @@ export default function HomePage() {
         </div>
       </section>
 
+      </AnimatedSection>
+
       {/* Electronics */}
-      <section className="py-20 bg-gradient-to-b from-card/30 to-background">
+      <AnimatedSection delay={0.1}>
+      <section className="py-12 bg-background">
         <div className="container">
-          <div className="flex items-center justify-between mb-10">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-cyan/10 to-cyan-light/10 border border-cyan/20">
-                  <Laptop className="h-5 w-5 text-cyan" />
-                </div>
-                <span className="text-sm font-semibold text-cyan uppercase tracking-wider">Tech & Gadgets</span>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Laptop className="h-5 w-5 text-primary" />
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold font-display">Electronics</h2>
-              <p className="text-muted-foreground mt-2">Latest gadgets and devices</p>
+              <div>
+                <h2 className="text-xl md:text-2xl font-bold font-display">Electronics & Technology</h2>
+                <p className="text-xs text-muted-foreground">Latest gadgets from verified suppliers</p>
+              </div>
             </div>
-            <Button variant="outline" className="border-cyan/30 hover:bg-cyan hover:text-navy" asChild>
+            <Button variant="outline" size="sm" asChild>
               <Link href="/category/electronics">
                 View All
                 <ChevronRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {loading ? (
-              Array.from({ length: 4 }).map((_, i) => <ProductSkeleton key={i} />)
+              Array.from({ length: 5 }).map((_, i) => <ProductSkeleton key={i} />)
             ) : (categoryProducts['electronics'] || []).length > 0 ? (
-              (categoryProducts['electronics'] || []).slice(0, 8).map((product) => (
+              (categoryProducts['electronics'] || []).slice(0, 10).map((product) => (
                 <ProductCard
                   key={product.id}
                   product={{
@@ -404,39 +484,41 @@ export default function HomePage() {
             ) : (
               <EmptyState
                 title="No electronics yet"
-                description="Electronics products will appear here when vendors add them."
+                description="Electronics products will appear here when suppliers add them."
               />
             )}
           </div>
         </div>
       </section>
 
-      {/* AI Recommendations Banner */}
-      <section className="py-12">
+      </AnimatedSection>
+
+      {/* Request for Quotation Banner - B2B Feature */}
+      <AnimatedSection delay={0}>
+      <section className="py-12 bg-card/30">
         <div className="container">
-          <div className="relative rounded-3xl bg-gradient-to-br from-navy via-navy-light to-cyan-dark/50 p-8 md:p-14 text-white overflow-hidden border border-cyan/20">
-            <div className="absolute inset-0 bg-gradient-mesh opacity-30" />
-            <div className="absolute top-10 right-10 h-64 w-64 rounded-full bg-cyan/10 blur-3xl animate-pulse" />
-            <div className="relative z-10 max-w-xl">
-              <Badge className="bg-cyan/20 text-cyan backdrop-blur-sm border border-cyan/30 mb-4 py-1.5">
-                <Sparkles className="mr-2 h-3.5 w-3.5 animate-pulse" />
-                AI-Powered Shopping
+          <div className="relative rounded-2xl bg-gradient-to-br from-primary via-primary to-accent p-8 md:p-10 text-white overflow-hidden">
+            <div className="absolute top-0 right-0 h-48 w-48 bg-white/10 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 h-48 w-48 bg-white/10 rounded-full blur-3xl" />
+            <div className="relative z-10 max-w-2xl mx-auto text-center">
+              <Badge className="bg-white/20 text-white backdrop-blur-sm border-0 mb-4">
+                <Sparkles className="mr-2 h-3.5 w-3.5" />
+                B2B Trade Services
               </Badge>
-              <h3 className="text-3xl md:text-4xl font-bold font-display mb-4">
-                Chat with Channah
+              <h3 className="text-2xl md:text-4xl font-bold font-display mb-4">
+                Request Quotes from Multiple Suppliers
               </h3>
-              <p className="text-white/80 mb-8 text-lg leading-relaxed">
-                Our AI assistant helps you find products, compare prices, and get personalized recommendations.
+              <p className="text-white/90 mb-6 text-base md:text-lg">
+                Tell us what you need. Get quotes from verified suppliers. Compare and choose the best deal.
               </p>
-              <div className="flex flex-wrap gap-4">
-                <Button className="bg-gradient-to-r from-cyan to-cyan-light text-navy hover:opacity-90 font-bold shadow-xl" asChild>
-                  <Link href="/chat">
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Chat with Channah
+              <div className="flex flex-wrap gap-4 justify-center">
+                <Button size="lg" className="bg-white text-primary hover:bg-white/90 font-semibold shadow-xl" asChild>
+                  <Link href="/products">
+                    Request Quote
                   </Link>
                 </Button>
-                <Button variant="outline" className="border-cyan/30 text-cyan hover:bg-cyan/10" asChild>
-                  <Link href="/products">Browse Products</Link>
+                <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10" asChild>
+                  <Link href="/vendors">Find Suppliers</Link>
                 </Button>
               </div>
             </div>
@@ -444,32 +526,34 @@ export default function HomePage() {
         </div>
       </section>
 
+      </AnimatedSection>
+
       {/* Fashion */}
-      <section className="py-20">
+      <AnimatedSection delay={0.1}>
+      <section className="py-12 bg-card/30">
         <div className="container">
-          <div className="flex items-center justify-between mb-10">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-pink-500/10 to-rose-500/10 border border-pink-500/20">
-                  <Shirt className="h-5 w-5 text-pink-500" />
-                </div>
-                <span className="text-sm font-semibold text-pink-500 uppercase tracking-wider">Style & Trends</span>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-pink-500/10 flex items-center justify-center">
+                <Shirt className="h-5 w-5 text-pink-500" />
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold font-display">Fashion</h2>
-              <p className="text-muted-foreground mt-2">Trending styles and accessories</p>
+              <div>
+                <h2 className="text-xl md:text-2xl font-bold font-display">Fashion & Apparel</h2>
+                <p className="text-xs text-muted-foreground">Trending styles from fashion suppliers</p>
+              </div>
             </div>
-            <Button variant="outline" className="border-pink-500/30 hover:bg-pink-500 hover:text-white" asChild>
+            <Button variant="outline" size="sm" asChild>
               <Link href="/category/fashion">
                 View All
                 <ChevronRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {loading ? (
-              Array.from({ length: 4 }).map((_, i) => <ProductSkeleton key={i} />)
+              Array.from({ length: 5 }).map((_, i) => <ProductSkeleton key={i} />)
             ) : (categoryProducts['fashion'] || []).length > 0 ? (
-              (categoryProducts['fashion'] || []).slice(0, 8).map((product) => (
+              (categoryProducts['fashion'] || []).slice(0, 10).map((product) => (
                 <ProductCard
                   key={product.id}
                   product={{
@@ -488,39 +572,41 @@ export default function HomePage() {
             ) : (
               <EmptyState
                 title="No fashion items yet"
-                description="Fashion products will appear here when vendors add them."
+                description="Fashion products will appear here when suppliers add them."
               />
             )}
           </div>
         </div>
       </section>
 
+      </AnimatedSection>
+
       {/* Home & Garden */}
-      <section className="py-20 bg-gradient-to-b from-card/30 to-background">
+      <AnimatedSection delay={0.2}>
+      <section className="py-12 bg-background">
         <div className="container">
-          <div className="flex items-center justify-between mb-10">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
-                  <Home className="h-5 w-5 text-green-500" />
-                </div>
-                <span className="text-sm font-semibold text-green-500 uppercase tracking-wider">Home Living</span>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                <Home className="h-5 w-5 text-green-500" />
               </div>
-              <h2 className="text-3xl md:text-4xl font-bold font-display">Home & Garden</h2>
-              <p className="text-muted-foreground mt-2">Everything for your home</p>
+              <div>
+                <h2 className="text-xl md:text-2xl font-bold font-display">Home & Garden</h2>
+                <p className="text-xs text-muted-foreground">Quality home products from manufacturers</p>
+              </div>
             </div>
-            <Button variant="outline" className="border-green-500/30 hover:bg-green-500 hover:text-white" asChild>
+            <Button variant="outline" size="sm" asChild>
               <Link href="/category/home-garden">
                 View All
                 <ChevronRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {loading ? (
-              Array.from({ length: 4 }).map((_, i) => <ProductSkeleton key={i} />)
+              Array.from({ length: 5 }).map((_, i) => <ProductSkeleton key={i} />)
             ) : (categoryProducts['home-garden'] || []).length > 0 ? (
-              (categoryProducts['home-garden'] || []).slice(0, 8).map((product) => (
+              (categoryProducts['home-garden'] || []).slice(0, 10).map((product) => (
                 <ProductCard
                   key={product.id}
                   product={{
@@ -539,393 +625,41 @@ export default function HomePage() {
             ) : (
               <EmptyState
                 title="No home & garden items yet"
-                description="Home & garden products will appear here when vendors add them."
+                description="Home & garden products will appear here when suppliers add them."
               />
             )}
           </div>
         </div>
       </section>
 
-      {/* Sports & Outdoors */}
-      <section className="py-20">
-        <div className="container">
-          <div className="flex items-center justify-between mb-10">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20">
-                  <Trophy className="h-5 w-5 text-amber-500" />
-                </div>
-                <span className="text-sm font-semibold text-amber-500 uppercase tracking-wider">Active Life</span>
-              </div>
-              <h2 className="text-3xl md:text-4xl font-bold font-display">Sports & Outdoors</h2>
-              <p className="text-muted-foreground mt-2">Gear up for adventure</p>
-            </div>
-            <Button variant="outline" className="border-amber-500/30 hover:bg-amber-500 hover:text-white" asChild>
-              <Link href="/category/sports-outdoors">
-                View All
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {loading ? (
-              Array.from({ length: 4 }).map((_, i) => <ProductSkeleton key={i} />)
-            ) : (categoryProducts['sports-outdoors'] || []).length > 0 ? (
-              (categoryProducts['sports-outdoors'] || []).slice(0, 8).map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={{
-                    id: product.id,
-                    name: product.name,
-                    slug: product.slug,
-                    price: product.price,
-                    compareAtPrice: product.compare_at_price,
-                    image: product.primary_image || product.images?.[0]?.url || '',
-                    rating: product.rating,
-                    reviewCount: product.review_count,
-                    vendorName: product.vendor?.business_name,
-                  }}
-                />
-              ))
-            ) : (
-              <EmptyState
-                title="No sports & outdoors items yet"
-                description="Sports & outdoors products will appear here when vendors add them."
-              />
-            )}
-          </div>
-        </div>
-      </section>
+      </AnimatedSection>
 
-      {/* Baby & Kids */}
-      <section className="py-20 bg-gradient-to-b from-card/30 to-background">
-        <div className="container">
-          <div className="flex items-center justify-between mb-10">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-sky-500/10 to-blue-500/10 border border-sky-500/20">
-                  <Baby className="h-5 w-5 text-sky-500" />
-                </div>
-                <span className="text-sm font-semibold text-sky-500 uppercase tracking-wider">Little Ones</span>
-              </div>
-              <h2 className="text-3xl md:text-4xl font-bold font-display">Baby & Kids</h2>
-              <p className="text-muted-foreground mt-2">Everything for little ones</p>
-            </div>
-            <Button variant="outline" className="border-sky-500/30 hover:bg-sky-500 hover:text-white" asChild>
-              <Link href="/category/baby-kids">
-                View All
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {loading ? (
-              Array.from({ length: 4 }).map((_, i) => <ProductSkeleton key={i} />)
-            ) : (categoryProducts['baby-kids'] || []).length > 0 ? (
-              (categoryProducts['baby-kids'] || []).slice(0, 8).map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={{
-                    id: product.id,
-                    name: product.name,
-                    slug: product.slug,
-                    price: product.price,
-                    compareAtPrice: product.compare_at_price,
-                    image: product.primary_image || product.images?.[0]?.url || '',
-                    rating: product.rating,
-                    reviewCount: product.review_count,
-                    vendorName: product.vendor?.business_name,
-                  }}
-                />
-              ))
-            ) : (
-              <EmptyState
-                title="No baby & kids items yet"
-                description="Baby & kids products will appear here when vendors add them."
-              />
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Computers & Tablets */}
-      <section className="py-20">
-        <div className="container">
-          <div className="flex items-center justify-between mb-10">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20">
-                  <Monitor className="h-5 w-5 text-indigo-500" />
-                </div>
-                <span className="text-sm font-semibold text-indigo-500 uppercase tracking-wider">Computing</span>
-              </div>
-              <h2 className="text-3xl md:text-4xl font-bold font-display">Computers & Tablets</h2>
-              <p className="text-muted-foreground mt-2">Computing power for everyone</p>
-            </div>
-            <Button variant="outline" className="border-indigo-500/30 hover:bg-indigo-500 hover:text-white" asChild>
-              <Link href="/category/computers-tablets">
-                View All
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {loading ? (
-              Array.from({ length: 4 }).map((_, i) => <ProductSkeleton key={i} />)
-            ) : (categoryProducts['computers-tablets'] || []).length > 0 ? (
-              (categoryProducts['computers-tablets'] || []).slice(0, 8).map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={{
-                    id: product.id,
-                    name: product.name,
-                    slug: product.slug,
-                    price: product.price,
-                    compareAtPrice: product.compare_at_price,
-                    image: product.primary_image || product.images?.[0]?.url || '',
-                    rating: product.rating,
-                    reviewCount: product.review_count,
-                    vendorName: product.vendor?.business_name,
-                  }}
-                />
-              ))
-            ) : (
-              <EmptyState
-                title="No computers & tablets yet"
-                description="Computers & tablets products will appear here when vendors add them."
-              />
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Phones & Accessories */}
-      <section className="py-20 bg-gradient-to-b from-card/30 to-background">
-        <div className="container">
-          <div className="flex items-center justify-between mb-10">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 border border-violet-500/20">
-                  <Smartphone className="h-5 w-5 text-violet-500" />
-                </div>
-                <span className="text-sm font-semibold text-violet-500 uppercase tracking-wider">Mobile</span>
-              </div>
-              <h2 className="text-3xl md:text-4xl font-bold font-display">Phones & Accessories</h2>
-              <p className="text-muted-foreground mt-2">Stay connected in style</p>
-            </div>
-            <Button variant="outline" className="border-violet-500/30 hover:bg-violet-500 hover:text-white" asChild>
-              <Link href="/category/phones-accessories">
-                View All
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {loading ? (
-              Array.from({ length: 4 }).map((_, i) => <ProductSkeleton key={i} />)
-            ) : (categoryProducts['phones-accessories'] || []).length > 0 ? (
-              (categoryProducts['phones-accessories'] || []).slice(0, 8).map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={{
-                    id: product.id,
-                    name: product.name,
-                    slug: product.slug,
-                    price: product.price,
-                    compareAtPrice: product.compare_at_price,
-                    image: product.primary_image || product.images?.[0]?.url || '',
-                    rating: product.rating,
-                    reviewCount: product.review_count,
-                    vendorName: product.vendor?.business_name,
-                  }}
-                />
-              ))
-            ) : (
-              <EmptyState
-                title="No phones & accessories yet"
-                description="Phones & accessories products will appear here when vendors add them."
-              />
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Jewelry & Watches */}
-      <section className="py-20">
-        <div className="container">
-          <div className="flex items-center justify-between mb-10">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border border-yellow-500/20">
-                  <Watch className="h-5 w-5 text-yellow-500" />
-                </div>
-                <span className="text-sm font-semibold text-yellow-500 uppercase tracking-wider">Luxury</span>
-              </div>
-              <h2 className="text-3xl md:text-4xl font-bold font-display">Jewelry & Watches</h2>
-              <p className="text-muted-foreground mt-2">Elegant timepieces and accessories</p>
-            </div>
-            <Button variant="outline" className="border-yellow-500/30 hover:bg-yellow-500 hover:text-white" asChild>
-              <Link href="/category/jewelry-watches">
-                View All
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {loading ? (
-              Array.from({ length: 4 }).map((_, i) => <ProductSkeleton key={i} />)
-            ) : (categoryProducts['jewelry-watches'] || []).length > 0 ? (
-              (categoryProducts['jewelry-watches'] || []).slice(0, 8).map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={{
-                    id: product.id,
-                    name: product.name,
-                    slug: product.slug,
-                    price: product.price,
-                    compareAtPrice: product.compare_at_price,
-                    image: product.primary_image || product.images?.[0]?.url || '',
-                    rating: product.rating,
-                    reviewCount: product.review_count,
-                    vendorName: product.vendor?.business_name,
-                  }}
-                />
-              ))
-            ) : (
-              <EmptyState
-                title="No jewelry & watches yet"
-                description="Jewelry & watches products will appear here when vendors add them."
-              />
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Browse All Categories */}
-      <section className="py-20 bg-gradient-to-b from-card/30 to-background">
-        <div className="container">
-          <div className="flex items-center justify-between mb-10">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500/10 to-indigo-500/10 border border-purple-500/20">
-                  <Package className="h-5 w-5 text-purple-500" />
-                </div>
-                <span className="text-sm font-semibold text-purple-500 uppercase tracking-wider">Explore</span>
-              </div>
-              <h2 className="text-3xl md:text-4xl font-bold font-display">Browse All Categories</h2>
-              <p className="text-muted-foreground mt-2">Find exactly what you're looking for</p>
-            </div>
-            <Button variant="outline" className="border-purple-500/30 hover:bg-purple-500 hover:text-white" asChild>
-              <Link href="/categories">
-                All Categories
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
-            {loading ? (
-              Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} className="aspect-[4/3] rounded-xl" />
-              ))
-            ) : categories.length > 0 ? (
-              categories.slice(0, 8).map((category) => (
-                <Link
-                  key={category.id}
-                  href={`/category/${category.slug}`}
-                  className="group relative aspect-[4/3] rounded-2xl bg-gradient-to-br from-card to-card/50 border border-border hover:border-cyan/30 overflow-hidden transition-all duration-300"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-t from-navy/80 via-navy/40 to-transparent z-10" />
-                  {category.image_url ? (
-                    <img
-                      src={category.image_url}
-                      alt={category.name}
-                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-cyan/10 to-purple-500/10" />
-                  )}
-                  <div className="absolute bottom-0 left-0 right-0 p-4 z-20">
-                    <h3 className="font-bold text-white text-lg group-hover:text-cyan transition-colors">
-                      {category.name}
-                    </h3>
-                    <p className="text-white/70 text-sm">
-                      {category.product_count || 0} products
-                    </p>
-                  </div>
-                </Link>
-              ))
-            ) : (
-              <div className="col-span-full text-center py-8 text-muted-foreground">
-                <p>No categories yet. Add categories from the admin dashboard.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="py-16 bg-gradient-to-b from-card/30 to-background">
-        <div className="container">
-          <div className="text-center mb-12">
-            <Badge variant="outline" className="mb-4 border-cyan/30 text-cyan">
-              <Star className="h-3 w-3 mr-1 fill-cyan text-cyan" />
-              Customer Reviews
-            </Badge>
-            <h2 className="text-2xl md:text-3xl font-bold font-display mb-2">What Our Customers Say</h2>
-            <p className="text-muted-foreground">Join thousands of satisfied shoppers</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((testimonial) => (
-              <div
-                key={testimonial.id}
-                className="group relative bg-card rounded-2xl p-6 border border-border hover:border-cyan/30 hover:shadow-xl transition-all duration-300"
-              >
-                <div className="absolute -top-3 -left-2 text-6xl text-cyan/10 font-serif">"</div>
-                <div className="relative">
-                  <div className="flex items-center gap-1 mb-4">
-                    {Array.from({ length: testimonial.rating }).map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-cyan text-cyan" />
-                    ))}
-                  </div>
-                  <p className="text-muted-foreground mb-6 leading-relaxed">"{testimonial.content}"</p>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-cyan to-cyan-light text-navy font-bold text-lg">
-                      {testimonial.avatar}
-                    </div>
-                    <div>
-                      <p className="font-semibold">{testimonial.name}</p>
-                      <p className="text-sm text-muted-foreground">{testimonial.role}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Become a Seller CTA */}
-      <section className="py-20">
+      {/* Become a Supplier CTA */}
+      <AnimatedSection delay={0}>
+      <section className="py-16 bg-background">
         <div className="container">
           <div className="text-center max-w-2xl mx-auto">
-            <Badge variant="outline" className="mb-4 border-cyan/30 text-cyan">For Entrepreneurs</Badge>
-            <h2 className="text-3xl md:text-4xl font-bold font-display mb-4">
-              Start Selling on <span className="text-gradient-premium">Channah</span>
+            <h2 className="text-2xl md:text-3xl font-bold font-display mb-3">
+              Start Selling on Vendora
             </h2>
-            <p className="text-lg text-muted-foreground mb-8">
-              Join our community of successful sellers and reach customers worldwide.
+            <p className="text-base text-muted-foreground mb-6">
+              Reach millions of buyers worldwide. Get verified and start growing your business today.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="bg-gradient-to-r from-cyan to-cyan-light text-navy hover:opacity-90 shadow-lg" asChild>
+              <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg" asChild>
                 <Link href="/sell">
-                  Start Selling Today
+                  Become a Supplier
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
+              </Button>
+              <Button size="lg" variant="outline" asChild>
+                <Link href="/vendors">Browse Suppliers</Link>
               </Button>
             </div>
           </div>
         </div>
       </section>
+      </AnimatedSection>
     </div>
   )
 }

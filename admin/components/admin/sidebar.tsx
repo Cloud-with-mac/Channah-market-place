@@ -34,7 +34,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { useSidebarStore, useNotificationStore } from '@/store'
+import { useSidebarStore, useNotificationStore, useMessagesStore } from '@/store'
 
 interface NavItem {
   title: string
@@ -61,7 +61,7 @@ const navigation: NavSection[] = [
     title: 'Management',
     items: [
       { title: 'Users', href: '/users', icon: Users },
-      { title: 'Vendors', href: '/vendors', icon: Store, badge: 3, badgeVariant: 'warning' },
+      { title: 'Vendors', href: '/vendors', icon: Store },
       { title: 'Products', href: '/products', icon: Package },
       { title: 'Orders', href: '/orders', icon: ShoppingCart },
       { title: 'Reviews', href: '/reviews', icon: Star },
@@ -83,7 +83,7 @@ const navigation: NavSection[] = [
   {
     title: 'Support',
     items: [
-      { title: 'Customer Support', href: '/support', icon: MessageSquare, badge: 5 },
+      { title: 'Customer Support', href: '/support', icon: MessageSquare },
       { title: 'Notifications', href: '/notifications', icon: Bell },
     ],
   },
@@ -101,13 +101,17 @@ export function AdminSidebar() {
   const pathname = usePathname()
   const { isCollapsed, toggleCollapsed } = useSidebarStore()
   const { unreadCount } = useNotificationStore()
+  const { unreadMessagesCount } = useMessagesStore()
 
-  // Create navigation with dynamic badge for notifications
+  // Create navigation with dynamic badges for notifications and support
   const navigationWithBadges = navigation.map((section) => ({
     ...section,
     items: section.items.map((item) => {
       if (item.href === '/notifications' && unreadCount > 0) {
         return { ...item, badge: unreadCount, badgeVariant: 'destructive' as const }
+      }
+      if (item.href === '/support' && unreadMessagesCount > 0) {
+        return { ...item, badge: unreadMessagesCount, badgeVariant: 'destructive' as const }
       }
       return item
     }),
@@ -253,20 +257,7 @@ export function AdminSidebar() {
             </nav>
           </ScrollArea>
 
-          {/* Alerts Section */}
-          {!isCollapsed && (
-            <div className="p-4 border-t border-sidebar-border">
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-destructive">2 Alerts</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    Fraud detection alert
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Alerts Section - populated dynamically */}
 
           {/* Footer */}
           <div className="border-t border-sidebar-border p-4">

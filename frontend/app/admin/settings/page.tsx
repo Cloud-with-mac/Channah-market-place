@@ -40,8 +40,8 @@ export default function AdminSettingsPage() {
   React.useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const response = await adminAPI.getSettings()
-        setSettings(response.data)
+        const data = await adminAPI.getSettings()
+        setSettings(data)
       } catch (error) {
         console.error('Failed to fetch settings:', error)
       } finally {

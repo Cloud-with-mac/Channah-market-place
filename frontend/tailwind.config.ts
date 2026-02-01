@@ -54,7 +54,7 @@ const config: Config = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
-        // Channah-Market brand colors (SophieX Dark Theme)
+        // Vendora-Market brand colors (SophieX Dark Theme)
         gold: {
           DEFAULT: 'hsl(var(--gold))',
           light: 'hsl(var(--gold-light))',

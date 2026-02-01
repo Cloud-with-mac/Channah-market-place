@@ -64,7 +64,28 @@
       "Bash(npm --version)",
       "Bash(docker --version:*)",
       "Bash(docker-compose:*)",
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)",
+      "Bash(cat:*)",
+      "Bash(git push:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(git fetch:*)",
+      "Bash(npx next build)",
+      "Bash(del \"c:\\\\Users\\\\Django\\\\Documents\\\\Channah-market-place-main\\\\frontend\\\\app\\\\sourcing\\\\sample-data.ts\")",
+      "Bash(test:*)",
+      "Bash(while read f)",
+      "Bash(do sed -i \"s|\\\\.\\\\./\\\\.\\\\./\\\\.\\\\./\\\\.\\\\./\\\\.\\\\./shared/api|../../../../shared/api|g\" \"$f\")",
+      "Bash(echo:*)",
+      "Bash(done)",
+      "Bash(cmd /c \"cd /d c:\\\\Users\\\\Django\\\\Documents\\\\Channah-market-place-main\\\\backend && python seed_category_images.py\")",
+      "Bash(cmd /c \"cd /d c:\\\\Users\\\\Django\\\\Documents\\\\Channah-market-place-main\\\\backend & python seed_category_images.py\")",
+      "Bash(powershell -NoProfile -Command \"$r = Invoke-RestMethod -Uri ''http://localhost:8000/api/v1/categories/fashion-apparel''; foreach\\($c in $r.children\\){ Write-Host $c.slug ''::'' $c.image_url }\")",
+      "Bash(head:*)",
+      "Bash(npx expo start)",
+      "Bash(ipconfig:*)",
+      "Bash(npm ls:*)",
+      "Bash(git reset:*)"
     ]
   }
 }

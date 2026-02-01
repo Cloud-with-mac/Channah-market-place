@@ -55,9 +55,7 @@ export default function VendorOrdersPage() {
         const params: any = { limit: 50 }
         if (statusFilter !== 'all') params.status = statusFilter
         const response = await vendorOrdersAPI.list(params)
-        // Handle both array response and paginated response
-        const data = response.data
-        setOrders(Array.isArray(data) ? data : (data?.items || data?.results || []))
+        setOrders(Array.isArray(response) ? response : (response?.items || response?.results || []))
       } catch (error) {
         console.error('Failed to fetch orders:', error)
       } finally {
@@ -83,9 +81,18 @@ export default function VendorOrdersPage() {
       delivered: 'text-green-500 border-green-500/50',
       cancelled: 'text-red-500 border-red-500/50',
     }
+    const labels: Record<string, string> = {
+      pending: 'Pending',
+      confirmed: 'Confirmed',
+      processing: 'Processing',
+      shipped: 'Shipped to Vendora',
+      out_for_delivery: 'Out for Delivery',
+      delivered: 'Delivered',
+      cancelled: 'Cancelled',
+    }
     return (
       <Badge variant="outline" className={colors[status]}>
-        {status}
+        {labels[status] || status}
       </Badge>
     )
   }
@@ -108,7 +115,7 @@ export default function VendorOrdersPage() {
                 <SelectItem value="all">All Orders</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="shipped">Shipped</SelectItem>
+                <SelectItem value="shipped">Shipped to Vendora</SelectItem>
                 <SelectItem value="delivered">Delivered</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>

@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Upload, X, Loader2, ImagePlus, Link as LinkIcon } from 'lucide-react'
+import { ArrowLeft, Upload, X, Loader2, ImagePlus, Link as LinkIcon, Plus, Trash2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -39,6 +39,7 @@ const productSchema = z.object({
   quantity: z.number().min(0, 'Stock cannot be negative'),
   low_stock_threshold: z.number().min(0).optional(),
   weight: z.number().optional().nullable(),
+  shipping_cost: z.number().min(0).optional().nullable(),
   category_id: z.string().optional(),
   status: z.enum(['draft', 'active']),
   is_featured: z.boolean().optional(),
@@ -100,6 +101,8 @@ export default function NewProductPage() {
     variants: [],
   })
   const [selectedCategoryName, setSelectedCategoryName] = React.useState<string>('')
+  const [bulkPricingTiers, setBulkPricingTiers] = React.useState<Array<{ min_qty: number; max_qty: number | null; price: number }>>([])
+  const [moq, setMoq] = React.useState(1)
 
   const {
     register,
@@ -122,6 +125,7 @@ export default function NewProductPage() {
       quantity: 0,
       low_stock_threshold: 5,
       weight: null,
+      shipping_cost: 0,
       category_id: '',
       status: 'draft',
       is_featured: false,
@@ -178,7 +182,7 @@ export default function NewProductPage() {
       let url = response.data.url
       // If the URL is relative, prepend the API base URL
       if (url && url.startsWith('/')) {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api/v1'
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
         const baseUrl = apiUrl.replace('/api/v1', '')
         url = `${baseUrl}${url}`
       }
@@ -257,6 +261,14 @@ export default function NewProductPage() {
 
   const addImageUrl = () => {
     if (imageUrl && !images.find(img => img.url === imageUrl)) {
+      try {
+        const urlObj = new URL(imageUrl)
+        if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+          return
+        }
+      } catch {
+        return
+      }
       setImages([...images, { url: imageUrl }])
       setImageUrl('')
     }
@@ -284,6 +296,9 @@ export default function NewProductPage() {
 
       const productData = {
         ...data,
+        stock: data.quantity,
+        moq,
+        bulk_pricing: bulkPricingTiers.length > 0 ? bulkPricingTiers : undefined,
         images: images.map(img => ({ url: img.url })),
         variants: variants.length > 0 ? variants : undefined,
       }
@@ -616,6 +631,102 @@ export default function NewProductPage() {
                       placeholder="0.00"
                     />
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="shipping_cost">Shipping Cost per Item</Label>
+                    <Input
+                      id="shipping_cost"
+                      type="number"
+                      step="0.01"
+                      {...register('shipping_cost', { valueAsNumber: true })}
+                      placeholder="0.00"
+                    />
+                    <p className="text-xs text-muted-foreground">Set to 0 for free shipping</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Bulk Pricing */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Bulk Pricing</CardTitle>
+                <CardDescription>Set volume discounts for bulk orders</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="moq">Minimum Order Quantity (MOQ)</Label>
+                  <Input
+                    id="moq"
+                    type="number"
+                    min="1"
+                    value={moq}
+                    onChange={(e) => setMoq(Math.max(1, parseInt(e.target.value) || 1))}
+                  />
+                  <p className="text-xs text-muted-foreground">Minimum units a customer must order</p>
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Price Tiers</Label>
+                  {bulkPricingTiers.map((tier, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min="1"
+                        placeholder="Min qty"
+                        value={tier.min_qty || ''}
+                        onChange={(e) => {
+                          const updated = [...bulkPricingTiers]
+                          updated[index] = { ...tier, min_qty: parseInt(e.target.value) || 0 }
+                          setBulkPricingTiers(updated)
+                        }}
+                        className="w-24"
+                      />
+                      <span className="text-muted-foreground">-</span>
+                      <Input
+                        type="number"
+                        min="1"
+                        placeholder="Max qty"
+                        value={tier.max_qty || ''}
+                        onChange={(e) => {
+                          const updated = [...bulkPricingTiers]
+                          updated[index] = { ...tier, max_qty: parseInt(e.target.value) || null }
+                          setBulkPricingTiers(updated)
+                        }}
+                        className="w-24"
+                      />
+                      <span className="text-muted-foreground">units @</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        placeholder="Price"
+                        value={tier.price || ''}
+                        onChange={(e) => {
+                          const updated = [...bulkPricingTiers]
+                          updated[index] = { ...tier, price: parseFloat(e.target.value) || 0 }
+                          setBulkPricingTiers(updated)
+                        }}
+                        className="w-28"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setBulkPricingTiers(bulkPricingTiers.filter((_, i) => i !== index))}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBulkPricingTiers([...bulkPricingTiers, { min_qty: 0, max_qty: null, price: 0 }])}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Add Tier
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -682,7 +793,7 @@ export default function NewProductPage() {
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-[300px] overflow-y-auto">
                       {flatCategories.map((category) => (
                         <SelectItem key={category.id} value={category.id}>
                           <span className={category.level > 0 ? 'text-muted-foreground' : ''}>

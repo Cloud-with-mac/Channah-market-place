@@ -38,109 +38,6 @@ interface Activity {
   link?: string
 }
 
-// Mock data for fallback
-const mockActivities: Activity[] = [
-  {
-    id: '1',
-    type: 'order',
-    action: 'created',
-    title: 'New Order Placed',
-    description: 'Order #ORD-2024-156 for £245.00 has been placed',
-    user_name: 'John Smith',
-    timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-    link: '/orders',
-  },
-  {
-    id: '2',
-    type: 'vendor',
-    action: 'created',
-    title: 'Vendor Application',
-    description: 'TechGadgets Pro submitted a new vendor application',
-    user_name: 'TechGadgets Pro',
-    timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    link: '/vendors?status=pending',
-  },
-  {
-    id: '3',
-    type: 'user',
-    action: 'created',
-    title: 'New User Registration',
-    description: 'Sarah Johnson created a new customer account',
-    user_name: 'Sarah Johnson',
-    timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-    link: '/users',
-  },
-  {
-    id: '4',
-    type: 'product',
-    action: 'approved',
-    title: 'Product Approved',
-    description: 'Wireless Bluetooth Headphones has been approved for listing',
-    user_name: 'Admin',
-    timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-    link: '/products',
-  },
-  {
-    id: '5',
-    type: 'review',
-    action: 'flagged',
-    title: 'Review Flagged',
-    description: 'A 1-star review on "Premium Watch" needs moderation',
-    user_name: 'System',
-    timestamp: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-    link: '/reviews',
-  },
-  {
-    id: '6',
-    type: 'payment',
-    action: 'completed',
-    title: 'Vendor Payout Completed',
-    description: 'Payout of £1,250.00 sent to Fashion Hub',
-    user_name: 'System',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    link: '/finance',
-  },
-  {
-    id: '7',
-    type: 'order',
-    action: 'completed',
-    title: 'Order Delivered',
-    description: 'Order #ORD-2024-142 marked as delivered',
-    user_name: 'Mike Williams',
-    timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-    link: '/orders',
-  },
-  {
-    id: '8',
-    type: 'vendor',
-    action: 'approved',
-    title: 'Vendor Approved',
-    description: 'Home & Living has been approved as a vendor',
-    user_name: 'Admin',
-    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-    link: '/vendors',
-  },
-  {
-    id: '9',
-    type: 'alert',
-    action: 'flagged',
-    title: 'Low Stock Alert',
-    description: '5 products are running low on inventory',
-    user_name: 'System',
-    timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    link: '/products?stock=low',
-  },
-  {
-    id: '10',
-    type: 'user',
-    action: 'updated',
-    title: 'User Profile Updated',
-    description: 'Emily Brown updated their shipping address',
-    user_name: 'Emily Brown',
-    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-    link: '/users',
-  },
-]
 
 function getActivityIcon(type: string, action: string) {
   const iconProps = { className: 'h-4 w-4' }
@@ -228,17 +125,17 @@ export function RecentActivity() {
   const fetchActivities = React.useCallback(async () => {
     try {
       setIsLoading(true)
-      const response = await dashboardAPI.getRecentActivity(20)
-      if (response.data?.activities?.length > 0) {
-        setActivities(response.data.activities)
-      } else {
-        // Use mock data if no real data
-        setActivities(mockActivities)
-      }
+      // TODO: Backend endpoint not implemented yet
+      // const response = await dashboardAPI.getRecentActivity(20)
+      // if (response?.activities?.length > 0) {
+      //   setActivities(response.activities)
+      // } else {
+      //   setActivities([])
+      // }
+      setActivities([])
     } catch (error) {
       console.error('Failed to fetch recent activity:', error)
-      // Fallback to mock data
-      setActivities(mockActivities)
+      setActivities([])
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)

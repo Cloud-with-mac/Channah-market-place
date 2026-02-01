@@ -1,6 +1,166 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import Cookies from 'js-cookie'
+import { cartAPI, wishlistAPI } from '@/lib/api'
+
+// Re-export comparison store
+export { useComparisonStore, type ComparisonProduct } from './comparison-store'
+
+// Re-export collections store
+export { useCollectionsStore, type Collection } from './collections-store'
+
+// Re-export alerts store
+export { useAlertsStore, type PriceAlert, type RestockAlert } from './alerts-store'
+
+// Re-export sample cart store
+export { useSampleCartStore, type SampleItem } from './sample-cart-store'
+
+// Re-export RFQ store
+export { useRFQStore, type RFQ, type RFQQuote, type RFQSpecification } from './rfq-store'
+
+// Re-export customs store
+export {
+  useCustomsStore,
+  type HSCodeItem,
+  type CountryRequirement,
+  type DocumentType,
+  type CustomsBroker,
+  type ChecklistItem,
+  type CustomsClearanceRecord
+} from './customs-store'
+
+// Re-export bulk order store
+export { useBulkOrderStore, type BulkOrderItem, type BulkOrderTemplate } from './bulk-order-store'
+
+// Re-export OEM store
+export {
+  useOEMStore,
+  type OEMRequest,
+  type OEMQuote,
+  type BrandingSpecification,
+  type DesignMockup,
+  type ProductionMilestone,
+} from './oem-store'
+
+// Re-export recommendations store
+export { useRecommendationsStore, type Product as RecommendationProduct } from './recommendations-store'
+
+// Re-export sustainability store
+export {
+  useSustainabilityStore,
+  certificationDetails,
+  type EcoProduct,
+  type GreenSupplier,
+  type CarbonCalculation,
+  type OffsetProgram,
+  type OffsetPurchase,
+  type EnvironmentalReport,
+  type Certification,
+  type CertificationType as SustainabilityCertificationType,
+  type SustainabilityMetrics
+} from './sustainability-store'
+
+// Re-export warehouse store
+export {
+  useWarehouseStore,
+  type WarehouseLocation,
+  type InventoryItem,
+  type StockMovement,
+  type BinLocation,
+  type StorageRequest,
+  type FulfillmentService,
+  type WarehouseFee,
+  type CapacityMetrics,
+  type WarehouseAnalytics,
+} from './warehouse-store'
+
+// Re-export dispute store
+export {
+  useDisputeStore,
+  type Dispute,
+  type DisputeType,
+  type DisputeStatus,
+  type DisputePriority,
+  type EvidenceType,
+  type ResolutionType,
+  type DisputeEvidence,
+  type DisputeMessage,
+  type DisputeTimeline,
+  type ResolutionProposal,
+  type DisputeFilters,
+  type DisputeStats,
+} from './dispute-store'
+
+// Re-export contract store
+export {
+  useContractStore,
+  type Contract,
+  type ContractTemplate,
+  type ContractVariable,
+  type ContractSignature,
+  type ContractTemplateType,
+  type AuditEvent,
+} from './contract-store'
+
+// Re-export finance store
+export {
+  useFinanceStore,
+  type FinanceTermType,
+  type ApplicationStatus,
+  type PaymentPlanType,
+  type FinancePartner,
+  type TradeCreditApplication,
+  type CreditLine,
+  type PaymentPlan,
+  type InvoiceFactoring,
+  type PaymentSchedule
+} from './finance-store'
+
+// Re-export verification store
+export {
+  useVerificationStore,
+  type VerificationStatus,
+  type BadgeLevel,
+  type DocumentType as VerificationDocumentType,
+  type CertificationType,
+  type VerificationBadge,
+  type FactoryAudit,
+  type ComplianceCertification,
+  type Document,
+  type SupplierVerification,
+  type AuditRequest,
+} from './verification-store'
+
+// Re-export supplier directory store
+export {
+  useSupplierDirectoryStore,
+  type SupplierProfile,
+  type SupplierReview,
+  type FavoriteSupplier,
+  type SearchHistory,
+  type SupplierFilters,
+} from './supplier-directory-store'
+
+// Re-export freight store
+export {
+  useFreightStore,
+  type FreightForwarder,
+  type FreightForwarderServiceArea,
+  type FreightForwarderCertification,
+  type ShippingQuote,
+  type ShippingQuoteLineItem,
+  type Booking,
+  type Shipment,
+  type TrackingEvent,
+  type TrackingStatus,
+  type PartnerRating,
+  type FreightRFQ,
+  type ShippingMode,
+  type QuoteStatus,
+  type BookingStatus,
+  type IncoTerm,
+  type RatingCategory
+} from './freight-store'
 
 // User Store
 interface User {
@@ -8,14 +168,15 @@ interface User {
   email: string
   first_name: string
   last_name: string
-  phone?: string
-  avatar_url?: string
+  phone?: string | null
+  avatar_url?: string | null
   avatar?: string
   role: string
   is_verified: boolean
   is_vendor?: boolean
-  vendor_id?: string
-  vendor_slug?: string
+  vendor_id?: string | null
+  vendor_slug?: string | null
+  [key: string]: any
 }
 
 interface AuthState {
@@ -39,6 +200,11 @@ export const useAuthStore = create<AuthState>()(
         if (refreshToken) {
           Cookies.set('refresh_token', refreshToken, { expires: 7 })
         }
+        // Also save to localStorage for API interceptor
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('access_token', accessToken)
+          if (refreshToken) localStorage.setItem('refresh_token', refreshToken)
+        }
         set({ user, isAuthenticated: true, isLoading: false })
       },
       logout: () => {
@@ -48,6 +214,9 @@ export const useAuthStore = create<AuthState>()(
         // Clear the persisted auth state from localStorage
         if (typeof window !== 'undefined') {
           localStorage.removeItem('auth-storage')
+          localStorage.removeItem('cart-storage')
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
         }
         set({ user: null, isAuthenticated: false, isLoading: false })
       },
@@ -85,6 +254,7 @@ interface CartItem {
   quantity: number
   maxQuantity?: number
   vendorName?: string
+  shippingCost?: number
 }
 
 interface CartState {
@@ -92,18 +262,20 @@ interface CartState {
   couponCode?: string
   discountAmount: number
   isOpen: boolean
+  isLoading: boolean
   // Computed values
   subtotal: number
   total: number
   itemCount: number
   // Actions
   setCart: (data: any) => void
-  addItem: (item: Omit<CartItem, 'id'> | { id: string; name: string; price: number; image: string; quantity: number; variantId?: string }) => void
-  updateQuantity: (itemId: string, quantity: number) => void
-  removeItem: (itemId: string) => void
-  clearCart: () => void
-  applyCoupon: (code: string, discountAmount: number) => void
-  removeCoupon: () => void
+  fetchCart: () => Promise<void>
+  addItem: (item: Omit<CartItem, 'id'> | { id: string; name: string; price: number; image: string; quantity: number; variantId?: string; productId?: string }) => Promise<void>
+  updateQuantity: (itemId: string, quantity: number) => Promise<void>
+  removeItem: (itemId: string) => Promise<void>
+  clearCart: () => Promise<void>
+  applyCoupon: (code: string) => Promise<void>
+  removeCoupon: () => Promise<void>
   toggleCart: () => void
   openCart: () => void
   closeCart: () => void
@@ -123,6 +295,7 @@ export const useCartStore = create<CartState>()(
       couponCode: undefined,
       discountAmount: 0,
       isOpen: false,
+      isLoading: false,
       subtotal: 0,
       total: 0,
       itemCount: 0,
@@ -138,6 +311,7 @@ export const useCartStore = create<CartState>()(
           quantity: item.quantity,
           maxQuantity: item.product?.quantity || item.maxQuantity,
           vendorName: item.product?.vendor_name || item.vendorName,
+          shippingCost: parseFloat(item.product?.shipping_cost || item.shippingCost || 0),
         }))
         const discountAmount = data.discount_amount || data.discountAmount || 0
         const totals = calculateTotals(items, discountAmount)
@@ -148,74 +322,127 @@ export const useCartStore = create<CartState>()(
           ...totals,
         })
       },
-      addItem: (item) =>
-        set((state) => {
-          const newItem: CartItem = {
-            id: 'id' in item ? item.id : `cart-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            productId: 'productId' in item ? item.productId : item.id,
-            variantId: item.variantId,
-            name: item.name,
-            slug: 'slug' in item ? item.slug : undefined,
-            price: item.price,
-            image: item.image,
-            quantity: item.quantity,
-            maxQuantity: 'maxQuantity' in item ? item.maxQuantity : undefined,
-            vendorName: 'vendorName' in item ? item.vendorName : undefined,
-          }
+      fetchCart: async () => {
+        try {
+          set({ isLoading: true })
+          const response = await cartAPI.get()
+          get().setCart(response)
+        } catch (error) {
+          console.error('Failed to fetch cart:', error)
+        } finally {
+          set({ isLoading: false })
+        }
+      },
+      addItem: async (item) => {
+        try {
+          set({ isLoading: true })
+          const productId = ('productId' in item ? item.productId : item.id) || ''
 
-          // Check if item already exists
-          const existingIndex = state.items.findIndex(
-            (i) => i.productId === newItem.productId && i.variantId === newItem.variantId
-          )
+          // Call backend API
+          await cartAPI.addItem(productId, item.quantity, item.variantId)
 
-          let newItems: CartItem[]
-          if (existingIndex > -1) {
-            // Update quantity of existing item
-            newItems = state.items.map((i, idx) =>
-              idx === existingIndex
-                ? { ...i, quantity: i.quantity + newItem.quantity }
-                : i
-            )
+          // Fetch updated cart from backend
+          await get().fetchCart()
+
+          // Open cart drawer
+          set({ isOpen: true })
+        } catch (error) {
+          console.error('Failed to add item to cart:', error)
+          set({ isLoading: false })
+          throw error
+        }
+      },
+      updateQuantity: async (itemId, quantity) => {
+        try {
+          set({ isLoading: true })
+          await cartAPI.updateItem(itemId, quantity)
+          await get().fetchCart()
+        } catch (error: any) {
+          console.error('Failed to update quantity:', error)
+          // If 404, item doesn't exist in backend — remove stale item locally
+          if (error?.response?.status === 404) {
+            set((state) => {
+              const newItems = state.items.filter((item) => item.id !== itemId)
+              const totals = calculateTotals(newItems, state.discountAmount)
+              return { items: newItems, ...totals, isLoading: false }
+            })
           } else {
-            newItems = [...state.items, newItem]
+            set({ isLoading: false })
           }
+        }
+      },
+      removeItem: async (itemId) => {
+        try {
+          set({ isLoading: true })
+          await cartAPI.removeItem(itemId)
+          await get().fetchCart()
+        } catch (error: any) {
+          console.error('Failed to remove item:', error)
+          // If 404, item doesn't exist in backend — remove locally
+          if (error?.response?.status === 404) {
+            set((state) => {
+              const newItems = state.items.filter((item) => item.id !== itemId)
+              const totals = calculateTotals(newItems, state.discountAmount)
+              return { items: newItems, ...totals, isLoading: false }
+            })
+          } else {
+            set({ isLoading: false })
+          }
+        }
+      },
+      clearCart: async () => {
+        try {
+          set({ isLoading: true })
+          await cartAPI.clear()
+          set({
+            items: [],
+            subtotal: 0,
+            total: 0,
+            itemCount: 0,
+            couponCode: undefined,
+            discountAmount: 0,
+            isLoading: false,
+          })
+        } catch (error) {
+          console.error('Failed to clear cart:', error)
+          // Clear local cart anyway
+          set({
+            items: [],
+            subtotal: 0,
+            total: 0,
+            itemCount: 0,
+            couponCode: undefined,
+            discountAmount: 0,
+            isLoading: false,
+          })
+        }
+      },
+      applyCoupon: async (code) => {
+        try {
+          set({ isLoading: true })
+          const response = await cartAPI.applyCoupon(code)
+          get().setCart(response)
+        } catch (error) {
+          console.error('Failed to apply coupon:', error)
+          set({ isLoading: false })
+          throw error
+        }
+      },
+      removeCoupon: async () => {
+        try {
+          set({ isLoading: true })
+          await cartAPI.removeCoupon()
+          await get().fetchCart()
+        } catch (error) {
+          console.error('Failed to remove coupon:', error)
 
-          const totals = calculateTotals(newItems, state.discountAmount)
-          return { items: newItems, ...totals, isOpen: true }
-        }),
-      updateQuantity: (itemId, quantity) =>
-        set((state) => {
-          const newItems = state.items.map((item) =>
-            item.id === itemId ? { ...item, quantity: Math.max(1, quantity) } : item
-          )
-          const totals = calculateTotals(newItems, state.discountAmount)
-          return { items: newItems, ...totals }
-        }),
-      removeItem: (itemId) =>
-        set((state) => {
-          const newItems = state.items.filter((item) => item.id !== itemId)
-          const totals = calculateTotals(newItems, state.discountAmount)
-          return { items: newItems, ...totals }
-        }),
-      clearCart: () =>
-        set({
-          items: [],
-          subtotal: 0,
-          total: 0,
-          itemCount: 0,
-          couponCode: undefined,
-          discountAmount: 0,
-        }),
-      applyCoupon: (code, discountAmount) =>
-        set((state) => {
-          const totals = calculateTotals(state.items, discountAmount)
-          return { couponCode: code, discountAmount, ...totals }
-        }),
-      removeCoupon: () =>
-        set((state) => {
-          const totals = calculateTotals(state.items, 0)
-          return { couponCode: undefined, discountAmount: 0, ...totals }
-        }),
+          // Fallback to local removal
+          set((state) => {
+            const totals = calculateTotals(state.items, 0)
+            return { couponCode: undefined, discountAmount: 0, ...totals, isLoading: false }
+          })
+        }
+      },
       toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
@@ -267,28 +494,97 @@ export interface WishlistItem {
 
 interface WishlistState {
   items: WishlistItem[]
-  addItem: (item: WishlistItem) => void
-  removeItem: (productId: string) => void
+  isLoading: boolean
+  fetchWishlist: () => Promise<void>
+  addItem: (item: WishlistItem) => Promise<void>
+  removeItem: (productId: string) => Promise<void>
   isInWishlist: (productId: string) => boolean
-  clearWishlist: () => void
+  clearWishlist: () => Promise<void>
 }
 
 export const useWishlistStore = create<WishlistState>()(
   persist(
     (set, get) => ({
       items: [],
-      addItem: (item) =>
-        set((state) => ({
-          items: state.items.some((i) => i.productId === item.productId)
-            ? state.items
-            : [...state.items, item],
-        })),
-      removeItem: (productId) =>
-        set((state) => ({
-          items: state.items.filter((item) => item.productId !== productId),
-        })),
+      isLoading: false,
+      fetchWishlist: async () => {
+        try {
+          set({ isLoading: true })
+          const response = await wishlistAPI.get()
+          const items = (response.items || response || []).map((item: any) => ({
+            id: item.id,
+            productId: item.product_id || item.productId,
+            name: item.product?.name || item.name,
+            slug: item.product?.slug || item.slug,
+            price: parseFloat(item.product?.price || item.price || 0),
+            compareAtPrice: item.product?.compare_at_price || item.compareAtPrice,
+            image: item.product?.primary_image || item.product?.image || item.image,
+          }))
+          set({ items, isLoading: false })
+        } catch (error) {
+          console.error('Failed to fetch wishlist:', error)
+          set({ isLoading: false })
+          // Keep local state on error
+        }
+      },
+      addItem: async (item) => {
+        try {
+          set({ isLoading: true })
+          await wishlistAPI.add(item.productId)
+
+          // Add to local state optimistically
+          set((state) => ({
+            items: state.items.some((i) => i.productId === item.productId)
+              ? state.items
+              : [...state.items, item],
+            isLoading: false,
+          }))
+        } catch (error) {
+          console.error('Failed to add to wishlist:', error)
+
+          // Fallback to local-only mode
+          set((state) => ({
+            items: state.items.some((i) => i.productId === item.productId)
+              ? state.items
+              : [...state.items, item],
+            isLoading: false,
+          }))
+        }
+      },
+      removeItem: async (productId) => {
+        try {
+          set({ isLoading: true })
+          await wishlistAPI.remove(productId)
+
+          // Remove from local state optimistically
+          set((state) => ({
+            items: state.items.filter((item) => item.productId !== productId),
+            isLoading: false,
+          }))
+        } catch (error) {
+          console.error('Failed to remove from wishlist:', error)
+
+          // Fallback to local removal
+          set((state) => ({
+            items: state.items.filter((item) => item.productId !== productId),
+            isLoading: false,
+          }))
+        }
+      },
       isInWishlist: (productId) => get().items.some((item) => item.productId === productId),
-      clearWishlist: () => set({ items: [] }),
+      clearWishlist: async () => {
+        try {
+          set({ isLoading: true })
+          // Clear from backend by removing each item
+          const items = get().items
+          await Promise.all(items.map(item => wishlistAPI.remove(item.productId)))
+          set({ items: [], isLoading: false })
+        } catch (error) {
+          console.error('Failed to clear wishlist:', error)
+          // Clear local anyway
+          set({ items: [], isLoading: false })
+        }
+      },
     }),
     {
       name: 'wishlist-storage',

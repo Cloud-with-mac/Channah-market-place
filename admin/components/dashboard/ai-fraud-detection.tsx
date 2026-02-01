@@ -56,59 +56,15 @@ export function AIFraudDetection() {
         // TODO: Replace with actual API call
         // const response = await adminAPI.getFraudAlerts()
 
-        // Mock data for demonstration
-        const mockAlerts: FraudAlert[] = [
-          {
-            id: '1',
-            order_id: 'ORD-2024-001',
-            customer_name: 'John Doe',
-            customer_email: 'john.suspicious@example.com',
-            amount: 1250.00,
-            fraud_score: 0.89,
-            risk_level: 'critical',
-            flags: ['High value order', 'New account', 'Unusual shipping address', 'VPN detected'],
-            status: 'pending',
-            created_at: '2024-01-25T10:30:00Z',
-            ai_reasoning: 'Customer account created 2 hours ago with immediate high-value purchase. Shipping address differs significantly from billing. Multiple failed payment attempts detected.',
-          },
-          {
-            id: '2',
-            order_id: 'ORD-2024-002',
-            customer_name: 'Jane Smith',
-            customer_email: 'jane.smith@email.com',
-            amount: 450.00,
-            fraud_score: 0.65,
-            risk_level: 'high',
-            flags: ['Billing/shipping mismatch', 'Rush delivery requested'],
-            status: 'pending',
-            created_at: '2024-01-25T09:15:00Z',
-            ai_reasoning: 'Billing and shipping addresses in different countries. Express shipping selected for high-value electronics.',
-          },
-          {
-            id: '3',
-            order_id: 'ORD-2024-003',
-            customer_name: 'Bob Johnson',
-            customer_email: 'bob@company.com',
-            amount: 3200.00,
-            fraud_score: 0.42,
-            risk_level: 'medium',
-            flags: ['Large order quantity', 'First-time buyer'],
-            status: 'pending',
-            created_at: '2024-01-25T08:45:00Z',
-            ai_reasoning: 'Large quantity order from new customer. However, business email domain verified and payment method reliable.',
-          },
-        ]
-
-        const mockStats: FraudStats = {
-          total_alerts: 127,
-          critical_alerts: 12,
-          prevented_losses: 45000,
-          accuracy_rate: 94.5,
-          false_positive_rate: 5.5,
-        }
-
-        setAlerts(mockAlerts)
-        setStats(mockStats)
+        // No mock data - will be populated from API
+        setAlerts([])
+        setStats({
+          total_alerts: 0,
+          critical_alerts: 0,
+          prevented_losses: 0,
+          accuracy_rate: 0,
+          false_positive_rate: 0,
+        })
       } catch (error) {
         console.error('Failed to fetch fraud alerts:', error)
         toast({

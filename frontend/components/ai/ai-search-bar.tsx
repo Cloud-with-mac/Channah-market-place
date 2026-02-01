@@ -41,8 +41,8 @@ export function AISearchBar({
 
       setIsLoading(true)
       try {
-        const response = await aiAPI.getSearchSuggestions(debouncedQuery)
-        setSuggestions(response.data || [])
+        const response = await aiAPI.searchSuggestions(debouncedQuery)
+        setSuggestions(response || [])
       } catch (error) {
         console.error('Failed to fetch suggestions:', error)
         setSuggestions([])

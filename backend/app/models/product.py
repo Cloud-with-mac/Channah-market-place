@@ -50,6 +50,7 @@ class Product(Base):
     height = Column(Float, nullable=True)
     requires_shipping = Column(Boolean, default=True, nullable=False)
     shipping_class = Column(String(100), nullable=True)
+    shipping_cost = Column(Numeric(10, 2), default=0, nullable=False)  # Vendor-set shipping cost per item
 
     # Status
     status = Column(Enum(ProductStatus), default=ProductStatus.DRAFT, nullable=False)
@@ -66,6 +67,10 @@ class Product(Base):
     ai_suggested_tags = Column(StringArray(), nullable=True)
     ai_category_confidence = Column(Float, nullable=True)
     embedding = Column(Text, nullable=True)  # Vector embedding for semantic search
+
+    # Bulk Pricing
+    moq = Column(Integer, default=1, nullable=False)  # Minimum Order Quantity
+    bulk_pricing = Column(Text, nullable=True)  # JSON: [{"min_qty": 100, "max_qty": 499, "price": 23.75}]
 
     # Analytics
     view_count = Column(Integer, default=0, nullable=False)

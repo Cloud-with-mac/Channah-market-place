@@ -20,6 +20,7 @@ import {
   Sparkles,
   ExternalLink,
   Loader2,
+  Timer,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -47,6 +48,7 @@ interface DashboardStats {
   total_orders: number
   pending_orders: number
   total_revenue: number
+  total_commission: number
   today_revenue: number
   total_reviews: number
 }
@@ -80,22 +82,6 @@ interface Vendor {
   sales: number
 }
 
-// Mock data for fallback
-const mockOrders: Order[] = [
-  { id: '1', order_number: 'ORD-2024-001', customer: 'John Smith', total: 245.00, status: 'pending', created_at: new Date().toISOString() },
-  { id: '2', order_number: 'ORD-2024-002', customer: 'Sarah Johnson', total: 189.50, status: 'processing', created_at: new Date(Date.now() - 3600000).toISOString() },
-  { id: '3', order_number: 'ORD-2024-003', customer: 'Mike Williams', total: 520.00, status: 'shipped', created_at: new Date(Date.now() - 7200000).toISOString() },
-  { id: '4', order_number: 'ORD-2024-004', customer: 'Emily Brown', total: 89.99, status: 'delivered', created_at: new Date(Date.now() - 86400000).toISOString() },
-  { id: '5', order_number: 'ORD-2024-005', customer: 'David Lee', total: 340.00, status: 'pending', created_at: new Date(Date.now() - 172800000).toISOString() },
-]
-
-const mockVendors: Vendor[] = [
-  { id: '1', name: 'TechGadgets Pro', rating: 4.9, orders: 234, sales: 45600 },
-  { id: '2', name: 'Fashion Hub', rating: 4.7, orders: 189, sales: 32400 },
-  { id: '3', name: 'Home & Living', rating: 4.8, orders: 156, sales: 28900 },
-  { id: '4', name: 'Sports Unlimited', rating: 4.6, orders: 134, sales: 24500 },
-  { id: '5', name: 'Beauty Corner', rating: 4.5, orders: 98, sales: 18700 },
-]
 
 function getStatusColor(status: string) {
   switch (status) {
@@ -123,6 +109,7 @@ export default function DashboardPage() {
   const [recentOrders, setRecentOrders] = React.useState<Order[]>([])
   const [topVendors, setTopVendors] = React.useState<Vendor[]>([])
   const [lastUpdated, setLastUpdated] = React.useState<Date | null>(null)
+  const [autoRefresh, setAutoRefresh] = React.useState(false)
 
   const fetchDashboardData = React.useCallback(async () => {
     try {
@@ -133,24 +120,25 @@ export default function DashboardPage() {
       ])
 
       if (statsRes.status === 'fulfilled') {
-        setStats(statsRes.value.data)
+        setStats(statsRes.value || null)
       }
-      if (ordersRes.status === 'fulfilled' && ordersRes.value.data?.length > 0) {
-        setRecentOrders(ordersRes.value.data)
+      if (ordersRes.status === 'fulfilled' && ordersRes.value) {
+        const orders = Array.isArray(ordersRes.value) ? ordersRes.value : (ordersRes.value.orders || [])
+        setRecentOrders(orders)
       } else {
-        setRecentOrders(mockOrders) // Fallback to mock data
+        setRecentOrders([])
       }
-      if (vendorsRes.status === 'fulfilled' && vendorsRes.value.data?.length > 0) {
-        setTopVendors(vendorsRes.value.data)
+      if (vendorsRes.status === 'fulfilled' && vendorsRes.value) {
+        const vendors = Array.isArray(vendorsRes.value) ? vendorsRes.value : (vendorsRes.value.vendors || [])
+        setTopVendors(vendors)
       } else {
-        setTopVendors(mockVendors) // Fallback to mock data
+        setTopVendors([])
       }
       setLastUpdated(new Date())
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)
-      // Use mock data on error
-      setRecentOrders(mockOrders)
-      setTopVendors(mockVendors)
+      setRecentOrders([])
+      setTopVendors([])
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
@@ -160,6 +148,12 @@ export default function DashboardPage() {
   React.useEffect(() => {
     fetchDashboardData()
   }, [fetchDashboardData])
+
+  React.useEffect(() => {
+    if (!autoRefresh) return
+    const interval = setInterval(fetchDashboardData, 30000)
+    return () => clearInterval(interval)
+  }, [autoRefresh, fetchDashboardData])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -182,6 +176,15 @@ export default function DashboardPage() {
       change: 0,
       changeLabel: 'all time',
       icon: DollarSign,
+      trend: 'up' as const,
+      href: '/finance',
+    },
+    {
+      title: 'Platform Commission',
+      value: formatPrice(stats.total_commission, 'USD'),
+      change: stats.today_revenue,
+      changeLabel: 'today',
+      icon: TrendingUp,
       trend: 'up' as const,
       href: '/finance',
     },
@@ -267,6 +270,14 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button
+            variant={autoRefresh ? "default" : "outline"}
+            size="sm"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+          >
+            <Timer className="h-4 w-4 mr-2" />
+            {autoRefresh ? 'Auto-refresh On' : 'Auto-refresh Off'}
+          </Button>
+          <Button
             variant="outline"
             size="sm"
             onClick={handleRefresh}
@@ -313,7 +324,7 @@ export default function DashboardPage() {
                     }`}
                   >
                     {kpi.change > 0 ? '+' : ''}
-                    {kpi.change}%
+                    {kpi.change}
                   </span>
                   <span className="text-xs text-muted-foreground hidden sm:inline">
                     {kpi.changeLabel}

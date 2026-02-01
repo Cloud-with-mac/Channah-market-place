@@ -79,11 +79,11 @@ export function ProductReviews({
   React.useEffect(() => {
     const fetchReviews = async () => {
       try {
-        const response = await reviewsAPI.getByProduct(productId, { sort: sortBy })
-        const data = response.data
+        const data = await reviewsAPI.getByProduct(productId, { sort: sortBy })
 
-        if (data.results || data.reviews) {
-          const transformedReviews = (data.results || data.reviews || []).map((r: any) => ({
+        if (data?.results || data?.reviews || Array.isArray(data)) {
+          const reviewsList = Array.isArray(data) ? data : (data.results || data.reviews || [])
+          const transformedReviews = reviewsList.map((r: any) => ({
             id: r.id,
             rating: r.rating,
             title: r.title,
@@ -100,7 +100,7 @@ export function ProductReviews({
           setReviews(transformedReviews)
         }
 
-        if (data.stats) {
+        if (data?.stats) {
           setStats(data.stats)
         }
       } catch (error) {

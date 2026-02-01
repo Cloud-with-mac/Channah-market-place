@@ -1,11 +1,12 @@
 'use client'
 
 import * as React from 'react'
-import { Heart, ShoppingCart, Share2, Check } from 'lucide-react'
+import { Heart, ShoppingCart, Share2, Check, Beaker } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { QuantitySelector } from './quantity-selector'
-import { useCartStore, useWishlistStore } from '@/store'
+import { useCartStore, useWishlistStore, useSampleCartStore } from '@/store'
 import { cn } from '@/lib/utils'
+import { toast } from '@/hooks/use-toast'
 
 interface VariantInfo {
   name: string
@@ -24,6 +25,8 @@ interface AddToCartSectionProps {
   selectedVariantId?: string
   variants?: VariantInfo[]
   selectedVariants?: Record<string, string>
+  vendorName?: string
+  vendorSlug?: string
 }
 
 export function AddToCartSection({
@@ -38,14 +41,18 @@ export function AddToCartSection({
   selectedVariantId,
   variants = [],
   selectedVariants = {},
+  vendorName = 'Vendor',
+  vendorSlug = 'vendor',
 }: AddToCartSectionProps) {
   const [quantity, setQuantity] = React.useState(1)
   const [isAddingToCart, setIsAddingToCart] = React.useState(false)
   const [addedToCart, setAddedToCart] = React.useState(false)
   const [showVariantError, setShowVariantError] = React.useState(false)
+  const [sampleQuantity, setSampleQuantity] = React.useState(1)
 
   const { addItem: addToCart } = useCartStore()
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlistStore()
+  const { addItem: addToSampleCart } = useSampleCartStore()
 
   const isWishlisted = isInWishlist(productId)
 
@@ -123,6 +130,30 @@ export function AddToCartSection({
       await navigator.clipboard.writeText(window.location.href)
       alert('Link copied to clipboard!')
     }
+  }
+
+  const handleOrderSample = () => {
+    // Sample price is typically higher than unit price (includes shipping/handling)
+    const samplePrice = price * 1.5
+    const maxSamples = 3 // Default max samples per product
+
+    addToSampleCart({
+      productId,
+      name: productName,
+      slug: productSlug,
+      price: samplePrice,
+      basePrice: price,
+      image,
+      quantity: sampleQuantity,
+      maxSamples,
+      vendorName,
+      vendorSlug,
+    })
+
+    toast({
+      title: 'Sample added to cart',
+      description: `${productName} sample added. Go to sample cart to checkout.`,
+    })
   }
 
   return (
@@ -208,6 +239,39 @@ export function AddToCartSection({
           Buy Now
         </Button>
       )}
+
+      {/* Order Sample Button - B2B Feature */}
+      <div className="pt-4 border-t">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-sm font-semibold text-purple-600 dark:text-purple-400 flex items-center gap-2">
+              <Beaker className="h-4 w-4" />
+              Order Sample First
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Test quality before bulk order
+            </p>
+          </div>
+          <QuantitySelector
+            value={sampleQuantity}
+            onChange={setSampleQuantity}
+            min={1}
+            max={3}
+          />
+        </div>
+        <Button
+          size="lg"
+          variant="outline"
+          className="w-full border-purple-200 hover:bg-purple-50 hover:text-purple-700 dark:border-purple-800 dark:hover:bg-purple-950/20"
+          onClick={handleOrderSample}
+        >
+          <Beaker className="h-5 w-5 mr-2" />
+          Add Sample to Cart (${(price * 1.5).toFixed(2)})
+        </Button>
+        <p className="text-xs text-center text-muted-foreground mt-2">
+          Sample price includes shipping
+        </p>
+      </div>
     </div>
   )
 }

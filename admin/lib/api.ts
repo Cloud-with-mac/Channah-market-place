@@ -94,31 +94,31 @@ export const authAPI = {
 // ==================== DASHBOARD API ====================
 export const dashboardAPI = {
   getStats: async () => {
-    const response = await apiClient.get('/admin/dashboard/stats')
+    const response = await apiClient.get('/admin/dashboard')
     return response.data
   },
 
   getKPIs: async () => {
-    const response = await apiClient.get('/admin/dashboard/kpis')
+    const response = await apiClient.get('/admin/dashboard')
     return response.data
   },
 
   getRecentOrders: async (limit: number = 10) => {
-    const response = await apiClient.get('/admin/dashboard/recent-orders', {
+    const response = await apiClient.get('/admin/recent-orders', {
       params: { limit },
     })
     return response.data
   },
 
   getRecentActivity: async (limit: number = 20) => {
-    const response = await apiClient.get('/admin/dashboard/recent-activity', {
+    const response = await apiClient.get('/admin/recent-activity', {
       params: { limit },
     })
     return response.data
   },
 
   getFraudAlerts: async () => {
-    const response = await apiClient.get('/admin/dashboard/fraud-alerts')
+    const response = await apiClient.get('/admin/fraud-alerts')
     return response.data
   },
 
@@ -130,16 +130,28 @@ export const dashboardAPI = {
   },
 
   getTopProducts: async (limit: number = 10) => {
-    const response = await apiClient.get('/admin/dashboard/top-products', {
+    const response = await apiClient.get('/admin/top-products', {
       params: { limit },
     })
     return response.data
   },
 
   getTopVendors: async (limit: number = 10) => {
-    const response = await apiClient.get('/admin/dashboard/top-vendors', {
+    const response = await apiClient.get('/admin/top-vendors', {
       params: { limit },
     })
+    return response.data
+  },
+
+  getRevenueChart: async (days: number = 30) => {
+    const response = await apiClient.get('/admin/revenue-chart', {
+      params: { days },
+    })
+    return response.data
+  },
+
+  updateFraudAlertStatus: async (alertId: string, status: string) => {
+    const response = await apiClient.put(`/admin/fraud-alerts/${alertId}/status`, { status })
     return response.data
   },
 }
@@ -216,6 +228,23 @@ export const adminAPI = {
 
   updateOrderStatus: async (id: string, status: string) => {
     const response = await apiClient.put(`/admin/orders/${id}/status`, { status })
+    return response.data
+  },
+
+  // Products management
+  getProducts: async (params?: any) => {
+    const response = await apiClient.get('/admin/products', { params })
+    return response.data
+  },
+
+  getProductById: async (id: string) => {
+    const response = await apiClient.get(`/admin/products/${id}`)
+    return response.data
+  },
+
+  // Categories management
+  getCategories: async () => {
+    const response = await apiClient.get('/admin/categories')
     return response.data
   },
 
@@ -334,6 +363,16 @@ export const productsAPI = {
     return response.data
   },
 
+  get: async (id: string) => {
+    const response = await apiClient.get(`/admin/products/${id}`)
+    return response.data
+  },
+
+  update: async (id: string, data: any) => {
+    const response = await apiClient.put(`/admin/products/${id}`, data)
+    return response.data
+  },
+
   delete: async (id: string) => {
     const response = await apiClient.delete(`/admin/products/${id}`)
     return response.data
@@ -347,13 +386,18 @@ export const reviewsAPI = {
     return response.data
   },
 
+  list: async (params?: any) => {
+    const response = await apiClient.get('/admin/reviews', { params })
+    return response.data
+  },
+
   approve: async (id: string) => {
     const response = await apiClient.post(`/admin/reviews/${id}/approve`)
     return response.data
   },
 
-  reject: async (id: string) => {
-    const response = await apiClient.post(`/admin/reviews/${id}/reject`)
+  reject: async (id: string, reason?: string) => {
+    const response = await apiClient.post(`/admin/reviews/${id}/reject`, { reason })
     return response.data
   },
 
@@ -385,8 +429,9 @@ export const ordersAPI = {
     return response.data
   },
 
-  updateStatus: async (id: string, status: string) => {
-    const response = await apiClient.put(`/admin/orders/${id}/status`, { status })
+  updateStatus: async (id: string, data: string | { status: string; tracking_number?: string; carrier?: string; notes?: string }) => {
+    const payload = typeof data === 'string' ? { status: data } : data
+    const response = await apiClient.put(`/admin/orders/${id}/status`, payload)
     return response.data
   },
 }
@@ -395,6 +440,21 @@ export const ordersAPI = {
 export const contentAPI = {
   getAll: async (params?: any) => {
     const response = await apiClient.get('/admin/content', { params })
+    return response.data
+  },
+
+  getBanners: async (params?: any) => {
+    const response = await apiClient.get('/admin/content/banners', { params })
+    return response.data
+  },
+
+  getPromotions: async (params?: any) => {
+    const response = await apiClient.get('/admin/content/promotions', { params })
+    return response.data
+  },
+
+  getAnnouncements: async (params?: any) => {
+    const response = await apiClient.get('/admin/content/announcements', { params })
     return response.data
   },
 
@@ -412,10 +472,77 @@ export const contentAPI = {
     const response = await apiClient.delete(`/admin/content/${id}`)
     return response.data
   },
+
+  // Banner CRUD
+  createBanner: async (data: any) => {
+    const response = await apiClient.post('/admin/content/banners', data)
+    return response.data
+  },
+  updateBanner: async (id: string, data: any) => {
+    const response = await apiClient.put(`/admin/content/banners/${id}`, data)
+    return response.data
+  },
+  toggleBanner: async (id: string) => {
+    const response = await apiClient.patch(`/admin/content/banners/${id}/toggle`)
+    return response.data
+  },
+  deleteBanner: async (id: string) => {
+    const response = await apiClient.delete(`/admin/content/banners/${id}`)
+    return response.data
+  },
+
+  // Promotion CRUD
+  createPromotion: async (data: any) => {
+    const response = await apiClient.post('/admin/content/promotions', data)
+    return response.data
+  },
+  updatePromotion: async (id: string, data: any) => {
+    const response = await apiClient.put(`/admin/content/promotions/${id}`, data)
+    return response.data
+  },
+  togglePromotion: async (id: string) => {
+    const response = await apiClient.patch(`/admin/content/promotions/${id}/toggle`)
+    return response.data
+  },
+  deletePromotion: async (id: string) => {
+    const response = await apiClient.delete(`/admin/content/promotions/${id}`)
+    return response.data
+  },
+
+  // Announcement CRUD
+  createAnnouncement: async (data: any) => {
+    const response = await apiClient.post('/admin/content/announcements', data)
+    return response.data
+  },
+  updateAnnouncement: async (id: string, data: any) => {
+    const response = await apiClient.put(`/admin/content/announcements/${id}`, data)
+    return response.data
+  },
+  toggleAnnouncement: async (id: string) => {
+    const response = await apiClient.patch(`/admin/content/announcements/${id}/toggle`)
+    return response.data
+  },
+  deleteAnnouncement: async (id: string) => {
+    const response = await apiClient.delete(`/admin/content/announcements/${id}`)
+    return response.data
+  },
 }
 
 // ==================== UPLOAD API ====================
 export const uploadAPI = {
+  uploadFile: async (file: File, folder: string = 'admin') => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('folder', folder)
+
+    const response = await apiClient.post('/upload/file', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  },
+
   uploadImage: async (file: File, folder: string = 'admin') => {
     const formData = new FormData()
     formData.append('file', file)
@@ -480,6 +607,11 @@ export const vendorsAPI = {
 
   resetPassword: async (id: string, data: any) => {
     const response = await apiClient.post(`/admin/vendors/${id}/reset-password`, data)
+    return response.data
+  },
+
+  updateCommission: async (id: string, commission_rate: number) => {
+    const response = await apiClient.put(`/admin/vendors/${id}/commission`, { commission_rate })
     return response.data
   },
 }
@@ -557,6 +689,171 @@ export const notificationsAPI = {
   // Clear all notifications
   clearAll: async () => {
     const response = await apiClient.delete('/admin/notifications')
+    return response.data
+  },
+}
+
+// ==================== SYSTEM API ====================
+export const systemAPI = {
+  getSettings: async () => {
+    const response = await apiClient.get('/admin/settings')
+    return response.data
+  },
+
+  updateSettings: async (data: any) => {
+    const response = await apiClient.put('/admin/settings', data)
+    return response.data
+  },
+
+  getSystemHealth: async () => {
+    const response = await apiClient.get('/admin/system/health')
+    return response.data
+  },
+
+  getLogs: async (params?: any) => {
+    const response = await apiClient.get('/admin/system/logs', { params })
+    return response.data
+  },
+}
+
+// ==================== SUPPORT API ====================
+export const supportAPI = {
+  getTickets: async (params?: { status?: string }) => {
+    const response = await apiClient.get('/support-chat', { params })
+    return response.data
+  },
+
+  getMessages: async (chatId: string) => {
+    const response = await apiClient.get(`/support-chat/${chatId}/messages`)
+    return response.data
+  },
+
+  sendMessage: async (chatId: string, content: string) => {
+    const response = await apiClient.post(`/support-chat/${chatId}/messages`, { content })
+    return response.data
+  },
+
+  closeChat: async (chatId: string) => {
+    const response = await apiClient.put(`/support-chat/${chatId}/close`)
+    return response.data
+  },
+
+  getAISuggestion: async (ticketId: string, context: string) => {
+    const response = await apiClient.post('/ai/chat', { message: `Suggest a support response for: ${context}` })
+    return response.data
+  },
+
+  getWebSocketUrl: (chatId: string) => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+    const wsBase = apiUrl.replace(/^http/, 'ws').replace(/\/api\/v1$/, '')
+    return `${wsBase}/api/v1/support-chat/ws/${chatId}`
+  },
+}
+
+// ==================== FINANCE API ====================
+export const financeAPI = {
+  getPayouts: async (params?: { status?: string; limit?: number; offset?: number }) => {
+    const response = await apiClient.get('/admin/finance/payouts', { params })
+    return response.data
+  },
+
+  getPayoutById: async (id: string) => {
+    const response = await apiClient.get(`/admin/finance/payouts/${id}`)
+    return response.data
+  },
+
+  processPayout: async (id: string) => {
+    const response = await apiClient.post(`/admin/finance/payouts/${id}/process`)
+    return response.data
+  },
+
+  rejectPayout: async (id: string, reason: string) => {
+    const response = await apiClient.post(`/admin/finance/payouts/${id}/reject`, { reason })
+    return response.data
+  },
+
+  getTransactions: async (params?: { type?: string; limit?: number; offset?: number }) => {
+    const response = await apiClient.get('/admin/finance/transactions', { params })
+    return response.data
+  },
+
+  getCommissionSettings: async () => {
+    const response = await apiClient.get('/admin/finance/commissions')
+    return response.data
+  },
+
+  updateCommissionSettings: async (data: any) => {
+    const response = await apiClient.put('/admin/finance/commissions', data)
+    return response.data
+  },
+
+  getSellerPlans: async () => {
+    const response = await apiClient.get('/admin/seller-plans')
+    return response.data
+  },
+
+  updateSellerPlans: async (plans: any[]) => {
+    const response = await apiClient.put('/admin/seller-plans', plans)
+    return response.data
+  },
+}
+
+// ==================== PROFILE API ====================
+export const profileAPI = {
+  update: async (data: { first_name?: string; last_name?: string; email?: string; phone?: string }) => {
+    const response = await apiClient.put('/users/me', data)
+    return response.data
+  },
+
+  changePassword: async (data: { current_password: string; new_password: string }) => {
+    const response = await apiClient.post('/users/me/change-password', data)
+    return response.data
+  },
+
+  updateNotificationPreferences: async (data: any) => {
+    const response = await apiClient.put('/users/me/notification-preferences', data)
+    return response.data
+  },
+
+  getSessions: async () => {
+    const response = await apiClient.get('/users/me/sessions')
+    return response.data
+  },
+
+  revokeSessions: async (sessionId?: string) => {
+    const endpoint = sessionId ? `/users/me/sessions/${sessionId}` : '/users/me/sessions'
+    const response = await apiClient.delete(endpoint)
+    return response.data
+  },
+}
+
+// ==================== CONTACT/MESSAGES API ====================
+export const contactAPI = {
+  submit: async (data: { name: string; email: string; subject: string; message: string; order_number?: string }) => {
+    const response = await apiClient.post('/contact', data)
+    return response.data
+  },
+}
+
+// ==================== SUPPORT CHAT API ====================
+export const supportChatAPI = {
+  getChats: async (status?: string) => {
+    const response = await apiClient.get('/support-chat', { params: status ? { status } : undefined })
+    return response.data
+  },
+
+  getMessages: async (chatId: string) => {
+    const response = await apiClient.get(`/support-chat/${chatId}/messages`)
+    return response.data
+  },
+
+  sendMessage: async (chatId: string, content: string) => {
+    const response = await apiClient.post(`/support-chat/${chatId}/messages`, { content })
+    return response.data
+  },
+
+  closeChat: async (chatId: string) => {
+    const response = await apiClient.put(`/support-chat/${chatId}/close`)
     return response.data
   },
 }

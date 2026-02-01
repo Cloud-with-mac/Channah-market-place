@@ -112,8 +112,7 @@ export function AIChatDrawer({ open, onOpenChange }: AIChatDrawerProps) {
     const lowerContent = content.toLowerCase()
 
     try {
-      const response = await aiAPI.chat(content.trim(), conversationId || undefined)
-      const data = response.data
+      const data = await aiAPI.chat(content.trim(), conversationId || undefined)
 
       if (!conversationId && data.conversation_id) {
         setConversationId(data.conversation_id)
@@ -137,15 +136,15 @@ export function AIChatDrawer({ open, onOpenChange }: AIChatDrawerProps) {
         if (lowerContent.includes('trending') || lowerContent.includes('popular')) {
           fallbackContent = "Here are some trending products that customers love!"
           const res = await productsAPI.getFeatured(3)
-          fallbackProducts = res.data?.results || res.data || []
+          fallbackProducts = Array.isArray(res) ? res : res?.results || []
         } else if (lowerContent.includes('deal') || lowerContent.includes('sale') || lowerContent.includes('discount')) {
           fallbackContent = "Check out these amazing deals!"
           const res = await productsAPI.getAll({ limit: 3 })
-          fallbackProducts = res.data?.results || res.data || []
+          fallbackProducts = Array.isArray(res) ? res : res?.results || []
         } else if (lowerContent.includes('gift')) {
           fallbackContent = "Here are some great gift ideas!"
           const res = await productsAPI.getFeatured(3)
-          fallbackProducts = res.data?.results || res.data || []
+          fallbackProducts = Array.isArray(res) ? res : res?.results || []
         } else if (lowerContent.includes('track') || lowerContent.includes('order')) {
           fallbackContent = "To track your order, go to your account dashboard and click on 'Orders'. You can also check your email for tracking updates."
         } else if (lowerContent.includes('help')) {
@@ -153,7 +152,7 @@ export function AIChatDrawer({ open, onOpenChange }: AIChatDrawerProps) {
         } else {
           fallbackContent = "Let me show you some products you might like!"
           const res = await productsAPI.getFeatured(3)
-          fallbackProducts = res.data?.results || res.data || []
+          fallbackProducts = Array.isArray(res) ? res : res?.results || []
         }
       } catch {
         fallbackContent = "I'm having trouble connecting right now. Please try again or browse our products directly."
@@ -203,17 +202,20 @@ export function AIChatDrawer({ open, onOpenChange }: AIChatDrawerProps) {
     <div className={cn(
       'fixed z-50 transition-all duration-300 ease-out',
       isExpanded
-        ? 'inset-4 md:inset-auto md:bottom-6 md:right-6 md:w-[500px] md:h-[700px]'
-        : 'inset-0 md:inset-auto md:bottom-24 md:right-6 md:w-[400px] md:h-[600px]'
+        ? 'inset-4 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[480px] sm:h-[650px] sm:max-h-[calc(100vh-80px)]'
+        : 'inset-0 sm:inset-auto sm:bottom-24 sm:right-6 sm:w-[380px] sm:h-[520px] sm:max-h-[calc(100vh-120px)]'
     )}>
       {/* Backdrop for mobile */}
       <div
-        className="absolute inset-0 bg-background/80 backdrop-blur-sm md:hidden"
+        className="absolute inset-0 bg-background/80 backdrop-blur-sm sm:hidden"
         onClick={() => onOpenChange(false)}
       />
 
       {/* Chat Container */}
-      <div className="relative h-full w-full md:rounded-2xl bg-background border shadow-2xl flex flex-col overflow-hidden">
+      <div className={cn(
+        "relative h-full w-full sm:rounded-2xl bg-background border shadow-2xl flex flex-col overflow-hidden",
+        isExpanded ? "sm:max-h-[650px]" : "sm:max-h-[520px]"
+      )}>
         {/* Header - SophieX Dark Theme */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-cyan/20 bg-gradient-to-r from-cyan-dark via-primary to-cyan text-primary-foreground">
           <div className="flex items-center gap-3">
@@ -225,7 +227,7 @@ export function AIChatDrawer({ open, onOpenChange }: AIChatDrawerProps) {
             </div>
             <div>
               <h3 className="font-semibold flex items-center gap-2">
-                Chat with Channah
+                Chat with Vendora
                 <Badge variant="secondary" className="text-[10px] bg-navy/50 text-cyan border border-cyan/30 h-5 font-semibold">
                   <Sparkles className="h-2.5 w-2.5 mr-1" />
                   AI
@@ -275,7 +277,7 @@ export function AIChatDrawer({ open, onOpenChange }: AIChatDrawerProps) {
                   <Sparkles className="absolute top-2 right-2 h-4 w-4 text-cyan-light animate-pulse" />
                 </div>
               </div>
-              <h4 className="font-bold text-xl mb-2 text-gradient-premium">Hi! I'm Channah, your AI assistant</h4>
+              <h4 className="font-bold text-xl mb-2 text-gradient-premium">Hi! I'm Vendora, your AI assistant</h4>
               <p className="text-sm text-muted-foreground mb-6 max-w-[300px]">
                 I can help you find products, discover deals, compare prices, track orders, and answer any questions.
               </p>
@@ -468,7 +470,7 @@ export function AIChatDrawer({ open, onOpenChange }: AIChatDrawerProps) {
           </form>
           <p className="text-[10px] text-center text-muted-foreground mt-3 flex items-center justify-center gap-1">
             <Sparkles className="h-3 w-3 text-cyan" />
-            Powered by Channah AI - Your smart shopping companion
+            Powered by Vendora AI - Your smart shopping companion
           </p>
         </div>
       </div>

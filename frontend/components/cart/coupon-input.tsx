@@ -4,12 +4,11 @@ import * as React from 'react'
 import { Tag, X, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { cartAPI } from '@/lib/api'
 
 interface CouponInputProps {
   appliedCoupon?: string
-  onApply: (code: string, discountAmount: number) => void
-  onRemove: () => void
+  onApply: (code: string) => Promise<void>
+  onRemove: () => Promise<void>
 }
 
 export function CouponInput({ appliedCoupon, onApply, onRemove }: CouponInputProps) {
@@ -24,12 +23,10 @@ export function CouponInput({ appliedCoupon, onApply, onRemove }: CouponInputPro
     setError(null)
 
     try {
-      const response = await cartAPI.applyCoupon(code.trim().toUpperCase())
-      const data = response.data
-      onApply(code.trim().toUpperCase(), data.discount_amount || 0)
+      await onApply(code.trim().toUpperCase())
       setCode('')
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Invalid coupon code')
+      setError(err?.response?.data?.message || err?.message || 'Invalid coupon code')
     } finally {
       setIsLoading(false)
     }
@@ -38,11 +35,9 @@ export function CouponInput({ appliedCoupon, onApply, onRemove }: CouponInputPro
   const handleRemove = async () => {
     setIsLoading(true)
     try {
-      await cartAPI.removeCoupon()
-      onRemove()
+      await onRemove()
     } catch (err) {
-      // Silently fail, still remove locally
-      onRemove()
+      console.error('Failed to remove coupon:', err)
     } finally {
       setIsLoading(false)
     }

@@ -162,7 +162,7 @@ export function VendorHeader() {
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <a
-                  href="http://localhost:3000"
+                  href={process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="cursor-pointer"

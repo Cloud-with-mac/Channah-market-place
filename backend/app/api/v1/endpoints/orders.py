@@ -4,7 +4,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from app.core.database import get_db
@@ -53,6 +53,7 @@ async def create_order(
 
     # Calculate totals
     subtotal = Decimal("0")
+    shipping_amount = Decimal("0")
     for item in cart.items:
         if item.product.track_inventory and item.product.quantity < item.quantity:
             raise HTTPException(
@@ -60,9 +61,11 @@ async def create_order(
                 detail=f"Insufficient stock for {item.product.name}"
             )
         subtotal += item.price * item.quantity
+        # Vendor-set shipping cost per product
+        product_shipping = Decimal(str(item.product.shipping_cost or 0))
+        shipping_amount += product_shipping * item.quantity
 
     tax_amount = subtotal * Decimal("0.08")  # 8% tax
-    shipping_amount = Decimal("5.99") if subtotal < 50 else Decimal("0")  # Free shipping over $50
     discount_amount = cart.discount_amount
     total = subtotal + tax_amount + shipping_amount - discount_amount
 
@@ -70,8 +73,9 @@ async def create_order(
     order = Order(
         user_id=current_user.id,
         order_number=Order.generate_order_number(),
-        status=OrderStatus.PENDING,
-        payment_status=PaymentStatus.PENDING,
+        status=OrderStatus.CONFIRMED,
+        payment_status=PaymentStatus.PAID,
+        paid_at=datetime.utcnow(),
         subtotal=subtotal,
         tax_amount=tax_amount,
         shipping_amount=shipping_amount,
@@ -94,6 +98,11 @@ async def create_order(
         payment_method=order_data.payment_method,
         customer_notes=order_data.customer_notes
     )
+
+    # Calculate estimated delivery from vendor processing + shipping days
+    max_processing = max((item.product.vendor.processing_days or 2 for item in cart.items), default=2)
+    max_shipping = max((item.product.vendor.shipping_days or 5 for item in cart.items), default=5)
+    order.estimated_delivery = datetime.utcnow() + timedelta(days=max_processing + max_shipping)
 
     if not order_data.billing_same_as_shipping and order_data.billing_address:
         order.billing_first_name = order_data.billing_address.first_name
@@ -132,7 +141,7 @@ async def create_order(
             commission_rate=commission_rate,
             commission_amount=commission_amount,
             vendor_amount=vendor_amount,
-            status=OrderStatus.PENDING
+            status=OrderStatus.CONFIRMED
         )
         db.add(order_item)
 
@@ -144,8 +153,8 @@ async def create_order(
     # Add status history
     status_history = OrderStatusHistory(
         order_id=order.id,
-        status=OrderStatus.PENDING,
-        notes="Order created"
+        status=OrderStatus.CONFIRMED,
+        notes="Order placed and confirmed"
     )
     db.add(status_history)
 
@@ -208,47 +217,60 @@ async def get_my_orders(
     ]
 
 
-@router.get("/{order_number}", response_model=OrderResponse)
-async def get_order(
-    order_number: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Get order by order number"""
-    result = await db.execute(
-        select(Order)
-        .where(Order.order_number == order_number, Order.user_id == current_user.id)
-        .options(
-            selectinload(Order.items),
-            selectinload(Order.status_history)
-        )
-    )
-    order = result.scalar_one_or_none()
-
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-
-    return OrderResponse.model_validate(order)
-
-
 @router.get("/{order_number}/tracking", response_model=OrderTrackingResponse)
 async def track_order(
     order_number: str,
+    email: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
-    """Track order status (public endpoint)"""
+    """Track order status. Requires email verification to view full details."""
     result = await db.execute(
         select(Order)
         .where(Order.order_number == order_number)
         .options(
             selectinload(Order.status_history),
-            selectinload(Order.items)
+            selectinload(Order.items),
+            selectinload(Order.user)
         )
     )
     order = result.scalar_one_or_none()
 
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+
+    # Verify email matches the order owner for security
+    if not email or (order.user and order.user.email.lower() != email.lower()):
+        # Return limited tracking info without personal details
+        return OrderTrackingResponse(
+            order_number=order.order_number,
+            status=order.status.value,
+            payment_status=order.payment_status.value,
+            created_at=order.created_at,
+            updated_at=order.updated_at,
+            shipping_first_name=None,
+            shipping_last_name=None,
+            shipping_city=None,
+            shipping_state=None,
+            shipping_country=None,
+            subtotal=None,
+            shipping_cost=None,
+            tax=None,
+            total=None,
+            currency=order.currency,
+            tracking_number=order.tracking_number,
+            carrier=order.carrier,
+            estimated_delivery=order.estimated_delivery,
+            items=[],
+            status_history=[
+                OrderStatusHistoryResponse(
+                    id=h.id,
+                    status=h.status.value,
+                    notes=h.notes,
+                    created_at=h.created_at
+                )
+                for h in order.status_history
+            ]
+        )
 
     return OrderTrackingResponse(
         order_number=order.order_number,
@@ -476,9 +498,52 @@ async def update_order_item_status(
     if not item:
         raise HTTPException(status_code=404, detail="Order item not found")
 
+    old_item_status = item.status
     item.status = OrderStatus(status_data.status)
     if status_data.tracking_number:
         item.tracking_number = status_data.tracking_number
+
+    # Update vendor sales when item is delivered
+    if item.status == OrderStatus.DELIVERED and old_item_status != OrderStatus.DELIVERED:
+        vendor.total_sales += item.total
+        vendor.total_earnings += item.vendor_amount
+        vendor.balance += item.vendor_amount
+
+    # Sync parent order status based on all items
+    all_items_result = await db.execute(
+        select(OrderItem).where(OrderItem.order_id == item.order_id)
+    )
+    all_items = all_items_result.scalars().all()
+
+    # Determine order status from item statuses
+    # Order follows the "least progressed" item
+    status_priority = {
+        OrderStatus.PENDING: 0,
+        OrderStatus.CONFIRMED: 1,
+        OrderStatus.PROCESSING: 2,
+        OrderStatus.SHIPPED: 3,
+        OrderStatus.OUT_FOR_DELIVERY: 4,
+        OrderStatus.DELIVERED: 5,
+        OrderStatus.CANCELLED: -1,
+        OrderStatus.REFUNDED: -2,
+        OrderStatus.FAILED: -3,
+    }
+
+    non_cancelled = [i for i in all_items if i.status not in (OrderStatus.CANCELLED, OrderStatus.REFUNDED, OrderStatus.FAILED)]
+    order_result = await db.execute(select(Order).where(Order.id == item.order_id))
+    order = order_result.scalar_one_or_none()
+    if order:
+        if not non_cancelled:
+            # All items cancelled/refunded/failed — set order to cancelled
+            order.status = OrderStatus.CANCELLED
+        else:
+            min_status = min(non_cancelled, key=lambda i: status_priority.get(i.status, 0))
+            order.status = min_status.status
+            # Update timestamps
+            if min_status.status == OrderStatus.SHIPPED and not order.shipped_at:
+                order.shipped_at = datetime.utcnow()
+            elif min_status.status == OrderStatus.DELIVERED and not order.delivered_at:
+                order.delivered_at = datetime.utcnow()
 
     await db.commit()
     await db.refresh(item)
@@ -488,40 +553,62 @@ async def update_order_item_status(
 
 # Admin endpoints
 
-@router.get("/admin/all", response_model=List[OrderListResponse])
+@router.get("/admin/all")
 async def get_all_orders(
     skip: int = 0,
     limit: int = 20,
+    page: int = 1,
+    search: Optional[str] = None,
     status: Optional[str] = None,
     payment_status: Optional[str] = None,
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get all orders (admin only)"""
-    query = select(Order)
+    query = select(Order).options(selectinload(Order.items))
 
     if status:
-        query = query.where(Order.status == status)
+        query = query.where(Order.status == OrderStatus(status))
     if payment_status:
         query = query.where(Order.payment_status == payment_status)
+    if search:
+        query = query.where(
+            Order.order_number.ilike(f"%{search}%") |
+            Order.shipping_first_name.ilike(f"%{search}%") |
+            Order.shipping_last_name.ilike(f"%{search}%") |
+            Order.shipping_email.ilike(f"%{search}%")
+        )
 
-    query = query.order_by(Order.created_at.desc()).offset(skip).limit(limit)
+    # Count total
+    count_result = await db.execute(select(func.count()).select_from(query.subquery()))
+    total = count_result.scalar() or 0
+
+    # Calculate offset from page
+    offset = (page - 1) * limit if page > 0 else skip
+    query = query.order_by(Order.created_at.desc()).offset(offset).limit(limit)
     result = await db.execute(query)
     orders = result.scalars().all()
 
-    return [
-        OrderListResponse(
-            id=o.id,
-            order_number=o.order_number,
-            status=o.status.value,
-            payment_status=o.payment_status.value,
-            total=o.total,
-            currency=o.currency,
-            item_count=0,
-            created_at=o.created_at
-        )
-        for o in orders
-    ]
+    return {
+        "orders": [
+            {
+                "id": str(o.id),
+                "order_number": o.order_number,
+                "customer_name": f"{o.shipping_first_name} {o.shipping_last_name}",
+                "customer_email": o.shipping_email,
+                "vendor_name": "Multiple" if o.items and len(set(i.vendor_id for i in o.items)) > 1 else "—",
+                "status": o.status.value,
+                "payment_status": o.payment_status.value,
+                "total": float(o.total),
+                "currency": o.currency,
+                "items_count": len(o.items) if o.items else 0,
+                "created_at": o.created_at.isoformat(),
+                "updated_at": o.updated_at.isoformat() if o.updated_at else o.created_at.isoformat(),
+            }
+            for o in orders
+        ],
+        "total": total,
+    }
 
 
 @router.get("/admin/{order_id}", response_model=OrderResponse)
@@ -630,5 +717,30 @@ async def process_refund(
 
     await db.commit()
     await db.refresh(order)
+
+    return OrderResponse.model_validate(order)
+
+
+# Customer order detail - must be last since /{order_number} is a catch-all
+
+@router.get("/{order_number}", response_model=OrderResponse)
+async def get_order(
+    order_number: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get order by order number"""
+    result = await db.execute(
+        select(Order)
+        .where(Order.order_number == order_number, Order.user_id == current_user.id)
+        .options(
+            selectinload(Order.items),
+            selectinload(Order.status_history)
+        )
+    )
+    order = result.scalar_one_or_none()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
 
     return OrderResponse.model_validate(order)

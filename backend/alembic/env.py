@@ -82,8 +82,8 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    # Use sync URL for Alembic (remove +asyncpg)
-    url = settings.DATABASE_URL.replace("+asyncpg", "")
+    # Use sync URL for Alembic (remove async drivers)
+    url = settings.DATABASE_URL.replace("+asyncpg", "").replace("+aiosqlite", "")
 
     configuration = config.get_section(config.config_ini_section)
     configuration["sqlalchemy.url"] = url

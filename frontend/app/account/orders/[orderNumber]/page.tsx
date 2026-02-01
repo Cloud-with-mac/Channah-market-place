@@ -72,8 +72,10 @@ interface Order {
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   pending: { label: 'Pending', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' },
+  confirmed: { label: 'Confirmed', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
   processing: { label: 'Processing', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
-  shipped: { label: 'Shipped', className: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' },
+  shipped: { label: 'Shipped to Vendora', className: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' },
+  out_for_delivery: { label: 'Out for Delivery', className: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400' },
   delivered: { label: 'Delivered', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
   cancelled: { label: 'Cancelled', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
 }
@@ -88,8 +90,8 @@ export default function OrderDetailPage() {
   React.useEffect(() => {
     const fetchOrder = async () => {
       try {
-        const response = await ordersAPI.get(params.orderNumber as string)
-        setOrder(response.data)
+        const data = await ordersAPI.getByOrderNumber(params.orderNumber as string)
+        setOrder(data as any)
       } catch (err: any) {
         console.error('Failed to fetch order:', err)
         setError(err?.response?.data?.message || 'Order not found')
@@ -141,36 +143,38 @@ export default function OrderDetailPage() {
   const status = statusConfig[order.status] || statusConfig.pending
 
   const handleDownloadInvoice = () => {
+    const customerName = `${order.shipping_first_name || ''} ${order.shipping_last_name || ''}`.trim() || 'Customer'
+    const addressData = {
+      name: customerName,
+      address_line1: order.shipping_address_line1 || '',
+      address_line2: order.shipping_address_line2 || '',
+      city: order.shipping_city || '',
+      state: order.shipping_state || '',
+      postal_code: order.shipping_postal_code || '',
+      country: order.shipping_country || '',
+    }
     generateInvoice({
       orderNumber: order.order_number,
       orderDate: formatDate(order.created_at),
-      customerName: `${order.shipping_first_name || ''} ${order.shipping_last_name || ''}`.trim() || 'Customer',
-      customerEmail: order.shipping_email,
-      customerPhone: order.shipping_phone,
-      shippingAddress: {
-        line1: order.shipping_address_line1 || '',
-        line2: order.shipping_address_line2,
-        city: order.shipping_city || '',
-        state: order.shipping_state,
-        postalCode: order.shipping_postal_code || '',
-        country: order.shipping_country || '',
+      customer: {
+        name: customerName,
+        email: order.shipping_email || '',
       },
-      items: order.items.map((item) => ({
+      billingAddress: addressData,
+      shippingAddress: addressData,
+      items: order.items.map((item: any) => ({
         name: item.product_name,
         quantity: item.quantity,
         price: item.unit_price ?? item.price ?? 0,
         total: item.total ?? 0,
-        variant: item.variant_name,
       })),
       subtotal: order.subtotal ?? 0,
       shipping: order.shipping_amount ?? order.shipping_fee ?? 0,
       tax: order.tax_amount ?? order.tax ?? 0,
       discount: order.discount_amount ?? order.discount ?? 0,
       total: order.total ?? order.total_amount ?? 0,
-      currency: order.currency,
       paymentMethod: (order.payment_method || 'card').replace('_', ' '),
-      status: status.label,
-    })
+    } as any)
   }
 
   return (

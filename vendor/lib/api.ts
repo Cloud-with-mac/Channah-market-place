@@ -36,21 +36,24 @@ apiClient.interceptors.response.use(
 
       try {
         const refreshToken = localStorage.getItem('vendor_refresh_token')
-        if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-            refresh_token: refreshToken,
-          })
+        if (!refreshToken) throw new Error('No refresh token')
 
-          const { access_token } = response.data
-          localStorage.setItem('vendor_access_token', access_token)
+        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+          refresh_token: refreshToken,
+        })
 
-          originalRequest.headers.Authorization = `Bearer ${access_token}`
-          return apiClient(originalRequest)
-        }
+        const { access_token } = response.data
+        localStorage.setItem('vendor_access_token', access_token)
+
+        originalRequest.headers.Authorization = `Bearer ${access_token}`
+        return apiClient(originalRequest)
       } catch (refreshError) {
         localStorage.removeItem('vendor_access_token')
         localStorage.removeItem('vendor_refresh_token')
-        window.location.href = '/login'
+        localStorage.removeItem('vendor-auth-storage')
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+          window.location.href = '/login'
+        }
         return Promise.reject(refreshError)
       }
     }
@@ -101,12 +104,12 @@ export const authAPI = {
   },
 
   forgotPassword: async (email: string) => {
-    const response = await apiClient.post('/auth/forgot-password', { email })
+    const response = await apiClient.post('/auth/password-reset', { email })
     return response.data
   },
 
   resetPassword: async (token: string, password: string) => {
-    const response = await apiClient.post('/auth/reset-password', { token, password })
+    const response = await apiClient.post('/auth/password-reset/confirm', { token, password })
     return response.data
   },
 }
@@ -154,6 +157,11 @@ export const vendorProductsAPI = {
   },
 
   getById: async (id: string) => {
+    const response = await apiClient.get(`/vendors/me/products/${id}`)
+    return response.data
+  },
+
+  get: async (id: string) => {
     const response = await apiClient.get(`/vendors/me/products/${id}`)
     return response.data
   },
@@ -230,9 +238,15 @@ export const vendorOrdersAPI = {
     return response.data
   },
 
-  updateStatus: async (id: string, status: string) => {
+  get: async (id: string) => {
+    const response = await apiClient.get(`/vendors/me/orders/${id}`)
+    return response.data
+  },
+
+  updateStatus: async (id: string, status: string, trackingNumber?: string) => {
     const response = await apiClient.put(`/vendors/me/orders/${id}/status`, {
       status,
+      tracking_number: trackingNumber || undefined,
     })
     return response.data
   },
@@ -254,26 +268,26 @@ export const vendorOrdersAPI = {
 // ==================== DASHBOARD API ====================
 export const vendorDashboardAPI = {
   getStats: async () => {
-    const response = await apiClient.get('/vendors/me/dashboard/stats')
+    const response = await apiClient.get('/vendors/me/dashboard')
     return response.data
   },
 
   getRevenueChart: async (days: number = 30) => {
-    const response = await apiClient.get('/vendors/me/dashboard/revenue-chart', {
+    const response = await apiClient.get('/vendors/me/revenue-chart', {
       params: { days },
     })
     return response.data
   },
 
   getTopProducts: async (limit: number = 5) => {
-    const response = await apiClient.get('/vendors/me/dashboard/top-products', {
+    const response = await apiClient.get('/vendors/me/top-products', {
       params: { limit },
     })
     return response.data
   },
 
   getRecentOrders: async (limit: number = 5) => {
-    const response = await apiClient.get('/vendors/me/dashboard/recent-orders', {
+    const response = await apiClient.get('/vendors/me/orders', {
       params: { limit },
     })
     return response.data
@@ -321,15 +335,18 @@ export const vendorPayoutsAPI = {
     return response.data
   },
 
+  list: async (params?: any) => {
+    const response = await apiClient.get('/vendors/me/payouts', { params })
+    return response.data
+  },
+
   getById: async (id: string) => {
     const response = await apiClient.get(`/vendors/me/payouts/${id}`)
     return response.data
   },
 
-  requestPayout: async (amount: number) => {
-    const response = await apiClient.post('/vendors/me/payouts/request', {
-      amount,
-    })
+  requestPayout: async (amount: number, payment_method: string) => {
+    const response = await apiClient.post('/vendors/me/payouts', { amount, payment_method })
     return response.data
   },
 
@@ -346,6 +363,11 @@ export const vendorReviewsAPI = {
     return response.data
   },
 
+  list: async (params?: any) => {
+    const response = await apiClient.get('/vendors/me/reviews', { params })
+    return response.data
+  },
+
   respond: async (id: string, response: string) => {
     const response_data = await apiClient.post(`/reviews/${id}/respond`, {
       response,
@@ -357,6 +379,16 @@ export const vendorReviewsAPI = {
 // ==================== CATEGORIES API ====================
 export const categoriesAPI = {
   getAll: async () => {
+    const response = await apiClient.get('/categories')
+    return response.data
+  },
+
+  getTree: async () => {
+    const response = await apiClient.get('/categories/tree')
+    return response.data
+  },
+
+  list: async () => {
     const response = await apiClient.get('/categories')
     return response.data
   },
@@ -401,6 +433,39 @@ export const uploadAPI = {
     const response = await apiClient.delete('/upload/image', {
       data: { url },
     })
+    return response.data
+  },
+}
+
+// ==================== VENDOR SETTINGS API ====================
+export const vendorSettingsAPI = {
+  getProfile: async () => {
+    const response = await apiClient.get('/vendors/me')
+    return response.data
+  },
+
+  updateProfile: async (data: any) => {
+    const response = await apiClient.put('/vendors/me', data)
+    return response.data
+  },
+
+  getPaymentSettings: async () => {
+    const response = await apiClient.get('/vendors/me/payment-settings')
+    return response.data
+  },
+
+  updatePaymentSettings: async (data: any) => {
+    const response = await apiClient.put('/vendors/me/payment-settings', data)
+    return response.data
+  },
+
+  getNotificationSettings: async () => {
+    const response = await apiClient.get('/vendors/me/notification-settings')
+    return response.data
+  },
+
+  updateNotificationSettings: async (data: any) => {
+    const response = await apiClient.put('/vendors/me/notification-settings', data)
     return response.data
   },
 }

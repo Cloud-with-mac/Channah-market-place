@@ -4,79 +4,80 @@
 
 @layer base {
   :root {
-    /* Channah-Market SophieX Dark Theme with Cyan Accents */
-    /* Dark mode by default for modern look */
-    --background: 222 47% 8%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
-    /* Primary: Vibrant Cyan */
-    --primary: 187 100% 50%;
-    --primary-foreground: 222 47% 8%;
-    /* Secondary: Dark slate */
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    /* Accent: Electric Cyan */
-    --accent: 187 100% 50%;
-    --accent-foreground: 222 47% 8%;
+    /* Vendora Refined Modern Theme */
+    /* Clean white background for modern look */
+    --background: 0 0% 100%;
+    --foreground: 216 18% 16%;
+    --card: 0 0% 100%;
+    --card-foreground: 216 18% 16%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 216 18% 16%;
+    /* Primary: Soft Royal Blue */
+    --primary: 224 100% 68%;
+    --primary-foreground: 0 0% 100%;
+    /* Secondary: Charcoal Gray */
+    --secondary: 217 19% 23%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 215 16% 47%;
+    /* Accent: Teal */
+    --accent: 173 80% 40%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 217 33% 20%;
-    --input: 217 33% 17%;
-    --ring: 187 100% 50%;
-    --radius: 0.75rem;
-    /* Additional brand colors */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 224 100% 68%;
+    --radius: 0.5rem;
+    /* Vendora brand colors */
     --gold: 45 90% 51%;
     --gold-light: 45 80% 70%;
     --gold-dark: 40 85% 40%;
-    --cyan: 187 100% 50%;
-    --cyan-light: 187 90% 65%;
-    --cyan-dark: 187 100% 35%;
-    --navy: 222 47% 11%;
-    --navy-light: 222 40% 18%;
-    --navy-dark: 222 50% 6%;
+    --cyan: 173 80% 40%;
+    --cyan-light: 173 60% 55%;
+    --cyan-dark: 173 90% 30%;
+    --navy: 217 19% 23%;
+    --navy-light: 217 15% 35%;
+    --navy-dark: 217 24% 15%;
     /* Gradient stops */
-    --gradient-start: 187 100% 50%;
-    --gradient-end: 199 89% 48%;
+    --gradient-start: 224 100% 68%;
+    --gradient-end: 173 80% 40%;
   }
 
   .dark {
-    --background: 222 47% 8%;
+    /* Vendora Dark Mode: Refined Modern */
+    --background: 222 47% 11%;
     --foreground: 210 40% 98%;
-    --card: 222 47% 11%;
+    --card: 222 47% 13%;
     --card-foreground: 210 40% 98%;
-    --popover: 222 47% 11%;
+    --popover: 222 47% 13%;
     --popover-foreground: 210 40% 98%;
-    /* Primary: Vibrant Cyan */
-    --primary: 187 100% 50%;
-    --primary-foreground: 222 47% 8%;
-    --secondary: 217 33% 17%;
+    /* Primary: Soft Royal Blue */
+    --primary: 224 100% 68%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 19% 27%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    /* Accent: Electric Cyan */
-    --accent: 187 100% 50%;
-    --accent-foreground: 222 47% 8%;
+    --muted: 215 19% 20%;
+    --muted-foreground: 217 19% 60%;
+    /* Accent: Teal */
+    --accent: 173 80% 40%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 100%;
-    --border: 217 33% 20%;
-    --input: 217 33% 17%;
-    --ring: 187 100% 50%;
+    --border: 215 19% 20%;
+    --input: 215 19% 20%;
+    --ring: 224 100% 68%;
     --gold: 45 85% 55%;
     --gold-light: 45 70% 65%;
     --gold-dark: 40 80% 45%;
-    --cyan: 187 100% 50%;
-    --cyan-light: 187 90% 65%;
-    --cyan-dark: 187 100% 35%;
-    --navy: 222 47% 11%;
-    --navy-light: 222 40% 18%;
-    --navy-dark: 222 50% 6%;
-    --gradient-start: 187 100% 50%;
-    --gradient-end: 199 89% 48%;
+    --cyan: 173 80% 40%;
+    --cyan-light: 173 60% 55%;
+    --cyan-dark: 173 90% 30%;
+    --navy: 222 47% 13%;
+    --navy-light: 222 40% 22%;
+    --navy-dark: 222 50% 8%;
+    --gradient-start: 224 100% 68%;
+    --gradient-end: 173 80% 40%;
   }
 }
 

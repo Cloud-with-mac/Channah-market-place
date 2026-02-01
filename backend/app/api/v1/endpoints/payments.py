@@ -466,3 +466,48 @@ async def verify_razorpay_payment(
         await db.commit()
 
     return {"status": "success", "order_number": order.order_number if order else None}
+
+
+@router.get("/methods")
+async def get_payment_methods():
+    """Get available payment methods"""
+    methods = []
+    if hasattr(settings, 'STRIPE_SECRET_KEY') and settings.STRIPE_SECRET_KEY:
+        methods.append({"id": "stripe", "name": "Credit/Debit Card", "icon": "credit-card", "enabled": True})
+    if hasattr(settings, 'PAYPAL_CLIENT_ID') and settings.PAYPAL_CLIENT_ID:
+        methods.append({"id": "paypal", "name": "PayPal", "icon": "paypal", "enabled": True})
+    if hasattr(settings, 'FLUTTERWAVE_SECRET_KEY') and settings.FLUTTERWAVE_SECRET_KEY:
+        methods.append({"id": "flutterwave", "name": "Flutterwave", "icon": "credit-card", "enabled": True})
+    if hasattr(settings, 'RAZORPAY_KEY_ID') and settings.RAZORPAY_KEY_ID:
+        methods.append({"id": "razorpay", "name": "Razorpay", "icon": "credit-card", "enabled": True})
+    if not methods:
+        methods = [
+            {"id": "stripe", "name": "Credit/Debit Card", "icon": "credit-card", "enabled": True},
+            {"id": "paypal", "name": "PayPal", "icon": "paypal", "enabled": True},
+        ]
+    return {"methods": methods}
+
+
+@router.post("/confirm")
+async def confirm_payment(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Generic payment confirmation endpoint"""
+    payment_intent_id = data.get("payment_intent_id")
+    if not payment_intent_id:
+        raise HTTPException(status_code=400, detail="payment_intent_id required")
+
+    result = await db.execute(
+        select(Payment).where(Payment.gateway_payment_intent == payment_intent_id)
+    )
+    payment = result.scalar_one_or_none()
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    return {
+        "status": payment.status.value,
+        "order_id": str(payment.order_id),
+        "amount": float(payment.amount)
+    }

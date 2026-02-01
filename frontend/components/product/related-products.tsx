@@ -77,7 +77,7 @@ export function RelatedProducts({
             'https://images.unsplash.com/photo-1560393464-5c69a73c5770?w=400&h=400&fit=crop',
           rating: p.rating || 4.0,
           reviewCount: p.review_count || 0,
-          vendorName: p.vendor?.business_name || p.vendor_name || 'Channah Vendor',
+          vendorName: p.vendor?.business_name || p.vendor_name || 'Vendora Vendor',
         }))
 
         setProducts(transformedProducts)

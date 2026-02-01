@@ -85,8 +85,8 @@ function TrackOrderContent() {
     setHasSearched(true)
 
     try {
-      const response = await ordersAPI.track(orderNumber.trim())
-      setOrder(response.data)
+      const data = await ordersAPI.trackOrder(orderNumber.trim(), email.trim() || undefined)
+      setOrder(data)
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } }
       setError(error?.response?.data?.detail || 'Order not found. Please check your order number.')

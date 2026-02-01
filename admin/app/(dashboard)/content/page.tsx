@@ -272,7 +272,7 @@ export default function ContentPage() {
       })
       // If banner has an image, set it as preview
       if (banner.image_url) {
-        setPreviewUrl(banner.image_url.startsWith('/') ? `http://localhost:8000${banner.image_url}` : banner.image_url)
+        setPreviewUrl(banner.image_url.startsWith('/') ? `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1').replace('/api/v1', '')}${banner.image_url}` : banner.image_url)
       }
     } else {
       setEditingBanner(null)
@@ -640,7 +640,7 @@ export default function ContentPage() {
                       <div className="aspect-video bg-muted relative">
                         {banner.image_url ? (
                           <img
-                            src={banner.image_url.startsWith('/') ? `http://localhost:8000${banner.image_url}` : banner.image_url}
+                            src={banner.image_url.startsWith('/') ? `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1').replace('/api/v1', '')}${banner.image_url}` : banner.image_url}
                             alt={banner.title}
                             className="w-full h-full object-cover"
                             onError={(e) => {

@@ -68,7 +68,7 @@ export default function LoginPage() {
     setIsLoading(true)
     try {
       const response = await authAPI.login(data.email, data.password)
-      const { access_token, user } = response.data
+      const { access_token, user } = response
 
       // Check if user is admin
       if (user.role !== 'admin' && user.role !== 'super_admin') {
@@ -87,9 +87,23 @@ export default function LoginPage() {
       })
       router.push('/')
     } catch (error: any) {
+      let errorMessage = 'Invalid credentials. Please try again.'
+
+      if (error.response?.data?.detail) {
+        const detail = error.response.data.detail
+        // Handle array of validation errors
+        if (Array.isArray(detail)) {
+          errorMessage = detail.map((err: any) => err.msg).join(', ')
+        } else if (typeof detail === 'string') {
+          errorMessage = detail
+        } else if (typeof detail === 'object') {
+          errorMessage = detail.msg || JSON.stringify(detail)
+        }
+      }
+
       toast({
         title: 'Login Failed',
-        description: error.response?.data?.detail || 'Invalid credentials. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       })
     } finally {

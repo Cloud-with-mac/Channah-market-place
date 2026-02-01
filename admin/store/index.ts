@@ -39,6 +39,7 @@ interface NotificationState {
   setUnreadCount: (count: number) => void
   addNotification: (notification: Notification) => void
   markAsRead: (id: string) => void
+  markAllAsRead: () => void
   clearAll: () => void
 }
 
@@ -118,18 +119,96 @@ export const useNotificationStore = create<NotificationState>()((set) => ({
   addNotification: (notification) =>
     set((state) => ({
       notifications: [notification, ...state.notifications],
-      unreadCount: state.unreadCount + 1,
+      unreadCount: notification.read ? state.unreadCount : state.unreadCount + 1,
     })),
 
   markAsRead: (id) =>
+    set((state) => {
+      const notification = state.notifications.find((n) => n.id === id)
+      const wasUnread = notification && !notification.read
+
+      return {
+        notifications: state.notifications.map((n) =>
+          n.id === id ? { ...n, read: true } : n
+        ),
+        unreadCount: wasUnread ? Math.max(0, state.unreadCount - 1) : state.unreadCount,
+      }
+    }),
+
+  markAllAsRead: () =>
     set((state) => ({
-      notifications: state.notifications.map((n) =>
-        n.id === id ? { ...n, read: true } : n
-      ),
-      unreadCount: Math.max(0, state.unreadCount - 1),
+      notifications: state.notifications.map((n) => ({ ...n, read: true })),
+      unreadCount: 0,
     })),
 
   clearAll: () => set({ notifications: [], unreadCount: 0 }),
+}))
+
+// Messages Store
+interface MessagesState {
+  unreadMessagesCount: number
+  setUnreadMessagesCount: (count: number) => void
+  incrementUnreadMessages: () => void
+  decrementUnreadMessages: () => void
+  resetUnreadMessages: () => void
+}
+
+export const useMessagesStore = create<MessagesState>()((set) => ({
+  unreadMessagesCount: 0,
+
+  setUnreadMessagesCount: (count) => set({ unreadMessagesCount: count }),
+
+  incrementUnreadMessages: () =>
+    set((state) => ({ unreadMessagesCount: state.unreadMessagesCount + 1 })),
+
+  decrementUnreadMessages: () =>
+    set((state) => ({ unreadMessagesCount: Math.max(0, state.unreadMessagesCount - 1) })),
+
+  resetUnreadMessages: () => set({ unreadMessagesCount: 0 }),
+}))
+
+// Stats Store
+interface DashboardStats {
+  totalRevenue: number
+  activeUsers: number
+  ordersToday: number
+  avgOrderValue: number
+}
+
+interface StatsState {
+  stats: DashboardStats
+  isLoading: boolean
+  updateStats: (stats: Partial<DashboardStats>) => void
+  setLoading: (loading: boolean) => void
+  fetchStats: () => Promise<void>
+}
+
+export const useStatsStore = create<StatsState>()((set) => ({
+  stats: {
+    totalRevenue: 0,
+    activeUsers: 0,
+    ordersToday: 0,
+    avgOrderValue: 0,
+  },
+  isLoading: false,
+
+  updateStats: (newStats) =>
+    set((state) => ({
+      stats: { ...state.stats, ...newStats },
+    })),
+
+  setLoading: (loading) => set({ isLoading: loading }),
+
+  fetchStats: async () => {
+    try {
+      set({ isLoading: true })
+      // Stats will be populated from API when connected
+      set({ isLoading: false })
+    } catch (error) {
+      console.error('Failed to fetch stats:', error)
+      set({ isLoading: false })
+    }
+  },
 }))
 
 // Theme Store

@@ -22,6 +22,9 @@ import {
   CreditCard,
   Phone,
   MapPin,
+  Copy,
+  PhoneCall,
+  MessageSquare,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -59,6 +62,7 @@ import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import { formatDate, getInitials } from '@/lib/utils'
 import { usersAPI } from '@/lib/api'
+import { exportToCSV } from '@/lib/export'
 
 interface User {
   id: string
@@ -76,79 +80,6 @@ interface User {
   address?: string
 }
 
-// Mock data
-const mockUsers: User[] = [
-  {
-    id: '1',
-    email: 'john.smith@example.com',
-    first_name: 'John',
-    last_name: 'Smith',
-    role: 'customer',
-    status: 'active',
-    created_at: '2024-01-15',
-    last_login: '2024-01-20',
-    orders_count: 12,
-    total_spent: 1250.00,
-    phone: '+44 7700 900123',
-    address: 'London, UK',
-  },
-  {
-    id: '2',
-    email: 'sarah.johnson@example.com',
-    first_name: 'Sarah',
-    last_name: 'Johnson',
-    role: 'vendor',
-    status: 'active',
-    created_at: '2024-01-10',
-    last_login: '2024-01-19',
-    orders_count: 45,
-    total_spent: 0,
-    phone: '+44 7700 900456',
-    address: 'Manchester, UK',
-  },
-  {
-    id: '3',
-    email: 'mike.williams@example.com',
-    first_name: 'Mike',
-    last_name: 'Williams',
-    role: 'customer',
-    status: 'suspended',
-    created_at: '2024-01-05',
-    last_login: '2024-01-15',
-    orders_count: 3,
-    total_spent: 250.00,
-    phone: '+44 7700 900789',
-    address: 'Birmingham, UK',
-  },
-  {
-    id: '4',
-    email: 'emily.brown@example.com',
-    first_name: 'Emily',
-    last_name: 'Brown',
-    role: 'customer',
-    status: 'active',
-    created_at: '2024-01-01',
-    last_login: '2024-01-20',
-    orders_count: 28,
-    total_spent: 3450.00,
-    phone: '+44 7700 900321',
-    address: 'Liverpool, UK',
-  },
-  {
-    id: '5',
-    email: 'admin@channah.com',
-    first_name: 'Admin',
-    last_name: 'User',
-    role: 'admin',
-    status: 'active',
-    created_at: '2023-01-01',
-    last_login: '2024-01-20',
-    orders_count: 0,
-    total_spent: 0,
-    phone: '+44 800 CHANNAH',
-    address: 'London, UK',
-  },
-]
 
 function getRoleBadge(role: string) {
   switch (role) {
@@ -176,7 +107,7 @@ function getStatusBadge(status: string) {
 
 export default function UsersPage() {
   const { toast } = useToast()
-  const [users, setUsers] = React.useState<User[]>(mockUsers)
+  const [users, setUsers] = React.useState<User[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [search, setSearch] = React.useState('')
   const [roleFilter, setRoleFilter] = React.useState<string>('all')
@@ -218,13 +149,14 @@ export default function UsersPage() {
         role: roleFilter !== 'all' ? roleFilter : undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
       })
-      const fetchedUsers = response.data.users.map((u: any) => ({
+      const usersData = response.users || response || []
+      const fetchedUsers = Array.isArray(usersData) ? usersData.map((u: any) => ({
         id: u.id,
         email: u.email,
         first_name: u.first_name,
         last_name: u.last_name,
         role: u.role,
-        status: u.is_active ? 'active' : 'suspended',
+        status: (u.is_active ? 'active' : 'suspended') as 'active' | 'inactive' | 'suspended',
         created_at: u.created_at,
         last_login: u.last_login,
         avatar: u.avatar_url,
@@ -232,12 +164,11 @@ export default function UsersPage() {
         total_spent: 0,
         phone: u.phone,
         address: u.address,
-      }))
+      })) : []
       setUsers(fetchedUsers)
     } catch (error: any) {
       console.error('Failed to fetch users:', error)
-      // Fall back to mock data if API fails
-      setUsers(mockUsers)
+      setUsers([])
     } finally {
       setIsLoading(false)
     }
@@ -295,20 +226,17 @@ export default function UsersPage() {
         description: `${user.first_name} ${user.last_name} has been activated.`,
       })
     } catch (error: any) {
-      // Fallback: update locally even if API fails
-      setUsers((prev) =>
-        prev.map((u) => (u.id === user.id ? { ...u, status: 'active' as const } : u))
-      )
       toast({
-        title: 'User Activated',
-        description: `${user.first_name} ${user.last_name} has been activated.`,
+        title: 'Error',
+        description: error.response?.data?.detail || 'Failed to activate user.',
+        variant: 'destructive',
       })
     }
   }
 
   const handleSuspend = async (user: User) => {
     try {
-      await usersAPI.deactivate(user.id)
+      await usersAPI.suspend(user.id)
       setUsers((prev) =>
         prev.map((u) => (u.id === user.id ? { ...u, status: 'suspended' as const } : u))
       )
@@ -317,13 +245,10 @@ export default function UsersPage() {
         description: `${user.first_name} ${user.last_name} has been suspended.`,
       })
     } catch (error: any) {
-      // Fallback: update locally even if API fails
-      setUsers((prev) =>
-        prev.map((u) => (u.id === user.id ? { ...u, status: 'suspended' as const } : u))
-      )
       toast({
-        title: 'User Suspended',
-        description: `${user.first_name} ${user.last_name} has been suspended.`,
+        title: 'Error',
+        description: error.response?.data?.detail || 'Failed to suspend user.',
+        variant: 'destructive',
       })
     }
   }
@@ -339,12 +264,10 @@ export default function UsersPage() {
           description: `${userToDelete.first_name} ${userToDelete.last_name} has been deleted.`,
         })
       } catch (error: any) {
-        // Fallback: update locally even if API fails
-        setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id))
-        setSelectedUsers((prev) => prev.filter((id) => id !== userToDelete.id))
         toast({
-          title: 'User Deleted',
-          description: `${userToDelete.first_name} ${userToDelete.last_name} has been deleted.`,
+          title: 'Error',
+          description: error.response?.data?.detail || 'Failed to delete user.',
+          variant: 'destructive',
         })
       } finally {
         setUserToDelete(null)
@@ -390,7 +313,7 @@ export default function UsersPage() {
     try {
       for (const userId of selectedUsers) {
         try {
-          await usersAPI.deactivate(userId)
+          await usersAPI.suspend(userId)
         } catch (e) {
           // Continue even if individual fails
         }
@@ -570,7 +493,7 @@ export default function UsersPage() {
 
       toast({
         title: 'User Created',
-        description: `${response.data.first_name} ${response.data.last_name} has been created successfully.`,
+        description: `${response.first_name || newUser.first_name} ${response.last_name || newUser.last_name} has been created successfully.`,
       })
 
       setNewUser({
@@ -662,14 +585,10 @@ export default function UsersPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleExport}
-            disabled={isExporting || filteredUsers.length === 0}
+            onClick={() => exportToCSV(filteredUsers, 'users')}
+            disabled={filteredUsers.length === 0}
           >
-            {isExporting ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4 mr-2" />
-            )}
+            <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
           <Button size="sm" onClick={() => setShowCreateDialog(true)}>
@@ -903,7 +822,7 @@ export default function UsersPage() {
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => setUserToView(user)}>
@@ -913,6 +832,26 @@ export default function UsersPage() {
                             <DropdownMenuItem onClick={() => setUserToEmail(user)}>
                               <Mail className="h-4 w-4 mr-2" />
                               Send Email
+                            </DropdownMenuItem>
+                            {user.phone && (
+                              <DropdownMenuItem asChild>
+                                <a href={`tel:${user.phone}`}>
+                                  <PhoneCall className="h-4 w-4 mr-2" />
+                                  Call User
+                                </a>
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                              onClick={() => {
+                                navigator.clipboard.writeText(user.email)
+                                toast({
+                                  title: 'Email Copied',
+                                  description: 'Email address copied to clipboard',
+                                })
+                              }}
+                            >
+                              <Copy className="h-4 w-4 mr-2" />
+                              Copy Email
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             {user.status !== 'active' ? (
@@ -1047,14 +986,64 @@ export default function UsersPage() {
                     <Mail className="h-4 w-4" />
                     Email
                   </div>
-                  <p className="text-sm font-medium">{userToView.email}</p>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={`mailto:${userToView.email}`}
+                      className="text-sm font-medium text-primary hover:underline truncate flex-1"
+                      title="Click to send email"
+                    >
+                      {userToView.email}
+                    </a>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(userToView.email)
+                        toast({
+                          title: 'Email Copied',
+                          description: 'Email address copied to clipboard',
+                        })
+                      }}
+                      title="Copy email"
+                    >
+                      <Mail className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Phone className="h-4 w-4" />
                     Phone
                   </div>
-                  <p className="text-sm font-medium">{userToView.phone || 'Not provided'}</p>
+                  {userToView.phone ? (
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`tel:${userToView.phone}`}
+                        className="text-sm font-medium text-primary hover:underline flex-1"
+                        title="Click to call"
+                      >
+                        {userToView.phone}
+                      </a>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(userToView.phone!)
+                          toast({
+                            title: 'Phone Copied',
+                            description: 'Phone number copied to clipboard',
+                          })
+                        }}
+                        title="Copy phone"
+                      >
+                        <Phone className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-sm font-medium text-muted-foreground">Not provided</p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">

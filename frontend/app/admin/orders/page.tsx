@@ -81,8 +81,8 @@ export default function AdminOrdersPage() {
       if (statusFilter !== 'all') params.status = statusFilter
       if (paymentFilter !== 'all') params.payment_status = paymentFilter
 
-      const response = await ordersAPI.getAll(params)
-      setOrders(response.data?.items || response.data || [])
+      const data = await ordersAPI.getAll(params) as any
+      setOrders(data?.items || data || [])
     } catch (error) {
       console.error('Failed to fetch orders:', error)
     } finally {

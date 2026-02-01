@@ -120,7 +120,7 @@ export default function SellerGuidePage() {
     },
     {
       question: 'Can I sell internationally?',
-      answer: 'Yes! Channah-Market supports international selling. You can set shipping rates for different regions and reach customers around the world.',
+      answer: 'Yes! Vendora-Market supports international selling. You can set shipping rates for different regions and reach customers around the world.',
     },
     {
       question: 'What products can I sell?',
@@ -143,7 +143,7 @@ export default function SellerGuidePage() {
               Seller Guide
             </Badge>
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Start Selling on Channah-Market
+              Start Selling on Vendora-Market
             </h1>
             <p className="text-xl text-emerald-100 mb-8">
               Join thousands of successful sellers and grow your business with our powerful e-commerce platform.
@@ -223,7 +223,7 @@ export default function SellerGuidePage() {
       <div className="bg-muted/50 py-16">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">Why Sell on Channah-Market?</h2>
+            <h2 className="text-3xl font-bold mb-4">Why Sell on Vendora-Market?</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               Join a thriving marketplace with tools and support designed to help your business succeed.
             </p>
@@ -373,7 +373,7 @@ export default function SellerGuidePage() {
               <HelpCircle className="h-12 w-12 mx-auto text-emerald-600 mb-4" />
               <h2 className="text-3xl font-bold mb-4">Frequently Asked Questions</h2>
               <p className="text-muted-foreground">
-                Find answers to common questions about selling on Channah-Market.
+                Find answers to common questions about selling on Vendora-Market.
               </p>
             </div>
 
@@ -400,7 +400,7 @@ export default function SellerGuidePage() {
             <Users className="h-12 w-12 mx-auto mb-4 opacity-90" />
             <h2 className="text-3xl font-bold mb-4">Ready to Start Selling?</h2>
             <p className="text-emerald-100 mb-8 max-w-xl mx-auto">
-              Join thousands of successful sellers on Channah-Market. Create your account today and start reaching customers worldwide.
+              Join thousands of successful sellers on Vendora-Market. Create your account today and start reaching customers worldwide.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button

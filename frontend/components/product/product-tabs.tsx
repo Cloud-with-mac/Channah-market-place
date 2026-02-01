@@ -2,16 +2,19 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Truck, Shield, RotateCcw } from 'lucide-react'
+import DOMPurify from 'dompurify'
 
 interface ProductTabsProps {
   description: string
   specifications?: Record<string, string>
+  attributes?: Record<string, string>
   shippingInfo?: string
 }
 
 export function ProductTabs({
   description,
   specifications,
+  attributes,
   shippingInfo,
 }: ProductTabsProps) {
   return (
@@ -40,10 +43,38 @@ export function ProductTabs({
       </TabsList>
 
       <TabsContent value="description" className="mt-6">
-        <div
-          className="prose prose-sm max-w-none dark:prose-invert"
-          dangerouslySetInnerHTML={{ __html: description }}
-        />
+        {attributes && Object.keys(attributes).length > 0 ? (
+          <div className="space-y-6">
+            {description && (
+              <div
+                className="prose prose-sm max-w-none dark:prose-invert"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(description) }}
+              />
+            )}
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full">
+                <tbody>
+                  {Object.entries(attributes).map(([key, value], index) => (
+                    <tr
+                      key={key}
+                      className={index % 2 === 0 ? 'bg-muted/50' : 'bg-background'}
+                    >
+                      <td className="px-4 py-3 font-medium text-sm text-muted-foreground w-1/3 border-r">
+                        {key}:
+                      </td>
+                      <td className="px-4 py-3 text-sm font-medium">{value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div
+            className="prose prose-sm max-w-none dark:prose-invert"
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(description) }}
+          />
+        )}
       </TabsContent>
 
       {specifications && Object.keys(specifications).length > 0 && (

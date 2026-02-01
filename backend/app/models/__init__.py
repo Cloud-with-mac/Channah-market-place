@@ -10,6 +10,7 @@ from app.models.address import Address
 from app.models.payment import Payment, PaymentMethod
 from app.models.notification import Notification
 from app.models.conversation import Conversation, Message
+from app.models.support_chat import SupportChat, SupportChatMessage
 
 __all__ = [
     "User",
@@ -33,4 +34,6 @@ __all__ = [
     "Notification",
     "Conversation",
     "Message",
+    "SupportChat",
+    "SupportChatMessage",
 ]

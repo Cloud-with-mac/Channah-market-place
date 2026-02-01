@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { Plus, RefreshCw, Store, AlertCircle } from 'lucide-react'
+import { Plus, RefreshCw, Store, AlertCircle, Timer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -64,6 +64,8 @@ export default function VendorDashboardPage() {
   const [isRefreshing, setIsRefreshing] = React.useState(false)
   const [greeting, setGreeting] = React.useState('')
   const [connectionError, setConnectionError] = React.useState<string | null>(null)
+  const [autoRefresh, setAutoRefresh] = React.useState(false)
+  const [lastUpdated, setLastUpdated] = React.useState<Date | null>(null)
 
   React.useEffect(() => {
     // Set greeting based on time of day
@@ -93,12 +95,14 @@ export default function VendorDashboardPage() {
           setConnectionError('Connection timed out. Please make sure the backend server is running on port 8000.')
         } else if (error?.code === 'ERR_NETWORK' || error?.message?.includes('Network Error')) {
           setConnectionError('Cannot connect to the server. Please start the backend: cd backend && uvicorn app.main:app --reload')
+        } else {
+          setConnectionError('Failed to load dashboard data. Please check that the backend server is running and you are logged in as a vendor.')
         }
       }
 
       // Stats
       if (statsResponse.status === 'fulfilled') {
-        const apiStats = statsResponse.value.data
+        const apiStats = statsResponse.value?.data || statsResponse.value || {}
         setStats({
           total_products: apiStats.total_products || 0,
           active_products: apiStats.active_products || 0,
@@ -131,24 +135,27 @@ export default function VendorDashboardPage() {
       }
 
       // Recent orders
-      if (ordersResponse.status === 'fulfilled') {
-        const ordersData = ordersResponse.value.data?.items || ordersResponse.value.data?.results || ordersResponse.value.data || []
+      if (ordersResponse.status === 'fulfilled' && ordersResponse.value) {
+        const responseData = ordersResponse.value
+        const ordersData = responseData?.items || responseData?.results || (Array.isArray(responseData) ? responseData : [])
         setRecentOrders(Array.isArray(ordersData) ? ordersData : [])
       } else {
         setRecentOrders([])
       }
 
       // Top products
-      if (productsResponse.status === 'fulfilled') {
-        const productsData = productsResponse.value.data?.items || productsResponse.value.data?.results || productsResponse.value.data || []
+      if (productsResponse.status === 'fulfilled' && productsResponse.value) {
+        const responseData = productsResponse.value
+        const productsData = responseData?.items || responseData?.results || (Array.isArray(responseData) ? responseData : [])
         setTopProducts(Array.isArray(productsData) ? productsData : [])
       } else {
         setTopProducts([])
       }
 
       // Revenue chart data
-      if (revenueResponse.status === 'fulfilled' && revenueResponse.value.data?.length > 0) {
-        setRevenueData(revenueResponse.value.data)
+      const revData = revenueResponse.status === 'fulfilled' ? (revenueResponse.value?.data || revenueResponse.value) : null
+      if (revData && Array.isArray(revData) && revData.length > 0) {
+        setRevenueData(revData)
       } else {
         setRevenueData(generateFallbackRevenueData(90))
       }
@@ -173,12 +180,19 @@ export default function VendorDashboardPage() {
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
+      setLastUpdated(new Date())
     }
   }, [])
 
   React.useEffect(() => {
     fetchDashboardData()
   }, [fetchDashboardData])
+
+  React.useEffect(() => {
+    if (!autoRefresh) return
+    const interval = setInterval(fetchDashboardData, 30000)
+    return () => clearInterval(interval)
+  }, [autoRefresh, fetchDashboardData])
 
   const handleRefresh = () => {
     setIsRefreshing(true)
@@ -228,8 +242,21 @@ export default function VendorDashboardPage() {
           <p className="text-muted-foreground mt-1">
             Here&apos;s what&apos;s happening with your store today.
           </p>
+          {lastUpdated && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant={autoRefresh ? "default" : "outline"}
+            size="sm"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+          >
+            <Timer className="h-4 w-4 mr-2" />
+            {autoRefresh ? 'Auto-refresh On' : 'Auto-refresh Off'}
+          </Button>
           <Button
             variant="outline"
             size="sm"
