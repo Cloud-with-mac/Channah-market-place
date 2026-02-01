@@ -13,11 +13,13 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { productsAPI, cartAPI, wishlistAPI, reviewsAPI } from '../../../../shared/api/customer-api';
+import { useAuthStore } from '../../store/authStore';
 
 const { width } = Dimensions.get('window');
 
 export default function ProductDetailScreen({ route, navigation }: any) {
   const { slug } = route.params;
+  const { user } = useAuthStore();
   const [product, setProduct] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,6 +108,13 @@ export default function ProductDetailScreen({ route, navigation }: any) {
 
   const handleAddToCart = async () => {
     if (!product) return;
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to add items to your cart.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign In', onPress: () => navigation.navigate('Login') },
+      ]);
+      return;
+    }
     try {
       setAddingToCart(true);
       await cartAPI.addItem(product.id, quantity, selectedVariant?.id);
@@ -122,6 +131,13 @@ export default function ProductDetailScreen({ route, navigation }: any) {
 
   const handleAddToWishlist = async () => {
     if (!product) return;
+    if (!user) {
+      Alert.alert('Sign In Required', 'Please sign in to manage your wishlist.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign In', onPress: () => navigation.navigate('Login') },
+      ]);
+      return;
+    }
     try {
       setAddingToWishlist(true);
       if (isInWishlist) {
@@ -258,7 +274,7 @@ export default function ProductDetailScreen({ route, navigation }: any) {
               ))}
             </View>
             <Text style={styles.ratingText}>
-              {product.average_rating?.toFixed(1) || '0.0'} ({product.review_count || 0} reviews)
+              {Number(product.average_rating || 0).toFixed(1)} ({product.review_count || 0} reviews)
             </Text>
           </View>
 
@@ -336,13 +352,15 @@ export default function ProductDetailScreen({ route, navigation }: any) {
                   <Text style={styles.bulkHeaderCell}>Savings</Text>
                 </View>
                 {product.bulk_pricing.map((tier: any, i: number) => {
-                  const savings = product.price > 0 ? Math.round(((product.price - tier.price) / product.price) * 100) : 0;
+                  const tierPrice = Number(tier.price || 0);
+                  const basePrice = Number(product.price || 0);
+                  const savings = basePrice > 0 ? Math.round(((basePrice - tierPrice) / basePrice) * 100) : 0;
                   return (
                     <View key={i} style={styles.bulkRow}>
                       <Text style={styles.bulkCell}>
                         {tier.min_qty}{tier.max_qty ? `-${tier.max_qty}` : '+'}
                       </Text>
-                      <Text style={styles.bulkCellPrice}>${tier.price}</Text>
+                      <Text style={styles.bulkCellPrice}>${tierPrice.toFixed(2)}</Text>
                       <Text style={styles.bulkCellSavings}>{savings}% off</Text>
                     </View>
                   );
@@ -378,7 +396,7 @@ export default function ProductDetailScreen({ route, navigation }: any) {
           </View>
 
           {/* Description */}
-          {product.description && (
+          {!!product.description && (
             <View style={styles.descriptionSection}>
               <Text style={styles.sectionTitle}>Description</Text>
               <Text style={styles.description}>{product.description}</Text>
@@ -399,11 +417,11 @@ export default function ProductDetailScreen({ route, navigation }: any) {
                 <Icon name="storefront-outline" size={20} color="#3b82f6" />
                 <View style={{ flex: 1, marginLeft: 8 }}>
                   <Text style={styles.vendorName}>{product.vendor.business_name || 'Vendor'}</Text>
-                  {product.vendor.rating && (
+                  {Number(product.vendor.rating || 0) > 0 && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
                       <Icon name="star" size={12} color="#f59e0b" />
                       <Text style={{ fontSize: 12, color: '#6b7280', marginLeft: 2 }}>
-                        {product.vendor.rating.toFixed(1)}
+                        {Number(product.vendor.rating).toFixed(1)}
                       </Text>
                     </View>
                   )}
