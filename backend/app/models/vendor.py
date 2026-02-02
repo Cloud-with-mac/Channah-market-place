@@ -66,6 +66,11 @@ class Vendor(Base):
     stripe_account_id = Column(String(255), nullable=True)
     stripe_onboarding_complete = Column(Boolean, default=False)
 
+    # Verification / Trust
+    badge_level = Column(String(20), nullable=True, default=None)  # BRONZE, SILVER, GOLD or None
+    trust_score = Column(Integer, default=0, nullable=False)  # 0-100
+    verification_status = Column(String(20), default="UNVERIFIED", nullable=False)  # UNVERIFIED, PENDING, VERIFIED
+
     # Ratings
     rating = Column(Float, default=0.0, nullable=False)
     total_reviews = Column(Integer, default=0, nullable=False)

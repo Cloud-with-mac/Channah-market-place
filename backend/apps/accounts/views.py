@@ -87,10 +87,10 @@ class AuthViewSet(viewsets.GenericViewSet):
             # Send reset email
             try:
                 send_mail(
-                    subject='Reset Your Channah-Market Password',
+                    subject='Reset Your Channah Password',
                     message=f'''Hi {user.first_name or 'there'},
 
-You requested to reset your password for your Channah-Market account.
+You requested to reset your password for your Channah account.
 
 Click the link below to reset your password:
 {reset_url}
@@ -100,7 +100,7 @@ This link will expire in 1 hour.
 If you didn't request this, you can safely ignore this email.
 
 Best regards,
-The Channah-Market Team
+The Channah Team
 ''',
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[user.email],

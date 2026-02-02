@@ -65,12 +65,12 @@ apiClient.interceptors.response.use(
 // ==================== AUTH API ====================
 export const authAPI = {
   register: async (data: any) => {
-    const response = await apiClient.post('/vendors/register', data)
+    const response = await apiClient.post('/vendors/signup', data)
     return response.data
   },
 
   registerVendor: async (data: any) => {
-    const response = await apiClient.post('/vendors/register', data)
+    const response = await apiClient.post('/vendors/signup', data)
     return response.data
   },
 
@@ -206,9 +206,9 @@ export const vendorInventoryAPI = {
     return response.data
   },
 
-  updateStock: async (productId: string, quantity: number) => {
+  updateStock: async (productId: string, stock: number) => {
     const response = await apiClient.put(`/vendors/me/products/${productId}`, {
-      quantity,
+      stock,
     })
     return response.data
   },
@@ -295,7 +295,7 @@ export const vendorDashboardAPI = {
 }
 
 // ==================== ANALYTICS API ====================
-export const vendorAnalyticsAPI = {
+export const VendorAnalyticsAPI = {
   getDashboard: async () => {
     const response = await apiClient.get('/vendors/me/analytics/dashboard')
     return response.data

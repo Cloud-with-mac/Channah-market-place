@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { ordersAPI } from '../../../../shared/api/customer-api';
+import { usePrice } from '../../hooks/usePrice';
 
 const getStatusColor = (status: string) => {
   switch (status?.toLowerCase()) {
@@ -47,6 +48,7 @@ const getStatusIcon = (status: string) => {
 };
 
 export default function OrdersScreen({ navigation }: any) {
+  const { formatPrice } = usePrice();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -162,7 +164,7 @@ export default function OrdersScreen({ navigation }: any) {
 
           <View style={styles.infoRow}>
             <Icon name="cash-outline" size={16} color="#6b7280" />
-            <Text style={styles.totalText}>${item.total}</Text>
+            <Text style={styles.totalText}>{formatPrice(Number(item.total))}</Text>
           </View>
         </View>
 

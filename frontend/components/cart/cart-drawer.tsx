@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowRight, ShoppingBag } from 'lucide-react'
 import {
@@ -25,10 +26,16 @@ export function CartDrawer() {
     couponCode,
     isOpen,
     closeCart,
+    fetchCart,
     updateQuantity,
     removeItem,
   } = useCartStore()
   const { convertAndFormat } = useCurrencyStore()
+
+  // Sync with backend when drawer opens
+  useEffect(() => {
+    if (isOpen) fetchCart()
+  }, [isOpen, fetchCart])
 
   const freeShipping = subtotal >= 50
 

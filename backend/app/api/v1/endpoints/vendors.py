@@ -23,6 +23,113 @@ from app.schemas.common import MessageResponse, PaginatedResponse
 router = APIRouter()
 
 
+# ============ Standalone Vendor Registration (no auth required) ============
+
+class VendorSignupRequest(BaseModel):
+    """Standalone vendor registration - creates User + Vendor in one step."""
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+    email: str = Field(..., min_length=5)
+    password: str = Field(..., min_length=8)
+    business_name: str = Field(..., min_length=2, max_length=255)
+    phone: str = Field(default="", max_length=20)
+    business_type: Optional[str] = None
+    description: Optional[str] = None
+
+
+@router.post("/signup", status_code=status.HTTP_201_CREATED)
+async def vendor_signup(
+    data: VendorSignupRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Standalone vendor registration endpoint.
+    Creates a User account with vendor role AND a Vendor profile in one step.
+    Returns JWT tokens so the vendor is immediately logged in.
+    No prior authentication required.
+    """
+    from app.core.security import get_password_hash, create_access_token, create_refresh_token
+    from app.core.config import settings as app_settings
+    from app.models.cart import Cart
+    import secrets
+
+    # Check if email already exists
+    result = await db.execute(select(User).where(User.email == data.email))
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An account with this email already exists"
+        )
+
+    # Create user with VENDOR role
+    user = User(
+        email=data.email,
+        password_hash=get_password_hash(data.password),
+        first_name=data.first_name,
+        last_name=data.last_name,
+        phone=data.phone or None,
+        role=UserRole.VENDOR,
+        auth_provider="local",
+        verification_token=secrets.token_urlsafe(32),
+    )
+    db.add(user)
+    await db.flush()
+
+    # Create cart for user
+    cart = Cart(user_id=user.id)
+    db.add(cart)
+
+    # Generate unique slug
+    base_slug = slugify(data.business_name)
+    slug = base_slug
+    counter = 1
+    while True:
+        result = await db.execute(select(Vendor).where(Vendor.slug == slug))
+        if not result.scalar_one_or_none():
+            break
+        slug = f"{base_slug}-{counter}"
+        counter += 1
+
+    # Create vendor profile with PENDING status
+    vendor = Vendor(
+        user_id=user.id,
+        business_name=data.business_name,
+        slug=slug,
+        business_email=data.email,
+        business_phone=data.phone or None,
+        description=data.description or f"{data.business_name} on Channah Marketplace",
+        status=VendorStatus.PENDING,
+    )
+    db.add(vendor)
+    await db.commit()
+    await db.refresh(user)
+    await db.refresh(vendor)
+
+    # Generate tokens
+    access_token = create_access_token(data={"sub": str(user.id)})
+    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": app_settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "phone": user.phone,
+            "role": "vendor",
+            "is_active": user.is_active,
+            "is_verified": user.is_verified,
+            "vendor_id": str(vendor.id),
+            "vendor_slug": vendor.slug,
+            "vendor_status": vendor.status.value,
+        },
+    }
+
+
 # ============ Pydantic Models for Vendor Products ============
 
 class ProductImageInput(BaseModel):
@@ -1669,19 +1776,37 @@ async def update_vendor_notification_settings(
 
 # ============ CATCH-ALL ROUTES (must be LAST) ============
 
-@router.get("/{slug}", response_model=VendorResponse)
+@router.get("/{slug_or_id}", response_model=VendorResponse)
 async def get_vendor(
-    slug: str,
+    slug_or_id: str,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get vendor by slug"""
-    result = await db.execute(
-        select(Vendor).where(
-            Vendor.slug == slug,
-            Vendor.status == VendorStatus.APPROVED
+    """Get vendor by slug or ID"""
+    vendor = None
+
+    # Try UUID lookup first
+    try:
+        from uuid import UUID
+        vendor_uuid = UUID(slug_or_id)
+        result = await db.execute(
+            select(Vendor).where(
+                Vendor.id == vendor_uuid,
+                Vendor.status == VendorStatus.APPROVED
+            )
         )
-    )
-    vendor = result.scalar_one_or_none()
+        vendor = result.scalar_one_or_none()
+    except (ValueError, AttributeError):
+        pass
+
+    # Fall back to slug lookup
+    if not vendor:
+        result = await db.execute(
+            select(Vendor).where(
+                Vendor.slug == slug_or_id,
+                Vendor.status == VendorStatus.APPROVED
+            )
+        )
+        vendor = result.scalar_one_or_none()
 
     if not vendor:
         raise HTTPException(

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { rfqAPI } from '@/lib/api'
 
 export interface RFQAttachment {
   id: string
@@ -53,17 +54,20 @@ export interface RFQ {
 
 interface RFQState {
   rfqs: RFQ[]
+  loading: boolean
+  error: string | null
 
   // CRUD Operations
-  createRFQ: (rfq: Omit<RFQ, 'id' | 'createdAt' | 'updatedAt' | 'quotes' | 'status'>) => string
+  createRFQ: (rfq: Omit<RFQ, 'id' | 'createdAt' | 'updatedAt' | 'quotes' | 'status'>) => Promise<string>
   updateRFQ: (id: string, updates: Partial<RFQ>) => void
   deleteRFQ: (id: string) => void
   getRFQ: (id: string) => RFQ | undefined
+  fetchRFQs: () => Promise<void>
 
   // Quote Management
   addQuote: (rfqId: string, quote: Omit<RFQQuote, 'id' | 'submittedAt'>) => void
-  acceptQuote: (rfqId: string, quoteId: string) => void
-  rejectQuote: (rfqId: string, quoteId: string) => void
+  acceptQuote: (rfqId: string, quoteId: string) => Promise<void>
+  rejectQuote: (rfqId: string, quoteId: string) => Promise<void>
 
   // Status Management
   updateStatus: (id: string, status: RFQ['status']) => void
@@ -80,22 +84,68 @@ export const useRFQStore = create<RFQState>()(
   persist(
     (set, get) => ({
       rfqs: [],
+      loading: false,
+      error: null,
 
-      createRFQ: (rfqData) => {
-        const newRFQ: RFQ = {
-          ...rfqData,
-          id: `rfq-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          status: 'draft',
-          quotes: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+      fetchRFQs: async () => {
+        set({ loading: true, error: null })
+        try {
+          const data = await rfqAPI.getAll()
+          const rfqs: RFQ[] = Array.isArray(data) ? data : (data.results || data.rfqs || [])
+          set({ rfqs, loading: false })
+        } catch (error) {
+          console.error('Failed to fetch RFQs from API, using local state:', error)
+          set({ loading: false, error: 'Failed to fetch RFQs' })
         }
+      },
 
-        set((state) => ({
-          rfqs: [...state.rfqs, newRFQ],
-        }))
+      createRFQ: async (rfqData) => {
+        try {
+          const result = await rfqAPI.create({
+            product_name: rfqData.productName,
+            category: rfqData.category,
+            quantity: rfqData.quantity,
+            target_price: rfqData.targetPrice,
+            specifications: rfqData.specifications,
+            description: rfqData.description,
+            attachments: rfqData.attachments,
+            delivery_deadline: rfqData.deliveryDeadline,
+            destination: rfqData.destination,
+            payment_terms: rfqData.paymentTerms,
+          })
 
-        return newRFQ.id
+          const newRFQ: RFQ = {
+            id: result.id || `rfq-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            ...rfqData,
+            status: result.status || 'draft',
+            quotes: [],
+            createdAt: result.created_at || new Date().toISOString(),
+            updatedAt: result.updated_at || new Date().toISOString(),
+          }
+
+          set((state) => ({
+            rfqs: [...state.rfqs, newRFQ],
+          }))
+
+          return newRFQ.id
+        } catch (error) {
+          console.error('Failed to create RFQ via API, falling back to local:', error)
+          // Fallback to local creation
+          const newRFQ: RFQ = {
+            ...rfqData,
+            id: `rfq-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            status: 'draft',
+            quotes: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+
+          set((state) => ({
+            rfqs: [...state.rfqs, newRFQ],
+          }))
+
+          return newRFQ.id
+        }
       },
 
       updateRFQ: (id, updates) => {
@@ -106,12 +156,21 @@ export const useRFQStore = create<RFQState>()(
               : rfq
           ),
         }))
+
+        // Fire and forget API update
+        rfqAPI.update(id, updates).catch((error) => {
+          console.error('Failed to update RFQ via API:', error)
+        })
       },
 
       deleteRFQ: (id) => {
         set((state) => ({
           rfqs: state.rfqs.filter((rfq) => rfq.id !== id),
         }))
+
+        rfqAPI.cancel(id).catch((error) => {
+          console.error('Failed to delete RFQ via API:', error)
+        })
       },
 
       getRFQ: (id) => {
@@ -139,9 +198,15 @@ export const useRFQStore = create<RFQState>()(
             return rfq
           }),
         }))
+
+        // Fire and forget API call
+        rfqAPI.submitQuote(rfqId, quoteData).catch((error) => {
+          console.error('Failed to submit quote via API:', error)
+        })
       },
 
-      acceptQuote: (rfqId, quoteId) => {
+      acceptQuote: async (rfqId, quoteId) => {
+        // Optimistic update
         set((state) => ({
           rfqs: state.rfqs.map((rfq) => {
             if (rfq.id === rfqId) {
@@ -159,9 +224,16 @@ export const useRFQStore = create<RFQState>()(
             return rfq
           }),
         }))
+
+        try {
+          await rfqAPI.acceptQuote(rfqId, quoteId)
+        } catch (error) {
+          console.error('Failed to accept quote via API:', error)
+        }
       },
 
-      rejectQuote: (rfqId, quoteId) => {
+      rejectQuote: async (rfqId, quoteId) => {
+        // Optimistic update
         set((state) => ({
           rfqs: state.rfqs.map((rfq) => {
             if (rfq.id === rfqId) {
@@ -178,6 +250,12 @@ export const useRFQStore = create<RFQState>()(
             return rfq
           }),
         }))
+
+        try {
+          await rfqAPI.rejectQuote(rfqId, quoteId)
+        } catch (error) {
+          console.error('Failed to reject quote via API:', error)
+        }
       },
 
       updateStatus: (id, status) => {
@@ -188,6 +266,10 @@ export const useRFQStore = create<RFQState>()(
               : rfq
           ),
         }))
+
+        rfqAPI.update(id, { status }).catch((error) => {
+          console.error('Failed to update RFQ status via API:', error)
+        })
       },
 
       closeRFQ: (id) => {
@@ -203,6 +285,10 @@ export const useRFQStore = create<RFQState>()(
               : rfq
           ),
         }))
+
+        rfqAPI.update(id, { status: 'closed' }).catch((error) => {
+          console.error('Failed to close RFQ via API:', error)
+        })
       },
 
       awardRFQ: (id, vendorId) => {
@@ -219,6 +305,10 @@ export const useRFQStore = create<RFQState>()(
               : rfq
           ),
         }))
+
+        rfqAPI.update(id, { status: 'awarded', awarded_to: vendorId }).catch((error) => {
+          console.error('Failed to award RFQ via API:', error)
+        })
       },
 
       getOpenRFQs: () => {
@@ -238,7 +328,7 @@ export const useRFQStore = create<RFQState>()(
       },
     }),
     {
-      name: 'vendora-rfqs',
+      name: 'channah-rfqs',
     }
   )
 )

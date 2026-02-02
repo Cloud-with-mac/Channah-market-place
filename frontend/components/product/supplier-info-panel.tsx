@@ -29,12 +29,12 @@ export function SupplierInfoPanel({ vendor }: SupplierInfoPanelProps) {
     name: vendor.name,
     slug: vendor.slug,
     logo: vendor.logo,
-    location: vendor.location || 'Guangzhou, China',
+    location: vendor.location || undefined,
     memberSince: vendor.memberSince || '2018',
-    verified: vendor.verified ?? true,
-    goldSupplier: vendor.goldSupplier ?? true,
-    rating: vendor.rating || 4.8,
-    responseRate: vendor.responseRate || 95,
+    verified: vendor.verified ?? false,
+    goldSupplier: vendor.goldSupplier ?? false,
+    rating: vendor.rating || undefined,
+    responseRate: vendor.responseRate || undefined,
     responseTime: vendor.responseTime || '< 24 hours',
   }
 
@@ -79,10 +79,12 @@ export function SupplierInfoPanel({ vendor }: SupplierInfoPanelProps) {
             </div>
 
             {/* Location */}
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5" />
-              <span>{supplierData.location}</span>
-            </div>
+            {supplierData.location && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5" />
+                <span>{supplierData.location}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -96,7 +98,7 @@ export function SupplierInfoPanel({ vendor }: SupplierInfoPanelProps) {
               <TrendingUp className="h-4 w-4 text-primary" />
               <p className="text-xs text-muted-foreground font-medium">Response Rate</p>
             </div>
-            <p className="text-lg font-bold text-foreground">{supplierData.responseRate}%</p>
+            <p className="text-lg font-bold text-foreground">{supplierData.responseRate ? `${supplierData.responseRate}%` : 'N/A'}</p>
           </div>
 
           <div className="p-3 rounded-lg bg-muted/50 border border-border">
@@ -155,7 +157,7 @@ export function SupplierInfoPanel({ vendor }: SupplierInfoPanelProps) {
                 Trade Assurance
               </p>
               <p className="text-xs text-green-700 dark:text-green-300 leading-relaxed">
-                Protected by Vendora's buyer protection program. Your order is covered from payment to delivery.
+                Protected by Channah's buyer protection program. Your order is covered from payment to delivery.
               </p>
             </div>
           </div>

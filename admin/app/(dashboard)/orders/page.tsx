@@ -17,6 +17,9 @@ import {
   Calendar,
   DollarSign,
   Download,
+  CheckSquare,
+  Square,
+  Loader2,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -72,7 +75,7 @@ function getStatusBadge(status: string) {
     case 'processing':
       return <Badge variant="info">Processing</Badge>
     case 'shipped':
-      return <Badge variant="info">Shipped to Vendora</Badge>
+      return <Badge variant="info">Shipped to Channah</Badge>
     case 'delivered':
       return <Badge variant="success">Delivered</Badge>
     case 'cancelled':
@@ -90,22 +93,32 @@ export default function OrdersPage() {
   const [isLoading, setIsLoading] = React.useState(true)
   const [search, setSearch] = React.useState('')
   const [statusFilter, setStatusFilter] = React.useState<string>('all')
+  const [dateFrom, setDateFrom] = React.useState('')
+  const [dateTo, setDateTo] = React.useState('')
   const [page, setPage] = React.useState(1)
   const [total, setTotal] = React.useState(0)
   const [selectedOrder, setSelectedOrder] = React.useState<Order | null>(null)
   const [actionType, setActionType] = React.useState<string>('')
   const [isUpdating, setIsUpdating] = React.useState(false)
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
+  const [bulkAction, setBulkAction] = React.useState<string>('')
+  const [showBulkDialog, setShowBulkDialog] = React.useState(false)
+  const [isBulkUpdating, setIsBulkUpdating] = React.useState(false)
   const limit = 20
 
   const fetchOrders = React.useCallback(async () => {
     try {
       setIsLoading(true)
-      const response = await ordersAPI.list({
+      const params: any = {
         page,
         limit,
         search: search || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
-      })
+      }
+      if (dateFrom) params.date_from = dateFrom
+      if (dateTo) params.date_to = dateTo
+
+      const response = await ordersAPI.list(params)
       setOrders(response.orders || [])
       setTotal(response.total || 0)
     } catch (error) {
@@ -114,11 +127,16 @@ export default function OrdersPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, search, statusFilter])
+  }, [page, search, statusFilter, dateFrom, dateTo])
 
   React.useEffect(() => {
     fetchOrders()
   }, [fetchOrders])
+
+  // Clear selections when orders change
+  React.useEffect(() => {
+    setSelectedIds(new Set())
+  }, [orders])
 
   const handleStatusChange = async () => {
     if (!selectedOrder || !actionType) return
@@ -148,6 +166,52 @@ export default function OrdersPage() {
   const openStatusDialog = (order: Order, status: string) => {
     setSelectedOrder(order)
     setActionType(status)
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === orders.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(orders.map((o) => o.id)))
+    }
+  }
+
+  const handleBulkAction = async () => {
+    if (selectedIds.size === 0 || !bulkAction) return
+    try {
+      setIsBulkUpdating(true)
+      await ordersAPI.bulkUpdateStatus(Array.from(selectedIds), bulkAction)
+      setOrders((prev) =>
+        prev.map((o) => (selectedIds.has(o.id) ? { ...o, status: bulkAction } : o))
+      )
+      toast({
+        title: 'Bulk Update Complete',
+        description: `${selectedIds.size} orders updated to ${bulkAction}.`,
+      })
+      setSelectedIds(new Set())
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.detail || 'Failed to update orders.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsBulkUpdating(false)
+      setShowBulkDialog(false)
+      setBulkAction('')
+    }
   }
 
   const totalPages = Math.ceil(total / limit)
@@ -194,30 +258,93 @@ export default function OrdersPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search orders by number or customer..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search orders by number or customer..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="processing">Processing</SelectItem>
+              <SelectItem value="shipped">Shipped to Channah</SelectItem>
+              <SelectItem value="delivered">Delivered</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="refunded">Refunded</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="processing">Processing</SelectItem>
-            <SelectItem value="shipped">Shipped to Vendora</SelectItem>
-            <SelectItem value="delivered">Delivered</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
-            <SelectItem value="refunded">Refunded</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col sm:flex-row gap-4 items-end">
+          <div className="flex items-center gap-2">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground font-medium">From</label>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground font-medium">To</label>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-40"
+              />
+            </div>
+            {(dateFrom || dateTo) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-5"
+                onClick={() => {
+                  setDateFrom('')
+                  setDateTo('')
+                }}
+              >
+                Clear dates
+              </Button>
+            )}
+          </div>
+
+          {/* Bulk Actions */}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-sm text-muted-foreground">
+                {selectedIds.size} selected
+              </span>
+              <Select
+                value={bulkAction}
+                onValueChange={(val) => {
+                  setBulkAction(val)
+                  setShowBulkDialog(true)
+                }}
+              >
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Bulk actions..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="processing">Mark Processing</SelectItem>
+                  <SelectItem value="shipped">Mark Shipped to Channah</SelectItem>
+                  <SelectItem value="delivered">Mark Delivered</SelectItem>
+                  <SelectItem value="cancelled">Cancel Orders</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Orders Table */}
@@ -227,6 +354,15 @@ export default function OrdersPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/50">
+                  <th className="p-4 text-left text-sm font-medium w-10">
+                    <button onClick={toggleSelectAll} className="flex items-center justify-center">
+                      {selectedIds.size === orders.length && orders.length > 0 ? (
+                        <CheckSquare className="h-4 w-4 text-primary" />
+                      ) : (
+                        <Square className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </button>
+                  </th>
                   <th className="p-4 text-left text-sm font-medium">Order</th>
                   <th className="p-4 text-left text-sm font-medium">Customer</th>
                   <th className="p-4 text-left text-sm font-medium">Vendor</th>
@@ -239,7 +375,21 @@ export default function OrdersPage() {
               </thead>
               <tbody>
                 {orders.map((order) => (
-                  <tr key={order.id} className="border-b hover:bg-muted/50 transition-colors">
+                  <tr
+                    key={order.id}
+                    className={`border-b hover:bg-muted/50 transition-colors ${
+                      selectedIds.has(order.id) ? 'bg-primary/5' : ''
+                    }`}
+                  >
+                    <td className="p-4">
+                      <button onClick={() => toggleSelect(order.id)} className="flex items-center justify-center">
+                        {selectedIds.has(order.id) ? (
+                          <CheckSquare className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Square className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </button>
+                    </td>
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -301,7 +451,7 @@ export default function OrdersPage() {
                           {order.status === 'processing' && (
                             <DropdownMenuItem onClick={() => openStatusDialog(order, 'shipped')}>
                               <Truck className="h-4 w-4 mr-2 text-info" />
-                              Mark Shipped to Vendora
+                              Mark Shipped to Channah
                             </DropdownMenuItem>
                           )}
                           {order.status === 'shipped' && (
@@ -329,7 +479,7 @@ export default function OrdersPage() {
                 ))}
                 {orders.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                    <td colSpan={9} className="p-8 text-center text-muted-foreground">
                       <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No orders found</p>
                     </td>
@@ -384,6 +534,34 @@ export default function OrdersPage() {
             </Button>
             <Button onClick={handleStatusChange} disabled={isUpdating}>
               {isUpdating ? 'Updating...' : 'Confirm'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Action Confirmation Dialog */}
+      <Dialog open={showBulkDialog} onOpenChange={(open) => { if (!open) { setShowBulkDialog(false); setBulkAction(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk Update Orders</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to update <strong>{selectedIds.size}</strong> orders to <strong>{bulkAction}</strong>?
+              This action will affect all selected orders.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowBulkDialog(false); setBulkAction(''); }}>
+              Cancel
+            </Button>
+            <Button onClick={handleBulkAction} disabled={isBulkUpdating}>
+              {isBulkUpdating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                `Update ${selectedIds.size} Orders`
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

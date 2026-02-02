@@ -13,11 +13,13 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { wishlistAPI, cartAPI } from '../../../../shared/api/customer-api';
+import { usePrice } from '../../hooks/usePrice';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
 export default function WishlistScreen({ navigation }: any) {
+  const { formatPrice } = usePrice();
   const [wishlist, setWishlist] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -63,11 +65,12 @@ export default function WishlistScreen({ navigation }: any) {
   };
 
   const handleAddToCart = async (product: any) => {
-    if (!product || !product.id) return;
+    const pid = product?.product_id || product?.id;
+    if (!pid) return;
 
     try {
-      setAddingToCartId(product.id);
-      await cartAPI.addItem(product.id, 1);
+      setAddingToCartId(pid);
+      await cartAPI.addItem(pid, 1);
       Alert.alert('Success', 'Added to cart', [
         { text: 'Continue', style: 'cancel' },
         { text: 'View Cart', onPress: () => navigation.navigate('Cart') },
@@ -82,8 +85,9 @@ export default function WishlistScreen({ navigation }: any) {
 
   const renderWishlistItem = ({ item }: any) => {
     const product = item.product || item;
-    const isRemoving = removingId === product.id;
-    const isAddingToCart = addingToCartId === product.id;
+    const productId = product.product_id || product.id;
+    const isRemoving = removingId === productId;
+    const isAddingToCart = addingToCartId === productId;
 
     return (
       <View style={styles.productCard}>
@@ -91,16 +95,22 @@ export default function WishlistScreen({ navigation }: any) {
           style={styles.productImageContainer}
           onPress={() => navigation.navigate('ProductDetail', { slug: product.slug })}
         >
-          <Image
-            source={{ uri: product.images?.[0]?.image || 'https://via.placeholder.com/150' }}
-            style={styles.productImage}
-            resizeMode="cover"
-          />
+          {(product.image || product.primary_image || product.images?.[0]?.url) ? (
+            <Image
+              source={{ uri: product.image || product.primary_image || product.images[0].url }}
+              style={styles.productImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.productImage, { justifyContent: 'center', alignItems: 'center' }]}>
+              <Icon name="image-outline" size={32} color="#d1d5db" />
+            </View>
+          )}
 
           {/* Remove Button */}
           <TouchableOpacity
             style={styles.removeButton}
-            onPress={() => handleRemoveFromWishlist(product.id)}
+            onPress={() => handleRemoveFromWishlist(productId)}
             disabled={isRemoving}
           >
             {isRemoving ? (
@@ -126,32 +136,32 @@ export default function WishlistScreen({ navigation }: any) {
           </Text>
 
           <View style={styles.priceRow}>
-            <Text style={styles.price}>${product.price}</Text>
+            <Text style={styles.price}>{formatPrice(Number(product.price))}</Text>
             {product.compare_at_price && product.compare_at_price > product.price && (
-              <Text style={styles.comparePrice}>${product.compare_at_price}</Text>
+              <Text style={styles.comparePrice}>{formatPrice(Number(product.compare_at_price))}</Text>
             )}
           </View>
 
           <View style={styles.ratingRow}>
             <Icon name="star" size={14} color="#f59e0b" />
             <Text style={styles.rating}>
-              {product.average_rating?.toFixed(1) || '0.0'} ({product.review_count || 0})
+              {product.rating?.toFixed(1) || '0.0'} ({product.review_count || 0})
             </Text>
           </View>
 
           {/* Stock Status */}
-          {product.stock !== undefined && (
+          {product.quantity !== undefined && (
             <View style={styles.stockRow}>
               <Icon
-                name={product.stock > 0 ? 'checkmark-circle' : 'close-circle'}
+                name={product.quantity > 0 ? 'checkmark-circle' : 'close-circle'}
                 size={12}
-                color={product.stock > 0 ? '#10b981' : '#ef4444'}
+                color={product.quantity > 0 ? '#10b981' : '#ef4444'}
               />
               <Text style={[
                 styles.stockText,
-                { color: product.stock > 0 ? '#10b981' : '#ef4444' }
+                { color: product.quantity > 0 ? '#10b981' : '#ef4444' }
               ]}>
-                {product.stock > 0 ? 'In Stock' : 'Out of Stock'}
+                {product.quantity > 0 ? 'In Stock' : 'Out of Stock'}
               </Text>
             </View>
           )}
@@ -160,10 +170,10 @@ export default function WishlistScreen({ navigation }: any) {
           <TouchableOpacity
             style={[
               styles.addToCartButton,
-              (isAddingToCart || product.stock === 0) && styles.buttonDisabled,
+              (isAddingToCart || product.quantity === 0) && styles.buttonDisabled,
             ]}
             onPress={() => handleAddToCart(product)}
-            disabled={isAddingToCart || product.stock === 0}
+            disabled={isAddingToCart || product.quantity === 0}
           >
             {isAddingToCart ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -171,7 +181,7 @@ export default function WishlistScreen({ navigation }: any) {
               <>
                 <Icon name="cart-outline" size={14} color="#fff" />
                 <Text style={styles.addToCartText}>
-                  {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+                  {product.quantity === 0 ? 'Out of Stock' : 'Add to Cart'}
                 </Text>
               </>
             )}
@@ -217,9 +227,9 @@ export default function WishlistScreen({ navigation }: any) {
       <FlatList
         data={wishlist}
         renderItem={renderWishlistItem}
-        keyExtractor={(item) => {
+        keyExtractor={(item, index) => {
           const product = item.product || item;
-          return product.id?.toString() || Math.random().toString();
+          return product.id?.toString() || `wishlist-${index}`;
         }}
         numColumns={2}
         columnWrapperStyle={wishlist.length > 0 ? styles.row : undefined}

@@ -1,5 +1,5 @@
 @echo off
-echo Starting Channah Marketplace Backend Server...
+echo Starting Spotless Hub Marketplace Backend Server...
 echo.
 
 REM Activate virtual environment

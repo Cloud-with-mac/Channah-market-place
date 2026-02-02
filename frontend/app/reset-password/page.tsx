@@ -207,12 +207,9 @@ export default function ResetPasswordPage() {
           {/* Logo */}
           <div className="text-center">
             <Link href="/" className="inline-flex items-center gap-2.5 mb-4">
-              <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan to-cyan-light text-navy font-bold shadow-lg shadow-cyan/20">
-                <span className="text-2xl font-display">C</span>
-              </div>
               <div className="flex flex-col text-left">
-                <span className="text-2xl font-bold font-display text-gradient-premium">Vendora</span>
-                <span className="text-[10px] font-semibold text-cyan uppercase tracking-wider -mt-1">Global Marketplace</span>
+                <span className="text-2xl font-bold font-display text-gradient-premium">Channah</span>
+                <span className="text-[10px] font-semibold text-cyan uppercase tracking-wider -mt-1">The Trusted Center for Everything</span>
               </div>
             </Link>
             <Badge className="bg-cyan/10 text-cyan border border-cyan/30 px-4 py-1">

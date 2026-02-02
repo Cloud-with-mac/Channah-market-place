@@ -53,25 +53,25 @@ const contactInfo = [
   {
     icon: Mail,
     title: 'Email Us',
-    content: 'support@channah-market.com',
-    link: 'mailto:support@channah-market.com',
+    content: 'support@channah.com',
+    link: 'mailto:support@channah.com',
   },
   {
     icon: Phone,
     title: 'Call Us',
-    content: '+1 (555) 123-4567',
-    link: 'tel:+15551234567',
+    content: '+44 800 Channah',
+    link: 'tel:+44800',
   },
   {
     icon: MapPin,
     title: 'Visit Us',
-    content: '123 Market Street, Lagos, Nigeria',
+    content: 'London, United Kingdom',
     link: null,
   },
   {
     icon: Clock,
     title: 'Business Hours',
-    content: 'Mon - Fri: 9AM - 6PM WAT',
+    content: '24/7 Customer Support',
     link: null,
   },
 ]

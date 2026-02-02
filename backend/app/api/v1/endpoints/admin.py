@@ -432,7 +432,7 @@ async def delete_review(
 
 # In-memory settings storage (in production, use database)
 _platform_settings = {
-    "site_name": "Channah Global Marketplace",
+    "site_name": "Channah",
     "site_description": "Your trusted global marketplace",
     "support_email": "support@example.com",
     "contact_phone": "",
@@ -2853,3 +2853,321 @@ async def reject_payout(
         vendor.balance += payout.amount
     await db.commit()
     return MessageResponse(message="Payout rejected")
+
+
+# ============ Enhanced Analytics Endpoints ============
+
+class AnalyticsOverview(BaseModel):
+    today_revenue: float
+    week_revenue: float
+    month_revenue: float
+    total_revenue: float
+    today_orders: int
+    week_orders: int
+    month_orders: int
+    total_orders: int
+    new_users_today: int
+    new_users_week: int
+    new_users_month: int
+    total_users: int
+    pending_vendors: int
+    active_vendors: int
+
+
+@router.get("/analytics/overview", response_model=AnalyticsOverview)
+async def get_analytics_overview(
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get comprehensive analytics overview"""
+    now = datetime.utcnow()
+    today_start = datetime.combine(now.date(), datetime.min.time())
+    week_start = today_start - timedelta(days=now.weekday())
+    month_start = today_start.replace(day=1)
+
+    # Revenue queries
+    async def get_revenue_and_orders(start_dt=None):
+        q = select(func.coalesce(func.sum(Order.total), 0), func.count(Order.id)).where(
+            Order.payment_status == PaymentStatus.PAID
+        )
+        if start_dt:
+            q = q.where(Order.paid_at >= start_dt)
+        r = await db.execute(q)
+        rev, cnt = r.one()
+        return float(rev), cnt
+
+    today_rev, today_ord = await get_revenue_and_orders(today_start)
+    week_rev, week_ord = await get_revenue_and_orders(week_start)
+    month_rev, month_ord = await get_revenue_and_orders(month_start)
+    total_rev, total_ord = await get_revenue_and_orders()
+
+    # User counts
+    total_users_r = await db.execute(select(func.count(User.id)))
+    new_today_r = await db.execute(select(func.count(User.id)).where(User.created_at >= today_start))
+    new_week_r = await db.execute(select(func.count(User.id)).where(User.created_at >= week_start))
+    new_month_r = await db.execute(select(func.count(User.id)).where(User.created_at >= month_start))
+
+    # Vendor counts
+    pending_v = await db.execute(select(func.count(Vendor.id)).where(Vendor.status == VendorStatus.PENDING))
+    active_v = await db.execute(select(func.count(Vendor.id)).where(Vendor.status == VendorStatus.APPROVED))
+
+    return AnalyticsOverview(
+        today_revenue=today_rev,
+        week_revenue=week_rev,
+        month_revenue=month_rev,
+        total_revenue=total_rev,
+        today_orders=today_ord,
+        week_orders=week_ord,
+        month_orders=month_ord,
+        total_orders=total_ord,
+        new_users_today=new_today_r.scalar() or 0,
+        new_users_week=new_week_r.scalar() or 0,
+        new_users_month=new_month_r.scalar() or 0,
+        total_users=total_users_r.scalar() or 0,
+        pending_vendors=pending_v.scalar() or 0,
+        active_vendors=active_v.scalar() or 0,
+    )
+
+
+@router.get("/analytics/sales-chart")
+async def get_sales_chart(
+    days: int = Query(7, ge=1, le=90),
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get daily sales data for chart"""
+    today = datetime.utcnow().date()
+    data = []
+
+    for i in range(days - 1, -1, -1):
+        date = today - timedelta(days=i)
+        day_start = datetime.combine(date, datetime.min.time())
+        day_end = datetime.combine(date, datetime.max.time())
+
+        result = await db.execute(
+            select(
+                func.coalesce(func.sum(Order.total), 0),
+                func.count(Order.id)
+            ).where(
+                Order.created_at >= day_start,
+                Order.created_at <= day_end
+            )
+        )
+        revenue, orders = result.one()
+
+        data.append({
+            "date": date.isoformat(),
+            "revenue": float(revenue or 0),
+            "orders": orders or 0,
+        })
+
+    return data
+
+
+# ============ Order Detail Endpoint ============
+
+@router.get("/orders/{order_id}")
+async def get_order_detail(
+    order_id: UUID,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get full order detail for admin"""
+    result = await db.execute(
+        select(Order)
+        .options(selectinload(Order.items))
+        .where(Order.id == order_id)
+    )
+    order = result.scalar_one_or_none()
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    items_data = []
+    for item in (order.items or []):
+        items_data.append({
+            "id": str(item.id),
+            "product_id": str(item.product_id) if item.product_id else None,
+            "product_name": item.product_name,
+            "product_sku": item.product_sku if hasattr(item, 'product_sku') else "",
+            "product_image": item.product_image if hasattr(item, 'product_image') else "",
+            "variant_name": item.variant_name if hasattr(item, 'variant_name') else "",
+            "quantity": item.quantity,
+            "unit_price": float(item.unit_price),
+            "total": float(item.total),
+            "status": item.status.value if hasattr(item, 'status') and item.status else order.status.value,
+            "tracking_number": None,
+        })
+
+    return {
+        "id": str(order.id),
+        "order_number": order.order_number,
+        "user_id": str(order.user_id) if order.user_id else None,
+        "status": order.status.value,
+        "payment_status": order.payment_status.value,
+        "subtotal": float(order.subtotal),
+        "tax_amount": float(order.tax_amount) if order.tax_amount else 0,
+        "shipping_amount": float(order.shipping_amount) if order.shipping_amount else 0,
+        "discount_amount": float(order.discount_amount) if order.discount_amount else 0,
+        "total": float(order.total),
+        "currency": order.currency if hasattr(order, 'currency') and order.currency else "USD",
+        "coupon_code": order.coupon_code if hasattr(order, 'coupon_code') else None,
+        "shipping_first_name": order.shipping_first_name,
+        "shipping_last_name": order.shipping_last_name,
+        "shipping_email": order.shipping_email,
+        "shipping_phone": order.shipping_phone if hasattr(order, 'shipping_phone') else None,
+        "shipping_address_line1": order.shipping_address_line1,
+        "shipping_address_line2": order.shipping_address_line2 if hasattr(order, 'shipping_address_line2') else None,
+        "shipping_city": order.shipping_city,
+        "shipping_state": order.shipping_state if hasattr(order, 'shipping_state') else None,
+        "shipping_postal_code": order.shipping_postal_code,
+        "shipping_country": order.shipping_country,
+        "shipping_method": order.shipping_method if hasattr(order, 'shipping_method') else None,
+        "tracking_number": order.tracking_number if hasattr(order, 'tracking_number') else None,
+        "carrier": order.carrier if hasattr(order, 'carrier') else None,
+        "estimated_delivery": None,
+        "payment_method": order.payment_method if hasattr(order, 'payment_method') else None,
+        "customer_notes": order.customer_notes if hasattr(order, 'customer_notes') else None,
+        "created_at": order.created_at.isoformat(),
+        "paid_at": order.paid_at.isoformat() if hasattr(order, 'paid_at') and order.paid_at else None,
+        "shipped_at": order.shipped_at.isoformat() if hasattr(order, 'shipped_at') and order.shipped_at else None,
+        "delivered_at": order.delivered_at.isoformat() if hasattr(order, 'delivered_at') and order.delivered_at else None,
+        "items": items_data,
+        "status_history": [],
+    }
+
+
+# ============ Bulk Order Status Update ============
+
+class BulkOrderStatusUpdate(BaseModel):
+    order_ids: List[str]
+    status: str
+
+
+@router.put("/orders/bulk-status", response_model=MessageResponse)
+async def bulk_update_order_status(
+    data: BulkOrderStatusUpdate,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update status for multiple orders at once"""
+    try:
+        new_status = OrderStatus(data.status)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {data.status}")
+
+    updated = 0
+    for oid in data.order_ids:
+        try:
+            order_uuid = UUID(oid)
+        except ValueError:
+            continue
+        result = await db.execute(select(Order).where(Order.id == order_uuid))
+        order = result.scalar_one_or_none()
+        if order:
+            order.status = new_status
+            if new_status == OrderStatus.SHIPPED and hasattr(order, 'shipped_at'):
+                order.shipped_at = datetime.utcnow()
+            if new_status == OrderStatus.DELIVERED and hasattr(order, 'delivered_at'):
+                order.delivered_at = datetime.utcnow()
+            updated += 1
+
+    await db.commit()
+    return MessageResponse(message=f"{updated} orders updated to {data.status}")
+
+
+# ============ Vendor Approve/Reject/Suspend via POST (for frontend compatibility) ============
+
+@router.post("/vendors/{vendor_id}/approve", response_model=MessageResponse)
+async def approve_vendor_post(
+    vendor_id: UUID,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Approve a vendor (POST)"""
+    result = await db.execute(select(Vendor).where(Vendor.id == vendor_id))
+    vendor = result.scalar_one_or_none()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    vendor.status = VendorStatus.APPROVED
+    vendor.verified_at = datetime.utcnow()
+    await db.commit()
+    return MessageResponse(message=f"{vendor.business_name} has been approved")
+
+
+@router.post("/vendors/{vendor_id}/reject", response_model=MessageResponse)
+async def reject_vendor_post(
+    vendor_id: UUID,
+    data: dict = None,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Reject a vendor (POST)"""
+    result = await db.execute(select(Vendor).where(Vendor.id == vendor_id))
+    vendor = result.scalar_one_or_none()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    vendor.status = VendorStatus.REJECTED
+    await db.commit()
+    return MessageResponse(message=f"{vendor.business_name} has been rejected")
+
+
+@router.post("/vendors/{vendor_id}/suspend", response_model=MessageResponse)
+async def suspend_vendor_post(
+    vendor_id: UUID,
+    data: dict = None,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Suspend a vendor (POST)"""
+    result = await db.execute(select(Vendor).where(Vendor.id == vendor_id))
+    vendor = result.scalar_one_or_none()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    vendor.status = VendorStatus.SUSPENDED
+    await db.commit()
+    return MessageResponse(message=f"{vendor.business_name} has been suspended")
+
+
+# ============ Vendor Detail Endpoint ============
+
+@router.get("/vendors/{vendor_id}")
+async def get_vendor_detail(
+    vendor_id: UUID,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get vendor detail for admin"""
+    result = await db.execute(
+        select(Vendor)
+        .options(selectinload(Vendor.user), selectinload(Vendor.products))
+        .where(Vendor.id == vendor_id)
+    )
+    vendor = result.scalar_one_or_none()
+
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    return {
+        "id": str(vendor.id),
+        "business_name": vendor.business_name,
+        "slug": vendor.slug,
+        "description": vendor.description,
+        "owner_name": f"{vendor.user.first_name} {vendor.user.last_name}" if vendor.user else "Unknown",
+        "email": vendor.user.email if vendor.user else "",
+        "phone": vendor.phone if hasattr(vendor, 'phone') else "",
+        "status": vendor.status.value,
+        "total_sales": float(vendor.total_sales),
+        "balance": float(vendor.balance),
+        "rating": float(vendor.rating) if vendor.rating else 0,
+        "total_reviews": vendor.total_reviews if hasattr(vendor, 'total_reviews') else 0,
+        "total_products": len(vendor.products) if vendor.products else 0,
+        "commission_rate": float(vendor.commission_rate) if vendor.commission_rate else 10,
+        "logo_url": vendor.logo_url if hasattr(vendor, 'logo_url') else None,
+        "banner_url": vendor.banner_url if hasattr(vendor, 'banner_url') else None,
+        "created_at": vendor.created_at.isoformat(),
+        "verified_at": vendor.verified_at.isoformat() if vendor.verified_at else None,
+        "address": vendor.address if hasattr(vendor, 'address') else None,
+        "city": vendor.city if hasattr(vendor, 'city') else None,
+        "country": vendor.country if hasattr(vendor, 'country') else None,
+    }

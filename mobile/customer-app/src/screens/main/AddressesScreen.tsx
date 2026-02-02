@@ -19,10 +19,11 @@ import { addressesAPI } from '../../../../shared/api/customer-api';
 interface Address {
   id: string;
   label?: string;
-  full_name: string;
+  first_name: string;
+  last_name: string;
   phone: string;
-  address_line_1: string;
-  address_line_2?: string;
+  address_line1: string;
+  address_line2?: string;
   city: string;
   state: string;
   postal_code: string;
@@ -32,10 +33,11 @@ interface Address {
 
 const emptyForm = {
   label: '',
-  full_name: '',
+  first_name: '',
+  last_name: '',
   phone: '',
-  address_line_1: '',
-  address_line_2: '',
+  address_line1: '',
+  address_line2: '',
   city: '',
   state: '',
   postal_code: '',
@@ -74,10 +76,11 @@ export default function AddressesScreen({ navigation }: any) {
   const openEdit = (addr: Address) => {
     setForm({
       label: addr.label || '',
-      full_name: addr.full_name,
+      first_name: addr.first_name,
+      last_name: addr.last_name,
       phone: addr.phone,
-      address_line_1: addr.address_line_1,
-      address_line_2: addr.address_line_2 || '',
+      address_line1: addr.address_line1,
+      address_line2: addr.address_line2 || '',
       city: addr.city,
       state: addr.state,
       postal_code: addr.postal_code,
@@ -88,7 +91,7 @@ export default function AddressesScreen({ navigation }: any) {
   };
 
   const handleSave = async () => {
-    if (!form.full_name || !form.phone || !form.address_line_1 || !form.city || !form.state || !form.postal_code || !form.country) {
+    if (!form.first_name || !form.last_name || !form.phone || !form.address_line1 || !form.city || !form.state || !form.postal_code || !form.country) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
@@ -159,9 +162,9 @@ export default function AddressesScreen({ navigation }: any) {
         </View>
       </View>
 
-      <Text style={styles.nameText}>{item.full_name}</Text>
-      <Text style={styles.addressText}>{item.address_line_1}</Text>
-      {item.address_line_2 && <Text style={styles.addressText}>{item.address_line_2}</Text>}
+      <Text style={styles.nameText}>{item.first_name} {item.last_name}</Text>
+      <Text style={styles.addressText}>{item.address_line1}</Text>
+      {item.address_line2 && <Text style={styles.addressText}>{item.address_line2}</Text>}
       <Text style={styles.addressText}>{item.city}, {item.state} {item.postal_code}</Text>
       <Text style={styles.addressText}>{item.country}</Text>
       <Text style={styles.phoneText}>{item.phone}</Text>
@@ -225,10 +228,11 @@ export default function AddressesScreen({ navigation }: any) {
           <ScrollView style={styles.formScroll} contentContainerStyle={styles.formContent}>
             {[
               { key: 'label', label: 'Label (e.g. Home, Office)', optional: true },
-              { key: 'full_name', label: 'Full Name *' },
+              { key: 'first_name', label: 'First Name *' },
+              { key: 'last_name', label: 'Last Name *' },
               { key: 'phone', label: 'Phone *', keyboard: 'phone-pad' as const },
-              { key: 'address_line_1', label: 'Address Line 1 *' },
-              { key: 'address_line_2', label: 'Address Line 2', optional: true },
+              { key: 'address_line1', label: 'Address Line 1 *' },
+              { key: 'address_line2', label: 'Address Line 2', optional: true },
               { key: 'city', label: 'City *' },
               { key: 'state', label: 'State/Province *' },
               { key: 'postal_code', label: 'Postal Code *' },

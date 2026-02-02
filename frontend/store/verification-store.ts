@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { verificationAPI } from '@/lib/api'
 
 // Verification Status Types
 export type VerificationStatus = 'pending' | 'verified' | 'rejected' | 'expired'
@@ -223,6 +224,12 @@ interface VerificationState {
   // Bulk actions
   bulkVerifyDocuments: (documentIds: string[], verifiedBy: string) => void
   exportVerificationReport: (supplierId: string) => string
+
+  // API-backed actions
+  applyForVerification: (data: any) => Promise<void>
+  fetchVerificationStatus: () => Promise<void>
+  uploadDocument: (data: any) => Promise<string>
+  fetchVendorBadge: (vendorId: string) => Promise<void>
 }
 
 // Initial badge templates
@@ -560,6 +567,99 @@ export const useVerificationStore = create<VerificationState>()(
         documentIds.forEach((id) => {
           get().verifyDocument(id, verifiedBy)
         })
+      },
+
+      // API-backed actions
+      applyForVerification: async (data) => {
+        try {
+          const result = await verificationAPI.apply(data)
+          // Update local state with the response if applicable
+          if (result && result.id) {
+            const supplier = get().getSupplier(result.supplier_id || data.supplierId)
+            if (supplier) {
+              get().updateSupplier(supplier.id, {
+                overallStatus: result.status || 'pending',
+              })
+            }
+          }
+        } catch (error) {
+          console.error('Failed to apply for verification via API:', error)
+        }
+      },
+
+      fetchVerificationStatus: async () => {
+        try {
+          const result = await verificationAPI.getStatus()
+          if (result) {
+            // Update the current supplier status from the API response
+            const currentSupplier = get().currentSupplier
+            if (currentSupplier) {
+              get().updateSupplier(currentSupplier.id, {
+                overallStatus: result.status || currentSupplier.overallStatus,
+                verificationScore: result.verification_score ?? currentSupplier.verificationScore,
+                lastVerificationDate: result.last_verification_date || currentSupplier.lastVerificationDate,
+              })
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch verification status via API:', error)
+        }
+      },
+
+      uploadDocument: async (data) => {
+        try {
+          const result = await verificationAPI.uploadDocument(data)
+          // Add the document to local state
+          const id = result.id || `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          const newDocument: Document = {
+            id,
+            supplierId: data.supplierId || data.supplier_id || '',
+            type: data.type || 'business_license',
+            fileName: data.fileName || data.file_name || '',
+            fileUrl: result.file_url || result.url || '',
+            uploadedAt: result.uploaded_at || new Date().toISOString(),
+            verificationStatus: 'pending',
+            metadata: {
+              fileSize: data.fileSize || data.file_size || 0,
+              mimeType: data.mimeType || data.mime_type || '',
+            },
+          }
+          set((state) => ({
+            documents: [...state.documents, newDocument],
+          }))
+          return id
+        } catch (error) {
+          console.error('Failed to upload document via API, falling back to local:', error)
+          // Fallback to local-only
+          return get().addDocument({
+            supplierId: data.supplierId || data.supplier_id || '',
+            type: data.type || 'business_license',
+            fileName: data.fileName || data.file_name || '',
+            fileUrl: '',
+            uploadedAt: new Date().toISOString(),
+            verificationStatus: 'pending',
+            metadata: {
+              fileSize: data.fileSize || data.file_size || 0,
+              mimeType: data.mimeType || data.mime_type || '',
+            },
+          })
+        }
+      },
+
+      fetchVendorBadge: async (vendorId) => {
+        try {
+          const result = await verificationAPI.getVendorBadge(vendorId)
+          if (result && result.badge_level) {
+            const supplier = get().getSupplier(vendorId)
+            if (supplier) {
+              get().updateSupplier(vendorId, {
+                currentBadge: result.badge_level,
+              })
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch vendor badge via API:', error)
+        }
       },
 
       exportVerificationReport: (supplierId) => {

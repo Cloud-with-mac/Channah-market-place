@@ -15,25 +15,19 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { productsAPI, categoriesAPI } from '../../../../shared/api/customer-api';
+import { usePrice } from '../../hooks/usePrice';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 const RECENT_SEARCHES_KEY = '@recent_searches';
 const MAX_RECENT_SEARCHES = 5;
 
-export default function SearchScreen({ navigation }: any) {
-  const [searchQuery, setSearchQuery] = useState('');
+export default function SearchScreen({ navigation, route }: any) {
+  const { formatPrice } = usePrice();
+  const initialQuery = route?.params?.query || '';
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  const [popularSearches] = useState<string[]>([
-    'Electronics',
-    'Fashion',
-    'Home & Garden',
-    'Sports',
-    'Books',
-    'Toys',
-  ]);
-  const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
 
   // Filter state
@@ -44,6 +38,7 @@ export default function SearchScreen({ navigation }: any) {
   const [minRating, setMinRating] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
+  const popularSearches = categories.slice(0, 6).map((c: any) => c.name);
   const [activeFilterCount, setActiveFilterCount] = useState(0);
 
   useEffect(() => {
@@ -151,7 +146,7 @@ export default function SearchScreen({ navigation }: any) {
     }
   };
 
-  const clearFilters = () => {
+  const clearFilters = async () => {
     setSortBy('');
     setMinPrice('');
     setMaxPrice('');
@@ -159,7 +154,17 @@ export default function SearchScreen({ navigation }: any) {
     setSelectedCategory('');
     setShowFilters(false);
     if (searchQuery.trim()) {
-      handleSearch(searchQuery);
+      // Re-search without any filters (state updates are async, so pass empty params directly)
+      try {
+        setSearching(true);
+        const response = await productsAPI.search(searchQuery, {});
+        const results = response.results || response || [];
+        setSearchResults(results);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
     }
   };
 
@@ -172,25 +177,31 @@ export default function SearchScreen({ navigation }: any) {
       style={styles.productCard}
       onPress={() => navigation.navigate('ProductDetail', { slug: item.slug })}
     >
-      <Image
-        source={{ uri: item.images?.[0]?.image || 'https://via.placeholder.com/150' }}
-        style={styles.productImage}
-        resizeMode="cover"
-      />
+      {(item.primary_image || item.images?.[0]?.url) ? (
+        <Image
+          source={{ uri: item.primary_image || item.images[0].url }}
+          style={styles.productImage}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[styles.productImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' }]}>
+          <Icon name="image-outline" size={32} color="#d1d5db" />
+        </View>
+      )}
       <View style={styles.productInfo}>
         <Text style={styles.productName} numberOfLines={2}>
           {item.name}
         </Text>
         <View style={styles.priceRow}>
-          <Text style={styles.price}>${item.price}</Text>
+          <Text style={styles.price}>{formatPrice(Number(item.price))}</Text>
           {item.compare_at_price && (
-            <Text style={styles.comparePrice}>${item.compare_at_price}</Text>
+            <Text style={styles.comparePrice}>{formatPrice(Number(item.compare_at_price))}</Text>
           )}
         </View>
         <View style={styles.ratingRow}>
           <Icon name="star" size={14} color="#f59e0b" />
           <Text style={styles.rating}>
-            {item.average_rating?.toFixed(1) || '0.0'} ({item.review_count || 0})
+            {item.rating?.toFixed(1) || '0.0'} ({item.review_count || 0})
           </Text>
         </View>
       </View>
@@ -305,7 +316,7 @@ export default function SearchScreen({ navigation }: any) {
         <FlatList
           data={searchResults}
           renderItem={renderProductItem}
-          keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+          keyExtractor={(item, index) => item.id?.toString() || `search-${index}`}
           numColumns={2}
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.listContent}

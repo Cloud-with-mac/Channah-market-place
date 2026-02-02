@@ -14,7 +14,7 @@ const featuredPost = {
 
 const blogPosts = [
   {
-    title: '10 Tips for Successful Selling on Vendora',
+    title: '10 Tips for Successful Selling on Channah',
     excerpt: 'Learn the strategies that top sellers use to maximize their sales and grow their businesses on our platform.',
     author: 'James Wilson',
     date: 'January 15, 2026',
@@ -51,7 +51,7 @@ const blogPosts = [
   },
   {
     title: 'From Side Hustle to Full-Time: Success Stories',
-    excerpt: 'Inspiring stories of sellers who turned their Vendora shops into thriving full-time businesses.',
+    excerpt: 'Inspiring stories of sellers who turned their Channah shops into thriving full-time businesses.',
     author: 'Michael Brown',
     date: 'January 5, 2026',
     readTime: '6 min read',
@@ -86,7 +86,7 @@ export default function BlogPage() {
         <div className="container text-center">
           <Badge className="bg-cyan/20 text-cyan border border-cyan/30 mb-4">
             <BookOpen className="h-3 w-3 mr-1" />
-            Vendora Blog
+            Channah Blog
           </Badge>
           <h1 className="text-4xl md:text-5xl font-bold font-display mb-4">Insights & Stories</h1>
           <p className="text-xl text-white/70 max-w-2xl mx-auto">

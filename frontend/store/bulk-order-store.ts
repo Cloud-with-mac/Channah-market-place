@@ -162,7 +162,7 @@ export const useBulkOrderStore = create<BulkOrderState>()(
       },
     }),
     {
-      name: 'vendora-bulk-orders',
+      name: 'channah-bulk-orders',
     }
   )
 )

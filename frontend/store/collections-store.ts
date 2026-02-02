@@ -186,7 +186,7 @@ export const useCollectionsStore = create<CollectionsState>()(
       },
     }),
     {
-      name: 'vendora-collections',
+      name: 'channah-collections',
     }
   )
 )

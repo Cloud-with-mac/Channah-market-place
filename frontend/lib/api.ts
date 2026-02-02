@@ -29,7 +29,7 @@ const apiClient: AxiosInstance = axios.create({
 // Request interceptor to add auth token
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token')
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -51,7 +51,7 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true
 
       try {
-        const refreshToken = localStorage.getItem('refresh_token')
+        const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null
         if (!refreshToken) throw new Error('No refresh token')
 
         const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
@@ -59,14 +59,16 @@ apiClient.interceptors.response.use(
         })
 
         const { access_token } = response.data
-        localStorage.setItem('access_token', access_token)
+        if (typeof window !== 'undefined') localStorage.setItem('access_token', access_token)
 
         originalRequest.headers.Authorization = `Bearer ${access_token}`
         return apiClient(originalRequest)
       } catch (refreshError) {
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('auth-storage')
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
+          localStorage.removeItem('auth-storage')
+        }
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
           window.location.href = '/login'
         }
@@ -421,7 +423,11 @@ export const reviewsAPI = {
 // ==================== PAYMENTS API ====================
 export const paymentsAPI = {
   createPaymentIntent: async (orderId: string, paymentMethod: string) => {
-    const response = await apiClient.post('/payments/create-intent', {
+    const gateway = paymentMethod === 'paypal' ? 'paypal/create-order'
+      : paymentMethod === 'flutterwave' || paymentMethod === 'bank' ? 'flutterwave/initialize'
+      : paymentMethod === 'razorpay' ? 'razorpay/create-order'
+      : 'stripe/create-intent'
+    const response = await apiClient.post(`/payments/${gateway}`, {
       order_id: orderId,
       payment_method: paymentMethod,
     })
@@ -766,6 +772,73 @@ export const supportChatAPI = {
 
   closeChat: async (chatId: string) => {
     const response = await apiClient.put(`/support-chat/${chatId}/close`)
+    return response.data
+  },
+}
+
+export const bannersAPI = {
+  getAll: async () => {
+    const response = await apiClient.get('/banners')
+    return response.data
+  },
+}
+
+// ==================== RFQ API ====================
+export const rfqAPI = {
+  create: async (data: any) => {
+    const response = await apiClient.post('/rfq', data)
+    return response.data
+  },
+  getAll: async (params?: any) => {
+    const response = await apiClient.get('/rfq', { params })
+    return response.data
+  },
+  getById: async (id: string) => {
+    const response = await apiClient.get(`/rfq/${id}`)
+    return response.data
+  },
+  update: async (id: string, data: any) => {
+    const response = await apiClient.put(`/rfq/${id}`, data)
+    return response.data
+  },
+  cancel: async (id: string) => {
+    const response = await apiClient.delete(`/rfq/${id}`)
+    return response.data
+  },
+  getQuotes: async (rfqId: string) => {
+    const response = await apiClient.get(`/rfq/${rfqId}/quotes`)
+    return response.data
+  },
+  submitQuote: async (rfqId: string, data: any) => {
+    const response = await apiClient.post(`/rfq/${rfqId}/quotes`, data)
+    return response.data
+  },
+  acceptQuote: async (rfqId: string, quoteId: string) => {
+    const response = await apiClient.put(`/rfq/${rfqId}/quotes/${quoteId}/accept`)
+    return response.data
+  },
+  rejectQuote: async (rfqId: string, quoteId: string) => {
+    const response = await apiClient.put(`/rfq/${rfqId}/quotes/${quoteId}/reject`)
+    return response.data
+  },
+}
+
+// ==================== VERIFICATION API ====================
+export const verificationAPI = {
+  apply: async (data: any) => {
+    const response = await apiClient.post('/verification/apply', data)
+    return response.data
+  },
+  getStatus: async () => {
+    const response = await apiClient.get('/verification/status')
+    return response.data
+  },
+  uploadDocument: async (data: any) => {
+    const response = await apiClient.post('/verification/documents', data)
+    return response.data
+  },
+  getVendorBadge: async (vendorId: string) => {
+    const response = await apiClient.get(`/vendors/${vendorId}/badge`)
     return response.data
   },
 }

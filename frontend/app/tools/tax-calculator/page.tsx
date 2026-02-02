@@ -1165,8 +1165,8 @@ function generateCalculationPDF(calculation: TaxCalculation): string {
   </div>
 
   <div class="footer">
-    <p><strong>Vendora-Market Tax & Duty Calculator</strong></p>
-    <p>Premium B2B Marketplace | www.channah-market.com</p>
+    <p><strong>Channah Tax & Duty Calculator</strong></p>
+    <p>Premium Marketplace | www.channah.com</p>
     <p style="margin-top: 8px;">Report ID: ${calculation.id}</p>
   </div>
 </body>

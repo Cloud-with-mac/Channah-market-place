@@ -477,7 +477,7 @@ ${webhooks
       },
     }),
     {
-      name: 'vendora-developer',
+      name: 'channah-developer',
     }
   )
 )

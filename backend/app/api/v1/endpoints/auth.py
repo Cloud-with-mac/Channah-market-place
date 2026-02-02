@@ -80,8 +80,10 @@ async def register(
     await db.commit()
     await db.refresh(user)
 
-    # TODO: Send verification email in background
-    # background_tasks.add_task(send_verification_email, user.email, user.verification_token)
+    # Send welcome email + notification in background
+    background_tasks.add_task(
+        _send_welcome_background, user.id, user.email, user.first_name
+    )
 
     # Generate tokens
     access_token = create_access_token(data={"sub": str(user.id)})
@@ -213,8 +215,12 @@ async def request_password_reset(
         user.reset_token_expires = datetime.utcnow() + timedelta(hours=1)
         await db.commit()
 
-        # TODO: Send reset email in background
-        # background_tasks.add_task(send_password_reset_email, user.email, user.reset_token)
+        # Send reset email in background
+        from app.services.notifications import trigger_password_reset_email
+        background_tasks.add_task(
+            trigger_password_reset_email,
+            user.email, user.first_name, user.reset_token,
+        )
 
     # Always return success to prevent email enumeration
     return MessageResponse(message="If the email exists, a reset link has been sent")
@@ -426,3 +432,21 @@ async def delete_account(
     await db.commit()
 
     return MessageResponse(message="Your account has been permanently deleted")
+
+
+# ---------------------------------------------------------------------------
+# Background task helpers
+# ---------------------------------------------------------------------------
+
+async def _send_welcome_background(user_id, email: str, first_name: str):
+    """Run welcome notification + email in a background task with its own DB session."""
+    from app.core.database import AsyncSessionLocal as async_session_factory
+    from app.services.notifications import notify_welcome
+
+    async with async_session_factory() as db:
+        try:
+            await notify_welcome(db, user_id, email, first_name)
+            await db.commit()
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).error("Welcome email background task failed: %s", exc)

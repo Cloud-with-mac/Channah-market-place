@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -32,6 +32,9 @@ import CategoryBrowseScreen from './src/screens/main/CategoryBrowseScreen';
 import DealsScreen from './src/screens/main/DealsScreen';
 import BestSellersScreen from './src/screens/main/BestSellersScreen';
 import NewArrivalsScreen from './src/screens/main/NewArrivalsScreen';
+import RFQListScreen from './src/screens/main/RFQListScreen';
+import RFQCreateScreen from './src/screens/main/RFQCreateScreen';
+import RFQDetailScreen from './src/screens/main/RFQDetailScreen';
 
 // Info Screens
 import AboutScreen from './src/screens/info/AboutScreen';
@@ -42,6 +45,8 @@ import ContactScreen from './src/screens/info/ContactScreen';
 
 // Store
 import { useAuthStore } from './src/store/authStore';
+import { useCurrencyStore } from './src/store/currencyStore';
+import { useCartStore } from './src/store/cartStore';
 
 // Error Boundary
 import { ErrorBoundary } from './src/components/ErrorBoundary';
@@ -56,7 +61,7 @@ function SplashScreen() {
         <Icon name="storefront" size={64} color="#fff" />
       </View>
       <Text style={splashStyles.title}>Channah</Text>
-      <Text style={splashStyles.subtitle}>Marketplace</Text>
+      <Text style={splashStyles.subtitle}>Your Trusted Marketplace</Text>
       <ActivityIndicator size="large" color="#fff" style={splashStyles.loader} />
     </View>
   );
@@ -95,6 +100,11 @@ const splashStyles = StyleSheet.create({
 
 function MainTabs() {
   const { user } = useAuthStore();
+  const { itemCount, refreshCount } = useCartStore();
+
+  React.useEffect(() => {
+    if (user) refreshCount();
+  }, [user]);
 
   return (
     <Tab.Navigator
@@ -123,7 +133,14 @@ function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Products" component={ProductsScreen} />
-      <Tab.Screen name="Cart" component={CartScreen} />
+      <Tab.Screen
+        name="Cart"
+        component={CartScreen}
+        options={{
+          tabBarBadge: itemCount > 0 ? itemCount : undefined,
+          tabBarBadgeStyle: { backgroundColor: '#ef4444', fontSize: 11 },
+        }}
+      />
       <Tab.Screen
         name="Profile"
         component={user ? ProfileScreen : LoginScreen}
@@ -133,15 +150,76 @@ function MainTabs() {
   );
 }
 
+function NetworkErrorScreen({ onRetry }: { onRetry: () => void }) {
+  return (
+    <View style={networkErrorStyles.container}>
+      <Icon name="cloud-offline-outline" size={64} color="#9ca3af" />
+      <Text style={networkErrorStyles.title}>Connection Error</Text>
+      <Text style={networkErrorStyles.message}>
+        Unable to connect to the server. Please check your internet connection and try again.
+      </Text>
+      <TouchableOpacity style={networkErrorStyles.retryButton} onPress={onRetry}>
+        <Icon name="refresh" size={20} color="#fff" />
+        <Text style={networkErrorStyles.retryText}>Retry</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const networkErrorStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    padding: 32,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginTop: 20,
+  },
+  message: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginTop: 24,
+    gap: 8,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
+
 export default function App() {
-  const { isLoading, initialize } = useAuthStore();
+  const { isLoading, initError, initialize, retry } = useAuthStore();
+  const { detectCountry, fetchExchangeRates } = useCurrencyStore();
 
   React.useEffect(() => {
     initialize();
+    detectCountry();
+    fetchExchangeRates();
   }, []);
 
   if (isLoading) {
     return <SplashScreen />;
+  }
+
+  if (initError) {
+    return <NetworkErrorScreen onRetry={retry} />;
   }
 
   return (
@@ -255,6 +333,21 @@ export default function App() {
             name="NewArrivals"
             component={NewArrivalsScreen}
             options={{ title: 'New Arrivals' }}
+          />
+          <Stack.Screen
+            name="RFQList"
+            component={RFQListScreen}
+            options={{ title: 'My Quotes' }}
+          />
+          <Stack.Screen
+            name="RFQCreate"
+            component={RFQCreateScreen}
+            options={{ title: 'Request Quote' }}
+          />
+          <Stack.Screen
+            name="RFQDetail"
+            component={RFQDetailScreen}
+            options={{ title: 'Quote Details' }}
           />
           <Stack.Screen
             name="About"

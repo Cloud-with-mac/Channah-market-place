@@ -60,8 +60,12 @@ async def get_or_create_cart(
 def serialize_cart(cart: Cart) -> CartResponse:
     """Serialize cart to response"""
     items = []
+    valid_items = []
     for item in cart.items:
         product = item.product
+        if product is None:
+            continue
+        valid_items.append(item)
         items.append(CartItemResponse(
             id=item.id,
             product_id=item.product_id,
@@ -84,14 +88,14 @@ def serialize_cart(cart: Cart) -> CartResponse:
             created_at=item.created_at
         ))
 
-    subtotal = sum(item.price * item.quantity for item in cart.items)
+    subtotal = sum(item.price * item.quantity for item in valid_items)
 
     return CartResponse(
         id=cart.id,
         user_id=cart.user_id,
         session_id=cart.session_id,
         items=items,
-        item_count=sum(item.quantity for item in cart.items),
+        item_count=sum(item.quantity for item in valid_items),
         subtotal=subtotal,
         discount_amount=cart.discount_amount,
         total=max(subtotal - cart.discount_amount, 0),

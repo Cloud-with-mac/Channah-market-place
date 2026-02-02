@@ -186,7 +186,7 @@ export const useSourcingStore = create<SourcingState>()(
       },
     }),
     {
-      name: 'vendora-sourcing',
+      name: 'channah-sourcing',
     }
   )
 )

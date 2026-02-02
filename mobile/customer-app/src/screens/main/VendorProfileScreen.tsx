@@ -11,8 +11,8 @@ import {
   Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { customerApiClient } from '../../../../shared/api/client';
-import { productsAPI } from '../../../../shared/api/customer-api';
+import { productsAPI, vendorsAPI } from '../../../../shared/api/customer-api';
+import { usePrice } from '../../hooks/usePrice';
 
 interface VendorProfile {
   id: string;
@@ -25,10 +25,15 @@ interface VendorProfile {
   joined_at?: string;
   location?: string;
   response_time?: string;
+  badge_level?: 'gold' | 'silver' | 'bronze';
+  trust_score?: number;
+  verified_at?: string;
+  verification_status?: string;
 }
 
 export default function VendorProfileScreen({ route, navigation }: any) {
   const { vendorId, vendorName } = route.params;
+  const { formatPrice } = usePrice();
   const [vendor, setVendor] = useState<VendorProfile | null>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,8 +45,8 @@ export default function VendorProfileScreen({ route, navigation }: any) {
   const loadVendor = async () => {
     try {
       const [vendorData, productsData] = await Promise.all([
-        customerApiClient.get(`/vendors/${vendorId}`).then(r => r.data),
-        customerApiClient.get(`/vendors/${vendorId}/products`).then(r => r.data).catch(() => []),
+        vendorsAPI.getById(vendorId),
+        vendorsAPI.getProducts(vendorId).catch(() => []),
       ]);
       setVendor(vendorData);
       setProducts(Array.isArray(productsData) ? productsData : productsData.items || []);
@@ -87,11 +92,37 @@ export default function VendorProfileScreen({ route, navigation }: any) {
             </View>
           )}
         </View>
-        <Text style={styles.businessName}>{vendor.business_name}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+          <Text style={styles.businessName}>{vendor.business_name}</Text>
+          {vendor.badge_level && (
+            <View style={[styles.badgePill, { backgroundColor: vendor.badge_level === 'gold' ? '#fef3c7' : vendor.badge_level === 'silver' ? '#f3f4f6' : '#fef2e8' }]}>
+              <Icon
+                name="shield-checkmark"
+                size={14}
+                color={vendor.badge_level === 'gold' ? '#f59e0b' : vendor.badge_level === 'silver' ? '#9ca3af' : '#cd7f32'}
+              />
+              <Text style={[styles.badgePillText, { color: vendor.badge_level === 'gold' ? '#92400e' : vendor.badge_level === 'silver' ? '#6b7280' : '#7c4a1e' }]}>
+                {vendor.badge_level.charAt(0).toUpperCase() + vendor.badge_level.slice(1)} Supplier
+              </Text>
+            </View>
+          )}
+        </View>
+        {vendor.verified_at && (
+          <View style={styles.verifiedRow}>
+            <Icon name="checkmark-circle" size={14} color="#10b981" />
+            <Text style={styles.verifiedText}>Verified Supplier</Text>
+          </View>
+        )}
         {vendor.location && (
           <View style={styles.locationRow}>
             <Icon name="location-outline" size={14} color="#6b7280" />
             <Text style={styles.locationText}>{vendor.location}</Text>
+          </View>
+        )}
+        {vendor.joined_at && (
+          <View style={styles.locationRow}>
+            <Icon name="calendar-outline" size={14} color="#6b7280" />
+            <Text style={styles.locationText}>Member since {new Date(vendor.joined_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}</Text>
           </View>
         )}
 
@@ -123,6 +154,19 @@ export default function VendorProfileScreen({ route, navigation }: any) {
         </TouchableOpacity>
       </View>
 
+      {/* Trust Score */}
+      {vendor.trust_score !== undefined && vendor.trust_score > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Trust Score</Text>
+          <View style={styles.trustScoreContainer}>
+            <View style={styles.trustScoreBarBg}>
+              <View style={[styles.trustScoreBarFill, { width: `${Math.min(vendor.trust_score, 100)}%`, backgroundColor: vendor.trust_score >= 80 ? '#10b981' : vendor.trust_score >= 50 ? '#f59e0b' : '#ef4444' }]} />
+            </View>
+            <Text style={styles.trustScoreValue}>{vendor.trust_score}/100</Text>
+          </View>
+        </View>
+      )}
+
       {/* Description */}
       {vendor.description && (
         <View style={styles.section}>
@@ -144,12 +188,18 @@ export default function VendorProfileScreen({ route, navigation }: any) {
                 style={styles.productCard}
                 onPress={() => navigation.navigate('ProductDetail', { slug: product.slug })}
               >
-                <Image
-                  source={{ uri: product.images?.[0]?.image || 'https://via.placeholder.com/150' }}
-                  style={styles.productImage}
-                />
+                {(product.primary_image || product.images?.[0]?.url) ? (
+                  <Image
+                    source={{ uri: product.primary_image || product.images[0].url }}
+                    style={styles.productImage}
+                  />
+                ) : (
+                  <View style={[styles.productImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' }]}>
+                    <Icon name="image-outline" size={24} color="#d1d5db" />
+                  </View>
+                )}
                 <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
-                <Text style={styles.productPrice}>${product.price}</Text>
+                <Text style={styles.productPrice}>{formatPrice(Number(product.price))}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -180,8 +230,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  businessName: { fontSize: 22, fontWeight: 'bold', color: '#1f2937', marginBottom: 4 },
-  locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  businessName: { fontSize: 22, fontWeight: 'bold', color: '#1f2937' },
+  badgePill: { flexDirection: 'row', alignItems: 'center', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, marginLeft: 10 },
+  badgePillText: { fontSize: 12, fontWeight: '600', marginLeft: 4 },
+  verifiedRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  verifiedText: { fontSize: 13, color: '#10b981', fontWeight: '600', marginLeft: 4 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   locationText: { fontSize: 13, color: '#6b7280', marginLeft: 4 },
   statsRow: {
     flexDirection: 'row',
@@ -223,4 +277,8 @@ const styles = StyleSheet.create({
   productImage: { width: '100%', height: 120, backgroundColor: '#e5e7eb' },
   productName: { fontSize: 13, fontWeight: '500', color: '#1f2937', padding: 8, paddingBottom: 2 },
   productPrice: { fontSize: 14, fontWeight: '700', color: '#3b82f6', paddingHorizontal: 8, paddingBottom: 8 },
+  trustScoreContainer: { flexDirection: 'row', alignItems: 'center' },
+  trustScoreBarBg: { flex: 1, height: 8, backgroundColor: '#e5e7eb', borderRadius: 4, overflow: 'hidden', marginRight: 12 },
+  trustScoreBarFill: { height: '100%', borderRadius: 4 },
+  trustScoreValue: { fontSize: 14, fontWeight: '700', color: '#1f2937', minWidth: 55 },
 });

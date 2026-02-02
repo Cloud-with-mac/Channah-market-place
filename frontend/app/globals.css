@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* Vendora Refined Modern Theme */
+    /* Channah Refined Modern Theme */
     /* Clean white background for modern look */
     --background: 0 0% 100%;
     --foreground: 216 18% 16%;
@@ -29,7 +29,7 @@
     --input: 220 13% 91%;
     --ring: 224 100% 68%;
     --radius: 0.5rem;
-    /* Vendora brand colors */
+    /* Channah brand colors */
     --gold: 45 90% 51%;
     --gold-light: 45 80% 70%;
     --gold-dark: 40 85% 40%;
@@ -45,7 +45,7 @@
   }
 
   .dark {
-    /* Vendora Dark Mode: Refined Modern */
+    /* Channah Dark Mode: Refined Modern */
     --background: 222 47% 11%;
     --foreground: 210 40% 98%;
     --card: 222 47% 13%;

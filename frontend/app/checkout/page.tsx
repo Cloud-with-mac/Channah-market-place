@@ -8,7 +8,7 @@ import { PaymentForm, PaymentMethod } from '@/components/checkout/payment-form'
 import { OrderSummarySidebar } from '@/components/checkout/order-summary-sidebar'
 import { CartEmpty } from '@/components/cart/cart-empty'
 import { useCartStore, useAuthStore, useCurrencyStore } from '@/store'
-import { ordersAPI, cartAPI } from '@/lib/api'
+import { ordersAPI, cartAPI, paymentsAPI } from '@/lib/api'
 
 const steps = [
   { id: 'shipping', title: 'Shipping' },
@@ -75,6 +75,8 @@ export default function CheckoutPage() {
     setError(null)
 
     try {
+      // TODO: N+1 issue — this loop sends one request per cart item. Refactor to use
+      // a bulk cart sync endpoint (e.g. POST /cart/sync) that accepts all items at once.
       // Ensure backend cart is in sync — add all frontend items
       try {
         await cartAPI.clear()
@@ -115,6 +117,24 @@ export default function CheckoutPage() {
       }
 
       const order = await ordersAPI.create(orderData)
+
+      // Process payment for non-cash methods
+      if (method !== 'cash') {
+        try {
+          const paymentResult = await paymentsAPI.createPaymentIntent(order.id, method)
+
+          if (paymentResult.payment_url) {
+            // PayPal / Flutterwave — redirect to external payment page
+            setOrderComplete(true)
+            clearCart()
+            window.location.href = paymentResult.payment_url
+            return
+          }
+        } catch (payErr: any) {
+          console.error('Payment initiation failed:', payErr)
+          // Order created but payment failed — still redirect to success with note
+        }
+      }
 
       // Mark order as complete BEFORE clearing cart to prevent "empty cart" flash
       setOrderComplete(true)

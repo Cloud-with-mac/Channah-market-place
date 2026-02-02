@@ -17,7 +17,7 @@ const playfair = Playfair_Display({
 
 export const metadata: Metadata = {
   title: 'Channah Admin Dashboard',
-  description: 'AI-Powered Admin Dashboard for Channah Global Marketplace',
+  description: 'AI-Powered Admin Dashboard for Channah',
 }
 
 export default function RootLayout({

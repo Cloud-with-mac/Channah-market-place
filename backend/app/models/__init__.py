@@ -11,6 +11,9 @@ from app.models.payment import Payment, PaymentMethod
 from app.models.notification import Notification
 from app.models.conversation import Conversation, Message
 from app.models.support_chat import SupportChat, SupportChatMessage
+from app.models.banner import Banner
+from app.models.verification import VerificationApplication, VerificationDocument
+from app.models.rfq import RFQ, RFQQuote
 
 __all__ = [
     "User",
@@ -36,4 +39,9 @@ __all__ = [
     "Message",
     "SupportChat",
     "SupportChatMessage",
+    "Banner",
+    "VerificationApplication",
+    "VerificationDocument",
+    "RFQ",
+    "RFQQuote",
 ]

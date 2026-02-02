@@ -95,7 +95,7 @@ export default function CareersPage() {
             <Briefcase className="h-3 w-3 mr-1" />
             We're Hiring
           </Badge>
-          <h1 className="text-4xl md:text-5xl font-bold font-display mb-4">Join the Vendora Team</h1>
+          <h1 className="text-4xl md:text-5xl font-bold font-display mb-4">Join the Channah Team</h1>
           <p className="text-xl text-white/70 max-w-2xl mx-auto mb-8">
             Help us build the future of global e-commerce. We're looking for passionate people to join our mission.
           </p>
@@ -135,7 +135,7 @@ export default function CareersPage() {
       {/* Benefits */}
       <section className="py-16 bg-card/50">
         <div className="container">
-          <h2 className="text-2xl font-bold font-display text-center mb-2">Why Vendora?</h2>
+          <h2 className="text-2xl font-bold font-display text-center mb-2">Why Channah?</h2>
           <p className="text-muted-foreground text-center mb-12 max-w-lg mx-auto">
             We offer competitive benefits and a culture that values work-life balance.
           </p>
@@ -158,7 +158,7 @@ export default function CareersPage() {
         <div className="container max-w-4xl">
           <h2 className="text-2xl font-bold font-display text-center mb-2">Open Positions</h2>
           <p className="text-muted-foreground text-center mb-12">
-            Find your next opportunity at Vendora
+            Find your next opportunity at Channah
           </p>
           <div className="space-y-4">
             {openPositions.map((job, index) => (

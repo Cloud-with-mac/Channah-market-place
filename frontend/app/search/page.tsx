@@ -68,8 +68,15 @@ function SearchContent() {
           sort: sortBy,
         }
 
+        const searchParams: Record<string, any> = { search: query, page: currentPage, limit: ITEMS_PER_PAGE, sort: sortBy }
+        if (priceRange[0] > 0) searchParams.min_price = priceRange[0]
+        if (priceRange[1] < 1000) searchParams.max_price = priceRange[1]
+        if (moqRange[0] > 1) searchParams.min_moq = moqRange[0]
+        if (moqRange[1] < 1000) searchParams.max_moq = moqRange[1]
+        if (selectedCategory && selectedCategory !== 'all') searchParams.category = selectedCategory
+
         const [searchRes, aiSuggestionsRes] = await Promise.allSettled([
-          productsAPI.getAll({ search: query, page: currentPage, limit: ITEMS_PER_PAGE }),
+          productsAPI.getAll(searchParams),
           aiAPI.searchSuggestions(query),
         ])
 
@@ -91,7 +98,7 @@ function SearchContent() {
               'https://images.unsplash.com/photo-1560393464-5c69a73c5770?w=400&h=400&fit=crop',
             rating: p.rating || 4.0,
             reviewCount: p.review_count || 0,
-            vendorName: p.vendor?.business_name || p.vendor_name || 'Vendora Vendor',
+            vendorName: p.vendor?.business_name || p.vendor_name || 'Channah Vendor',
           }))
 
           setProducts(transformedProducts)
@@ -120,7 +127,7 @@ function SearchContent() {
     }
 
     fetchResults()
-  }, [query, currentPage, sortBy])
+  }, [query, currentPage, sortBy, priceRange, moqRange, selectedCategory])
 
   const updateURL = React.useCallback(
     (newSort: SortOption, newPage: number) => {

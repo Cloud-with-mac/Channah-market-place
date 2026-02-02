@@ -542,7 +542,7 @@ export const useInspectionStore = create<InspectionState>()(
       },
     }),
     {
-      name: 'vendora-inspections',
+      name: 'channah-inspections',
     }
   )
 )

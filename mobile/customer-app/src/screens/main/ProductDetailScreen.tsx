@@ -14,12 +14,15 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { productsAPI, cartAPI, wishlistAPI, reviewsAPI } from '../../../../shared/api/customer-api';
 import { useAuthStore } from '../../store/authStore';
+import { useCartStore } from '../../store/cartStore';
+import { usePrice } from '../../hooks/usePrice';
 
 const { width } = Dimensions.get('window');
 
 export default function ProductDetailScreen({ route, navigation }: any) {
-  const { slug } = route.params;
+  const { slug, id } = route.params;
   const { user } = useAuthStore();
+  const { formatPrice } = usePrice();
   const [product, setProduct] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,13 +36,18 @@ export default function ProductDetailScreen({ route, navigation }: any) {
 
   useEffect(() => {
     loadProductDetail();
-  }, [slug]);
+  }, [slug, id]);
 
   const loadProductDetail = async () => {
     try {
       setLoading(true);
-      const productData = await productsAPI.getBySlug(slug);
+      const productData = await productsAPI.getBySlug(slug || id);
       setProduct(productData);
+
+      // Set initial quantity to MOQ if applicable
+      if (productData.moq && productData.moq > 1) {
+        setQuantity(productData.moq);
+      }
 
       // Auto-select first variant if available
       if (productData.variants?.length > 0) {
@@ -56,6 +64,21 @@ export default function ProductDetailScreen({ route, navigation }: any) {
           setReviews(Array.isArray(reviewsData) ? reviewsData : reviewsData?.results || []);
         } catch {
           setReviews([]);
+        }
+
+        // Check if product is in wishlist
+        if (user) {
+          try {
+            const wishlistData = await wishlistAPI.get();
+            const items = Array.isArray(wishlistData) ? wishlistData : wishlistData?.items || [];
+            const found = items.some((w: any) => {
+              const p = w.product || w;
+              return (p.id === productData.id || p.product_id === productData.id);
+            });
+            setIsInWishlist(found);
+          } catch {
+            // silently ignore
+          }
         }
       }
     } catch (error: any) {
@@ -102,8 +125,8 @@ export default function ProductDetailScreen({ route, navigation }: any) {
   };
 
   const getCurrentStock = () => {
-    if (selectedVariant?.stock !== undefined) return selectedVariant.stock;
-    return product?.stock;
+    if (selectedVariant?.quantity !== undefined) return selectedVariant.quantity;
+    return product?.quantity;
   };
 
   const handleAddToCart = async () => {
@@ -115,9 +138,14 @@ export default function ProductDetailScreen({ route, navigation }: any) {
       ]);
       return;
     }
+    if (product.moq && product.moq > 1 && quantity < product.moq) {
+      Alert.alert('Minimum Order', `This product requires a minimum order of ${product.moq} units.`);
+      return;
+    }
     try {
       setAddingToCart(true);
       await cartAPI.addItem(product.id, quantity, selectedVariant?.id);
+      useCartStore.getState().refreshCount();
       Alert.alert('Success', `Added ${quantity} item(s) to cart`, [
         { text: 'Continue Shopping', style: 'cancel' },
         { text: 'View Cart', onPress: () => navigation.navigate('Cart') },
@@ -164,7 +192,8 @@ export default function ProductDetailScreen({ route, navigation }: any) {
   };
 
   const decrementQuantity = () => {
-    if (quantity > 1) setQuantity(prev => prev - 1);
+    const minQty = product?.moq && product.moq > 1 ? product.moq : 1;
+    if (quantity > minQty) setQuantity(prev => prev - 1);
   };
 
   if (loading) {
@@ -188,7 +217,7 @@ export default function ProductDetailScreen({ route, navigation }: any) {
   }
 
   const images = product.images || [];
-  const currentImage = images[selectedImageIndex]?.url || product.primary_image || 'https://via.placeholder.com/400';
+  const currentImage = images[selectedImageIndex]?.url || product.primary_image || undefined;
   const price = Number(getCurrentPrice() || 0);
   const stock = getCurrentStock();
   const compareAtPrice = Number(product.compare_at_price || 0);
@@ -203,7 +232,13 @@ export default function ProductDetailScreen({ route, navigation }: any) {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Image Carousel */}
         <View style={styles.imageContainer}>
-          <Image source={{ uri: currentImage }} style={styles.mainImage} resizeMode="cover" />
+          {currentImage ? (
+            <Image source={{ uri: currentImage }} style={styles.mainImage} resizeMode="cover" />
+          ) : (
+            <View style={[styles.mainImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' }]}>
+              <Icon name="image-outline" size={48} color="#d1d5db" />
+            </View>
+          )}
           {hasDiscount && (
             <View style={styles.discountBadge}>
               <Text style={styles.discountText}>-{discountPercentage}%</Text>
@@ -257,8 +292,8 @@ export default function ProductDetailScreen({ route, navigation }: any) {
 
           {/* Price */}
           <View style={styles.priceContainer}>
-            <Text style={styles.price}>${price.toFixed(2)}</Text>
-            {hasDiscount && <Text style={styles.comparePrice}>${compareAtPrice.toFixed(2)}</Text>}
+            <Text style={styles.price}>{formatPrice(price)}</Text>
+            {hasDiscount && <Text style={styles.comparePrice}>{formatPrice(compareAtPrice)}</Text>}
           </View>
 
           {/* Rating */}
@@ -267,14 +302,14 @@ export default function ProductDetailScreen({ route, navigation }: any) {
               {[1, 2, 3, 4, 5].map((star) => (
                 <Icon
                   key={star}
-                  name={star <= Math.round(product.average_rating || 0) ? 'star' : 'star-outline'}
+                  name={star <= Math.round(product.rating || 0) ? 'star' : 'star-outline'}
                   size={16}
                   color="#f59e0b"
                 />
               ))}
             </View>
             <Text style={styles.ratingText}>
-              {Number(product.average_rating || 0).toFixed(1)} ({product.review_count || 0} reviews)
+              {Number(product.rating || 0).toFixed(1)} ({product.review_count || 0} reviews)
             </Text>
           </View>
 
@@ -297,7 +332,7 @@ export default function ProductDetailScreen({ route, navigation }: any) {
             <View style={styles.shippingRow}>
               <Icon name="car-outline" size={18} color="#6b7280" />
               <Text style={styles.shippingText}>
-                {product.shipping_cost > 0 ? `Shipping: $${product.shipping_cost}` : 'Free Shipping'}
+                {product.shipping_cost > 0 ? `Shipping: ${formatPrice(Number(product.shipping_cost))}` : 'Free Shipping'}
               </Text>
             </View>
           )}
@@ -344,7 +379,10 @@ export default function ProductDetailScreen({ route, navigation }: any) {
           {/* Bulk Pricing */}
           {product.bulk_pricing && product.bulk_pricing.length > 0 && (
             <View style={styles.bulkSection}>
-              <Text style={styles.sectionTitle}>Bulk Pricing</Text>
+              <View style={styles.bulkHeader}>
+                <Icon name="layers-outline" size={20} color="#3b82f6" />
+                <Text style={[styles.sectionTitle, { marginBottom: 0, marginLeft: 8 }]}>Bulk Pricing</Text>
+              </View>
               <View style={styles.bulkTable}>
                 <View style={styles.bulkHeaderRow}>
                   <Text style={styles.bulkHeaderCell}>Quantity</Text>
@@ -355,13 +393,28 @@ export default function ProductDetailScreen({ route, navigation }: any) {
                   const tierPrice = Number(tier.price || 0);
                   const basePrice = Number(product.price || 0);
                   const savings = basePrice > 0 ? Math.round(((basePrice - tierPrice) / basePrice) * 100) : 0;
+                  const isBestValue = i === product.bulk_pricing.length - 1;
                   return (
-                    <View key={i} style={styles.bulkRow}>
-                      <Text style={styles.bulkCell}>
-                        {tier.min_qty}{tier.max_qty ? `-${tier.max_qty}` : '+'}
+                    <View key={i} style={[styles.bulkRow, isBestValue && styles.bulkRowBestValue]}>
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={[styles.bulkCell, isBestValue && styles.bulkCellBestValue]}>
+                          {tier.min_qty}{tier.max_qty ? `-${tier.max_qty}` : '+'}
+                        </Text>
+                      </View>
+                      <Text style={[styles.bulkCellPrice, isBestValue && styles.bulkCellBestValue]}>
+                        {formatPrice(tierPrice)}
                       </Text>
-                      <Text style={styles.bulkCellPrice}>${tierPrice.toFixed(2)}</Text>
-                      <Text style={styles.bulkCellSavings}>{savings}% off</Text>
+                      <View style={{ flex: 1, alignItems: 'center' }}>
+                        <Text style={[styles.bulkCellSavings, isBestValue && { color: '#fff' }]}>
+                          {savings}% off
+                        </Text>
+                        {isBestValue && (
+                          <View style={styles.bestValueBadge}>
+                            <Icon name="star" size={10} color="#f59e0b" />
+                            <Text style={styles.bestValueText}>Best Value</Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
                   );
                 })}
@@ -416,7 +469,21 @@ export default function ProductDetailScreen({ route, navigation }: any) {
               >
                 <Icon name="storefront-outline" size={20} color="#3b82f6" />
                 <View style={{ flex: 1, marginLeft: 8 }}>
-                  <Text style={styles.vendorName}>{product.vendor.business_name || 'Vendor'}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={styles.vendorName}>{product.vendor.business_name || 'Vendor'}</Text>
+                    {product.vendor.badge_level && (
+                      <View style={[styles.vendorBadge, { backgroundColor: product.vendor.badge_level === 'gold' ? '#fef3c7' : product.vendor.badge_level === 'silver' ? '#f3f4f6' : '#fef2e8' }]}>
+                        <Icon
+                          name="shield-checkmark"
+                          size={12}
+                          color={product.vendor.badge_level === 'gold' ? '#f59e0b' : product.vendor.badge_level === 'silver' ? '#9ca3af' : '#cd7f32'}
+                        />
+                        <Text style={[styles.vendorBadgeText, { color: product.vendor.badge_level === 'gold' ? '#92400e' : product.vendor.badge_level === 'silver' ? '#6b7280' : '#7c4a1e' }]}>
+                          {product.vendor.badge_level.charAt(0).toUpperCase() + product.vendor.badge_level.slice(1)} Supplier
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   {Number(product.vendor.rating || 0) > 0 && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
                       <Icon name="star" size={12} color="#f59e0b" />
@@ -474,7 +541,10 @@ export default function ProductDetailScreen({ route, navigation }: any) {
                   </View>
                 ))}
                 {reviews.length > 3 && (
-                  <TouchableOpacity style={styles.viewAllReviews}>
+                  <TouchableOpacity
+                    style={styles.viewAllReviews}
+                    onPress={() => Alert.alert('All Reviews', reviews.map(r => `${r.user?.full_name || 'Anonymous'} (${r.rating}/5): ${r.comment || 'No comment'}`).join('\n\n'))}
+                  >
                     <Text style={styles.viewAllText}>View All {reviews.length} Reviews</Text>
                     <Icon name="chevron-forward" size={16} color="#3b82f6" />
                   </TouchableOpacity>
@@ -493,12 +563,24 @@ export default function ProductDetailScreen({ route, navigation }: any) {
       <View style={styles.footer}>
         <View style={styles.footerPrice}>
           <Text style={styles.footerPriceLabel}>Total</Text>
-          <Text style={styles.footerPriceValue}>${(price * quantity).toFixed(2)}</Text>
+          <Text style={styles.footerPriceValue}>{formatPrice(price * quantity)}</Text>
         </View>
         <TouchableOpacity
-          style={[styles.addToCartButton, (addingToCart || !stock || stock === 0) && styles.buttonDisabled]}
+          style={styles.requestQuoteButton}
+          onPress={() => navigation.navigate('RFQCreate', {
+            product: {
+              id: product.id,
+              name: product.name,
+              category: product.category?.name || product.category_name || '',
+            },
+          })}
+        >
+          <Icon name="document-text-outline" size={18} color="#3b82f6" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.addToCartButton, (addingToCart || stock === 0) && styles.buttonDisabled]}
           onPress={handleAddToCart}
-          disabled={addingToCart || !stock || stock === 0}
+          disabled={addingToCart || stock === 0}
         >
           {addingToCart ? (
             <ActivityIndicator size="small" color="#fff" />
@@ -506,7 +588,7 @@ export default function ProductDetailScreen({ route, navigation }: any) {
             <>
               <Icon name="cart" size={20} color="#fff" />
               <Text style={styles.addToCartText}>
-                {stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+                {stock !== undefined && stock !== null && stock === 0 ? 'Out of Stock' : 'Add to Cart'}
               </Text>
             </>
           )}
@@ -560,13 +642,21 @@ const styles = StyleSheet.create({
   colorSwatchSelected: { borderColor: '#3b82f6', borderWidth: 3 },
   // Bulk pricing
   bulkSection: { marginBottom: 20 },
-  bulkTable: { backgroundColor: '#f9fafb', borderRadius: 8, overflow: 'hidden' },
-  bulkHeaderRow: { flexDirection: 'row', backgroundColor: '#e5e7eb', paddingVertical: 8, paddingHorizontal: 12 },
+  bulkHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  bulkTable: { backgroundColor: '#f9fafb', borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: '#e5e7eb' },
+  bulkHeaderRow: { flexDirection: 'row', backgroundColor: '#e5e7eb', paddingVertical: 10, paddingHorizontal: 12 },
   bulkHeaderCell: { flex: 1, fontSize: 12, fontWeight: '600', color: '#6b7280', textAlign: 'center' },
-  bulkRow: { flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  bulkRow: { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6', alignItems: 'center' },
+  bulkRowBestValue: { backgroundColor: '#3b82f6' },
   bulkCell: { flex: 1, fontSize: 13, color: '#4b5563', textAlign: 'center' },
   bulkCellPrice: { flex: 1, fontSize: 13, fontWeight: '600', color: '#1f2937', textAlign: 'center' },
-  bulkCellSavings: { flex: 1, fontSize: 13, fontWeight: '600', color: '#10b981', textAlign: 'center' },
+  bulkCellSavings: { fontSize: 13, fontWeight: '600', color: '#10b981', textAlign: 'center' },
+  bulkCellBestValue: { color: '#fff', fontWeight: '700' },
+  bestValueBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, marginTop: 2 },
+  bestValueText: { fontSize: 10, fontWeight: '700', color: '#fff', marginLeft: 3 },
+  // Vendor badge
+  vendorBadge: { flexDirection: 'row', alignItems: 'center', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 8 },
+  vendorBadgeText: { fontSize: 10, fontWeight: '600', marginLeft: 3 },
   moqRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fffbeb', borderRadius: 6, padding: 10, marginBottom: 16 },
   moqText: { fontSize: 13, color: '#92400e', marginLeft: 6 },
   quantitySection: { marginBottom: 20 },
@@ -594,6 +684,7 @@ const styles = StyleSheet.create({
   footerPrice: { marginRight: 16 },
   footerPriceLabel: { fontSize: 12, color: '#6b7280' },
   footerPriceValue: { fontSize: 20, fontWeight: 'bold', color: '#1f2937' },
+  requestQuoteButton: { width: 44, height: 44, borderRadius: 8, borderWidth: 1.5, borderColor: '#3b82f6', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
   addToCartButton: { flex: 1, backgroundColor: '#3b82f6', borderRadius: 8, padding: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   buttonDisabled: { opacity: 0.5 },
   addToCartText: { color: '#fff', fontSize: 16, fontWeight: 'bold', marginLeft: 8 },

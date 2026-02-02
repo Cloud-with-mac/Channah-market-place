@@ -16,7 +16,7 @@ export default function CheckoutLayout({
               <span className="text-lg font-display">C</span>
               <div className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-gold border-2 border-background" />
             </div>
-            <span className="text-lg font-bold font-display">Vendora-Market</span>
+            <span className="text-lg font-bold font-display">Channah</span>
           </Link>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <ShieldCheck className="h-4 w-4 text-green-600" />
@@ -32,7 +32,7 @@ export default function CheckoutLayout({
       <footer className="border-t bg-background py-6">
         <div className="container mx-auto px-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-            <p>&copy; {new Date().getFullYear()} Vendora-Market. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} Channah. All rights reserved.</p>
             <div className="flex gap-4">
               <Link href="/privacy" className="hover:text-foreground">
                 Privacy Policy

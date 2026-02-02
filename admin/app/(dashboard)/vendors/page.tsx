@@ -104,6 +104,9 @@ export default function VendorsPage() {
   const [selectedVendor, setSelectedVendor] = React.useState<Vendor | null>(null)
   const [actionType, setActionType] = React.useState<'approve' | 'reject' | 'suspend' | null>(null)
   const [rejectionReason, setRejectionReason] = React.useState('')
+  const [viewingVendor, setViewingVendor] = React.useState<Vendor | null>(null)
+  const [vendorDetail, setVendorDetail] = React.useState<any>(null)
+  const [isLoadingDetail, setIsLoadingDetail] = React.useState(false)
   const [resetPasswordVendor, setResetPasswordVendor] = React.useState<Vendor | null>(null)
   const [newPassword, setNewPassword] = React.useState('')
   const [sendEmailNotification, setSendEmailNotification] = React.useState(true)
@@ -274,6 +277,20 @@ export default function VendorsPage() {
       })
     } finally {
       setIsResettingPassword(false)
+    }
+  }
+
+  const handleViewVendor = async (vendor: Vendor) => {
+    setViewingVendor(vendor)
+    setIsLoadingDetail(true)
+    try {
+      const detail = await vendorsAPI.getById(vendor.id)
+      setVendorDetail(detail)
+    } catch (error) {
+      console.error('Failed to load vendor detail:', error)
+      setVendorDetail(null)
+    } finally {
+      setIsLoadingDetail(false)
     }
   }
 
@@ -518,7 +535,7 @@ export default function VendorsPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewVendor(vendor)}>
                               <Eye className="h-4 w-4 mr-2" />
                               View Details
                             </DropdownMenuItem>
@@ -583,7 +600,7 @@ export default function VendorsPage() {
                   ))}
                   {filteredVendors.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={9} className="p-8 text-center text-muted-foreground">
                         No vendors found matching your criteria.
                       </td>
                     </tr>
@@ -668,6 +685,123 @@ export default function VendorsPage() {
               {actionType === 'reject' && 'Reject'}
               {actionType === 'suspend' && 'Suspend'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Vendor Detail Dialog */}
+      <Dialog
+        open={!!viewingVendor}
+        onOpenChange={() => {
+          setViewingVendor(null)
+          setVendorDetail(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Vendor Details</DialogTitle>
+            <DialogDescription>
+              {viewingVendor?.business_name}
+            </DialogDescription>
+          </DialogHeader>
+          {isLoadingDetail ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : vendorDetail ? (
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={vendorDetail.logo_url} />
+                  <AvatarFallback className="bg-primary/10 text-primary text-lg">
+                    {getInitials(vendorDetail.business_name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="font-semibold text-lg">{vendorDetail.business_name}</h3>
+                  <p className="text-sm text-muted-foreground">{vendorDetail.owner_name}</p>
+                  {getStatusBadge(vendorDetail.status)}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Email</p>
+                  <p className="font-medium">{vendorDetail.email}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Phone</p>
+                  <p className="font-medium">{vendorDetail.phone || 'Not provided'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Total Products</p>
+                  <p className="font-medium">{vendorDetail.total_products}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Total Sales</p>
+                  <p className="font-medium">{formatPrice(vendorDetail.total_sales, 'USD')}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Balance</p>
+                  <p className="font-medium">{formatPrice(vendorDetail.balance, 'USD')}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Commission Rate</p>
+                  <p className="font-medium">{vendorDetail.commission_rate}%</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Rating</p>
+                  <p className="font-medium">
+                    {vendorDetail.rating > 0 ? `${vendorDetail.rating.toFixed(1)} / 5` : 'No reviews yet'}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground">Joined</p>
+                  <p className="font-medium">{formatDate(vendorDetail.created_at)}</p>
+                </div>
+                {vendorDetail.verified_at && (
+                  <div className="space-y-1">
+                    <p className="text-muted-foreground">Verified At</p>
+                    <p className="font-medium">{formatDate(vendorDetail.verified_at)}</p>
+                  </div>
+                )}
+                {vendorDetail.country && (
+                  <div className="space-y-1">
+                    <p className="text-muted-foreground">Location</p>
+                    <p className="font-medium">
+                      {[vendorDetail.city, vendorDetail.country].filter(Boolean).join(', ')}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {vendorDetail.description && (
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Description</p>
+                  <p className="text-sm">{vendorDetail.description}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground py-4">Failed to load vendor details.</p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setViewingVendor(null); setVendorDetail(null); }}>
+              Close
+            </Button>
+            {viewingVendor && viewingVendor.status === 'pending' && (
+              <Button
+                onClick={() => {
+                  setViewingVendor(null)
+                  setVendorDetail(null)
+                  setSelectedVendor(viewingVendor)
+                  setActionType('approve')
+                }}
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Approve
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

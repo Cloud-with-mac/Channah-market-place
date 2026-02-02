@@ -14,11 +14,13 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { productsAPI, categoriesAPI } from '../../../../shared/api/customer-api';
+import { usePrice } from '../../hooks/usePrice';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
 export default function ProductsScreen({ navigation, route }: any) {
+  const { formatPrice } = usePrice();
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,8 +44,9 @@ export default function ProductsScreen({ navigation, route }: any) {
   }, [route?.params?.categorySlug]);
 
   useEffect(() => {
+    // Pass page=1 explicitly to avoid race with async setPage
     setPage(1);
-    loadProducts(true);
+    loadProducts(true, 1);
   }, [searchQuery, selectedCategory, sortBy]);
 
   const loadCategories = async () => {
@@ -58,7 +61,7 @@ export default function ProductsScreen({ navigation, route }: any) {
     }
   };
 
-  const loadProducts = async (isRefresh = false) => {
+  const loadProducts = async (isRefresh = false, explicitPage?: number) => {
     try {
       if (isRefresh) {
         setRefreshing(true);
@@ -68,21 +71,24 @@ export default function ProductsScreen({ navigation, route }: any) {
       }
 
       const params: any = {
-        page: isRefresh ? 1 : page,
+        page: explicitPage ?? (isRefresh ? 1 : page),
         limit: 20,
         search: searchQuery || undefined,
         category: selectedCategory || undefined,
       };
 
       if (sortBy === 'price_low') {
-        params.sort = 'price';
-        params.order = 'asc';
+        params.sort_by = 'price';
+        params.sort_order = 'asc';
       } else if (sortBy === 'price_high') {
-        params.sort = 'price';
-        params.order = 'desc';
+        params.sort_by = 'price';
+        params.sort_order = 'desc';
       } else if (sortBy === 'rating') {
-        params.sort = 'rating';
-        params.order = 'desc';
+        params.sort_by = 'rating';
+        params.sort_order = 'desc';
+      } else if (sortBy === 'newest') {
+        params.sort_by = 'created_at';
+        params.sort_order = 'desc';
       }
 
       const response = await productsAPI.getAll(params);
@@ -94,7 +100,7 @@ export default function ProductsScreen({ navigation, route }: any) {
         setProducts(prev => page === 1 ? items : [...prev, ...items]);
       }
 
-      setHasMore(!!response.next);
+      setHasMore(Array.isArray(items) && items.length >= 20);
     } catch (error) {
       console.error('Failed to load products:', error);
     } finally {
@@ -103,10 +109,15 @@ export default function ProductsScreen({ navigation, route }: any) {
     }
   };
 
+  useEffect(() => {
+    if (page > 1) {
+      loadProducts();
+    }
+  }, [page]);
+
   const loadMore = () => {
     if (!loading && hasMore) {
       setPage(prev => prev + 1);
-      loadProducts();
     }
   };
 
@@ -115,11 +126,17 @@ export default function ProductsScreen({ navigation, route }: any) {
       style={styles.productCard}
       onPress={() => navigation.navigate('ProductDetail', { slug: item.slug })}
     >
-      <Image
-        source={{ uri: item.images?.[0]?.image || 'https://via.placeholder.com/150' }}
-        style={styles.productImage}
-        resizeMode="cover"
-      />
+      {(item.primary_image || item.images?.[0]?.url) ? (
+        <Image
+          source={{ uri: item.primary_image || item.images?.[0]?.url }}
+          style={styles.productImage}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[styles.productImage, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Icon name="image-outline" size={32} color="#d1d5db" />
+        </View>
+      )}
       {item.compare_at_price && item.compare_at_price > item.price && (
         <View style={styles.discountBadge}>
           <Text style={styles.discountText}>
@@ -132,15 +149,15 @@ export default function ProductsScreen({ navigation, route }: any) {
           {item.name}
         </Text>
         <View style={styles.priceRow}>
-          <Text style={styles.price}>${item.price}</Text>
+          <Text style={styles.price}>{formatPrice(Number(item.price))}</Text>
           {item.compare_at_price && (
-            <Text style={styles.comparePrice}>${item.compare_at_price}</Text>
+            <Text style={styles.comparePrice}>{formatPrice(Number(item.compare_at_price))}</Text>
           )}
         </View>
         <View style={styles.ratingRow}>
           <Icon name="star" size={14} color="#f59e0b" />
           <Text style={styles.rating}>
-            {item.average_rating?.toFixed(1) || '0.0'} ({item.review_count || 0})
+            {item.rating?.toFixed(1) || '0.0'} ({item.review_count || 0})
           </Text>
         </View>
       </View>

@@ -674,9 +674,8 @@ const countryToCurrency: Record<string, string> = {
   AT: 'EUR', IE: 'EUR', PT: 'EUR', GR: 'EUR', FI: 'EUR',
 }
 
-// Exchange rates (base: GBP) - approximate rates for demo purposes
-// In production, these would be fetched from an API like exchangerate-api.com
-export const exchangeRates: Record<string, number> = {
+// Fallback exchange rates (base: GBP) - used when live API is unreachable
+const FALLBACK_RATES: Record<string, number> = {
   GBP: 1,
   USD: 1.27,
   EUR: 1.17,
@@ -703,6 +702,9 @@ export const exchangeRates: Record<string, number> = {
   PKR: 354,
 }
 
+// Legacy export for backward compatibility - reads live rates from store when available
+export const exchangeRates: Record<string, number> = { ...FALLBACK_RATES }
+
 // Convert price from GBP to target currency
 export const convertPrice = (priceInGBP: number, targetCurrency: string): number => {
   const rate = exchangeRates[targetCurrency] || 1
@@ -712,11 +714,13 @@ export const convertPrice = (priceInGBP: number, targetCurrency: string): number
 interface CurrencyState {
   currency: Currency
   country: string | null
+  exchangeRates: Record<string, number>
   isLoading: boolean
   isHydrated: boolean
   setCurrency: (currencyCode: string) => void
   setCountry: (country: string) => void
   detectCountry: () => Promise<void>
+  fetchExchangeRates: () => Promise<void>
   convertAndFormat: (priceInGBP: number) => string
   formatBasePrice: (priceInGBP: number) => string
   setHydrated: () => void
@@ -727,6 +731,7 @@ export const useCurrencyStore = create<CurrencyState>()(
     (set, get) => ({
       currency: currencies[0], // Default to GBP
       country: null,
+      exchangeRates: { ...FALLBACK_RATES },
       isLoading: false,
       isHydrated: false,
       setHydrated: () => set({ isHydrated: true }),
@@ -763,6 +768,25 @@ export const useCurrencyStore = create<CurrencyState>()(
           set({ isLoading: false })
         }
       },
+      fetchExchangeRates: async () => {
+        try {
+          const res = await fetch('https://api.exchangerate-api.com/v4/latest/GBP', {
+            signal: AbortSignal.timeout(5000),
+          })
+          const data = await res.json()
+          if (data?.rates) {
+            const updated: Record<string, number> = { GBP: 1 }
+            for (const code of Object.keys(FALLBACK_RATES)) {
+              if (data.rates[code]) updated[code] = data.rates[code]
+            }
+            set({ exchangeRates: updated })
+            // Also update the legacy exported object for backward compatibility
+            Object.assign(exchangeRates, updated)
+          }
+        } catch {
+          // Keep fallback rates
+        }
+      },
       // Format price in base currency (GBP) - safe for SSR
       formatBasePrice: (priceInGBP: number) => {
         return new Intl.NumberFormat('en-GB', {
@@ -773,9 +797,9 @@ export const useCurrencyStore = create<CurrencyState>()(
         }).format(priceInGBP)
       },
       convertAndFormat: (priceInGBP: number) => {
-        const { currency } = get()
+        const { currency, exchangeRates: rates } = get()
 
-        const rate = exchangeRates[currency.code] || 1
+        const rate = rates[currency.code] || 1
         const convertedPrice = priceInGBP * rate
 
         // Format the price with the appropriate locale

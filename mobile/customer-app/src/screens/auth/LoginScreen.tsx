@@ -23,6 +23,12 @@ export default function LoginScreen({ navigation }: any) {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
     try {
       await login(email, password);
     } catch (error: any) {

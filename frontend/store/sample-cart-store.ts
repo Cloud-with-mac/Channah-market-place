@@ -128,7 +128,7 @@ export const useSampleCartStore = create<SampleCartState>()(
       },
     }),
     {
-      name: 'vendora-sample-cart',
+      name: 'channah-sample-cart',
       partialize: (state) => ({
         items: state.items,
         subtotal: state.subtotal,

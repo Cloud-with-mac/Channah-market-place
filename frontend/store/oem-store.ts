@@ -752,7 +752,7 @@ export const useOEMStore = create<OEMState>()(
       },
     }),
     {
-      name: 'vendora-oem-services',
+      name: 'channah-oem-services',
     }
   )
 )

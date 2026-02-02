@@ -191,7 +191,7 @@ export const useTeamStore = create<TeamState>()(
       },
     }),
     {
-      name: 'vendora-team',
+      name: 'channah-team',
     }
   )
 )

@@ -162,7 +162,7 @@ export const useDocumentStore = create<DocumentState>()(
       },
     }),
     {
-      name: 'vendora-documents',
+      name: 'channah-documents',
     }
   )
 )

@@ -115,16 +115,22 @@ function ChatView({ conversation, onBack }: { conversation: Conversation; onBack
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [convId, setConvId] = useState(conversation.id);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     loadMessages();
-  }, [conversation.id]);
+  }, [convId]);
 
   const loadMessages = async () => {
     try {
-      const data = await messagingAPI.getMessages(conversation.id);
-      setMessages(Array.isArray(data) ? data : data.items || []);
+      if (convId.startsWith('new-')) {
+        // New conversation — no messages yet
+        setMessages([]);
+      } else {
+        const data = await messagingAPI.getMessages(convId);
+        setMessages(Array.isArray(data) ? data : data.items || []);
+      }
     } catch (error) {
       console.error('Failed to load messages:', error);
     } finally {
@@ -140,8 +146,21 @@ function ChatView({ conversation, onBack }: { conversation: Conversation; onBack
     setSending(true);
 
     try {
-      const newMsg = await messagingAPI.sendMessage(conversation.id, content);
-      setMessages(prev => [...prev, newMsg]);
+      let newMsg;
+      if (convId.startsWith('new-')) {
+        // First message — create the conversation
+        const result = await messagingAPI.startConversation(conversation.vendor_id, content);
+        // Update local conversation ID so subsequent messages use the real ID
+        if (result.id) {
+          setConvId(result.id);
+        }
+        newMsg = result.message || result;
+      } else {
+        newMsg = await messagingAPI.sendMessage(convId, content);
+      }
+      if (newMsg) {
+        setMessages(prev => [...prev, newMsg]);
+      }
       flatListRef.current?.scrollToEnd();
     } catch (error) {
       setText(content);
@@ -229,8 +248,50 @@ function ChatView({ conversation, onBack }: { conversation: Conversation; onBack
   );
 }
 
-export default function ChatScreen({ navigation }: any) {
+export default function ChatScreen({ navigation, route }: any) {
+  const vendorId = route?.params?.vendorId;
+  const vendorName = route?.params?.vendorName;
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+  const [creatingConv, setCreatingConv] = useState(false);
+
+  useEffect(() => {
+    if (vendorId && !activeConversation && !creatingConv) {
+      openVendorConversation();
+    }
+  }, [vendorId]);
+
+  const openVendorConversation = async () => {
+    try {
+      setCreatingConv(true);
+      // Check if conversation with this vendor already exists
+      const data = await messagingAPI.getConversations();
+      const conversations = Array.isArray(data) ? data : data.items || [];
+      const existing = conversations.find((c: Conversation) => c.vendor_id === vendorId);
+      if (existing) {
+        setActiveConversation(existing);
+      } else {
+        // Create a placeholder conversation — actual creation happens on first message
+        setActiveConversation({
+          id: `new-${vendorId}`,
+          vendor_id: vendorId,
+          vendor_name: vendorName || 'Vendor',
+          unread_count: 0,
+        });
+      }
+    } catch {
+      // Fall back to conversation list
+    } finally {
+      setCreatingConv(false);
+    }
+  };
+
+  if (creatingConv) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </View>
+    );
+  }
 
   if (activeConversation) {
     return (

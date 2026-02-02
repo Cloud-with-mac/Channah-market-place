@@ -2,8 +2,8 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Terms of Service - Vendora-Market',
-  description: 'Read the terms and conditions for using Vendora-Market.',
+  title: 'Terms of Service - Channah',
+  description: 'Read the terms and conditions for using Channah.',
 }
 
 export default function TermsPage() {
@@ -18,7 +18,7 @@ export default function TermsPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">1. Agreement to Terms</h2>
           <p className="text-muted-foreground">
-            By accessing or using Vendora-Market, you agree to be bound by these Terms
+            By accessing or using Channah, you agree to be bound by these Terms
             of Service and all applicable laws and regulations. If you do not agree
             with any of these terms, you are prohibited from using or accessing this
             site. The materials contained in this website are protected by applicable
@@ -29,7 +29,7 @@ export default function TermsPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">2. Use License</h2>
           <p className="text-muted-foreground mb-4">
-            Permission is granted to temporarily access the materials on Vendora-Market
+            Permission is granted to temporarily access the materials on Channah
             for personal, non-commercial use only. This is the grant of a license, not
             a transfer of title, and under this license you may not:
           </p>
@@ -59,7 +59,7 @@ export default function TermsPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">4. Purchases and Payments</h2>
           <p className="text-muted-foreground mb-4">
-            When making a purchase on Vendora-Market:
+            When making a purchase on Channah:
           </p>
           <ul className="list-disc pl-6 text-muted-foreground space-y-1">
             <li>You agree to pay all charges at the prices in effect when incurred</li>
@@ -73,7 +73,7 @@ export default function TermsPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">5. Vendor Terms</h2>
           <p className="text-muted-foreground mb-4">
-            If you register as a vendor on Vendora-Market, you additionally agree to:
+            If you register as a vendor on Channah, you additionally agree to:
           </p>
           <ul className="list-disc pl-6 text-muted-foreground space-y-1">
             <li>Provide accurate product information and pricing</li>
@@ -107,7 +107,7 @@ export default function TermsPage() {
           <p className="text-muted-foreground">
             While we strive to provide accurate product information, we do not warrant
             that product descriptions, pricing, or other content is accurate, complete,
-            or error-free. Products are sold by independent vendors, and Vendora-Market
+            or error-free. Products are sold by independent vendors, and Channah
             is not responsible for the quality, safety, or legality of items listed.
           </p>
         </section>
@@ -127,8 +127,8 @@ export default function TermsPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">9. Disclaimer</h2>
           <p className="text-muted-foreground">
-            The materials on Vendora-Market are provided on an &apos;as is&apos; basis.
-            Vendora-Market makes no warranties, expressed or implied, and hereby disclaims
+            The materials on Channah are provided on an &apos;as is&apos; basis.
+            Channah makes no warranties, expressed or implied, and hereby disclaims
             and negates all other warranties including, without limitation, implied
             warranties or conditions of merchantability, fitness for a particular
             purpose, or non-infringement of intellectual property.
@@ -138,10 +138,10 @@ export default function TermsPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">10. Limitation of Liability</h2>
           <p className="text-muted-foreground">
-            In no event shall Vendora-Market or its suppliers be liable for any damages
+            In no event shall Channah or its suppliers be liable for any damages
             (including, without limitation, damages for loss of data or profit, or due
             to business interruption) arising out of the use or inability to use the
-            materials on Vendora-Market, even if Vendora-Market has been notified of
+            materials on Channah, even if Channah has been notified of
             the possibility of such damage.
           </p>
         </section>
@@ -171,7 +171,7 @@ export default function TermsPage() {
             If you have any questions about these Terms of Service, please contact us:
           </p>
           <ul className="list-none text-muted-foreground mt-4 space-y-1">
-            <li>Email: legal@channah-market.com</li>
+            <li>Email: legal@channah.com</li>
             <li>Address: 123 Market Street, Lagos, Nigeria</li>
           </ul>
           <p className="mt-4">

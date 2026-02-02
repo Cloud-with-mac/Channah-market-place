@@ -200,7 +200,7 @@ export const useAlertsStore = create<AlertsState>()(
       },
     }),
     {
-      name: 'vendora-alerts',
+      name: 'channah-alerts',
     }
   )
 )

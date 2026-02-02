@@ -1,9 +1,9 @@
 import axios from 'axios';
 
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:8000/api/v1';
+
 // Extract base URL without /api/v1
 const getBaseUrl = () => {
-  // Import dynamically to avoid circular dependencies
-  const API_BASE_URL = 'http://192.168.1.100:8000/api/v1';
   return API_BASE_URL.replace('/api/v1', '');
 };
 
@@ -130,7 +130,7 @@ export const testApiEndpoint = async (endpoint: string): Promise<ConnectionTestR
  * Get current API base URL for display
  */
 export const getApiBaseUrl = (): string => {
-  return 'http://192.168.1.100:8000/api/v1';
+  return API_BASE_URL;
 };
 
 /**
@@ -147,8 +147,8 @@ To connect to your backend:
 2. Start backend with:
    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-3. Update mobile/shared/api/client.ts:
-   Change API_BASE_URL to http://YOUR_IP:8000/api/v1
+3. Set EXPO_PUBLIC_API_URL in your .env file:
+   EXPO_PUBLIC_API_URL=http://YOUR_IP:8000/api/v1
 
 4. Ensure both devices are on the same Wi-Fi network
 

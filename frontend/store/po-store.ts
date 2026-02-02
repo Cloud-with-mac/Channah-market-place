@@ -164,7 +164,7 @@ export const usePOStore = create<POState>()(
       },
     }),
     {
-      name: 'vendora-purchase-orders',
+      name: 'channah-purchase-orders',
     }
   )
 )

@@ -14,13 +14,14 @@ import { useCurrencyStore, currencies, Currency } from '@/store'
 import { cn } from '@/lib/utils'
 
 export function CurrencySelector() {
-  const { currency, isLoading, setCurrency, detectCountry } = useCurrencyStore()
+  const { currency, isLoading, setCurrency, detectCountry, fetchExchangeRates } = useCurrencyStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
     detectCountry()
-  }, [detectCountry])
+    fetchExchangeRates()
+  }, [detectCountry, fetchExchangeRates])
 
   const filteredCurrencies = currencies.filter(
     (c) =>

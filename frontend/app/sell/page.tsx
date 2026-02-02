@@ -131,7 +131,7 @@ const fallbackPlans: SellerPlan[] = [
   },
 ]
 
-export default function SellOnVendoraPage() {
+export default function SellOnChannahPage() {
   const vendorPortalUrl = process.env.NEXT_PUBLIC_VENDOR_URL || 'http://localhost:5000'
   const [plans, setPlans] = React.useState<SellerPlan[]>(fallbackPlans)
   const [isLoading, setIsLoading] = React.useState(true)
@@ -167,7 +167,7 @@ export default function SellOnVendoraPage() {
               Join 10,000+ Sellers
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-display">
-              Sell on <span className="text-gradient-premium">Vendora</span>
+              Sell on <span className="text-gradient-premium">Channah</span>
             </h1>
             <p className="text-xl text-muted-foreground">
               Join our global marketplace and reach millions of customers worldwide.
@@ -194,7 +194,7 @@ export default function SellOnVendoraPage() {
       <section className="py-20">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold font-display mb-4">Why Sell on Vendora?</h2>
+            <h2 className="text-3xl font-bold font-display mb-4">Why Sell on Channah?</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               Everything you need to succeed in e-commerce, all in one platform.
             </p>
@@ -314,7 +314,7 @@ export default function SellOnVendoraPage() {
               Ready to Grow Your Business?
             </h2>
             <p className="text-white/80 text-lg">
-              Join thousands of successful sellers on Vendora and start reaching customers worldwide today.
+              Join thousands of successful sellers on Channah and start reaching customers worldwide today.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <Button size="lg" variant="secondary" asChild>

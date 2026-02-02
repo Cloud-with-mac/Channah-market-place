@@ -68,7 +68,7 @@ export const useComparisonStore = create<ComparisonState>()(
       },
     }),
     {
-      name: 'vendora-comparison',
+      name: 'channah-comparison',
     }
   )
 )

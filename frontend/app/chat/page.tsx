@@ -84,7 +84,7 @@ export default function ChatPage() {
       const welcomeMessage: Message = {
         id: 'welcome',
         role: 'assistant',
-        content: "Hello! I'm your Vendora AI shopping assistant. I can help you find products, answer questions, track orders, and provide personalized recommendations. How can I help you today?",
+        content: "Hello! I'm your Channah AI shopping assistant. I can help you find products, answer questions, track orders, and provide personalized recommendations. How can I help you today?",
         timestamp: new Date(),
         suggestions: suggestedPrompts.slice(0, 4),
       }
@@ -397,7 +397,7 @@ export default function ChatPage() {
           </div>
           <div>
             <h1 className="font-bold text-lg flex items-center gap-2">
-              {chatMode === 'ai' ? 'Vendora AI Assistant' : 'Live Support'}
+              {chatMode === 'ai' ? 'Channah AI Assistant' : 'Live Support'}
               <Badge variant="secondary" className="text-xs">
                 {chatMode === 'ai' ? (
                   <><Sparkles className="h-3 w-3 mr-1" /> AI Powered</>
@@ -648,7 +648,7 @@ export default function ChatPage() {
         </form>
         <p className="text-[10px] text-center text-muted-foreground mt-2">
           {chatMode === 'ai'
-            ? 'Vendora AI may make mistakes. Always verify important information.'
+            ? 'Channah AI may make mistakes. Always verify important information.'
             : 'You are chatting with our support team. Messages are delivered in real-time.'
           }
         </p>

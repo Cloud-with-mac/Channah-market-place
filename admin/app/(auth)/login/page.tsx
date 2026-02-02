@@ -122,7 +122,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl font-display">Admin Dashboard</CardTitle>
           <CardDescription>
-            Sign in to access the Channah Global Marketplace admin panel
+            Sign in to access the Channah admin panel
           </CardDescription>
         </CardHeader>
         <CardContent>

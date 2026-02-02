@@ -17,7 +17,7 @@ export default function GiftCardsPage() {
             <Gift className="h-3 w-3 mr-1" />
             Perfect Gift
           </Badge>
-          <h1 className="text-4xl md:text-5xl font-bold font-display mb-4">Vendora Gift Cards</h1>
+          <h1 className="text-4xl md:text-5xl font-bold font-display mb-4">Channah Gift Cards</h1>
           <p className="text-xl text-white/70 max-w-2xl mx-auto">
             Give the gift of choice. Let your loved ones shop from thousands of products worldwide.
           </p>

@@ -21,12 +21,18 @@ export default function CartPage() {
     itemCount,
     discountAmount,
     couponCode,
+    fetchCart,
     updateQuantity,
     removeItem,
     clearCart,
     applyCoupon,
     removeCoupon,
   } = useCartStore()
+
+  // Sync cart with backend on page load to avoid stale persisted data
+  React.useEffect(() => {
+    fetchCart()
+  }, [fetchCart])
 
   if (items.length === 0) {
     return (
@@ -66,28 +72,31 @@ export default function CartPage() {
       </Breadcrumb>
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="mb-8">
         <div>
           <h1 className="text-3xl font-bold font-display">Shopping Cart</h1>
           <p className="text-muted-foreground mt-1">
             {itemCount} {itemCount === 1 ? 'item' : 'items'} in your cart
           </p>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground hover:text-destructive"
-          onClick={clearCart}
-        >
-          <Trash2 className="h-4 w-4 mr-2" />
-          Clear Cart
-        </Button>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Cart Items */}
         <div className="lg:col-span-2">
           <Card>
+            <div className="flex items-center justify-between px-6 py-3 border-b">
+              <span className="text-sm text-muted-foreground">{itemCount} {itemCount === 1 ? 'item' : 'items'}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => clearCart()}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Clear All
+              </Button>
+            </div>
             <CardContent className="p-0">
               <div className="divide-y">
                 {items.map((item, index) => (

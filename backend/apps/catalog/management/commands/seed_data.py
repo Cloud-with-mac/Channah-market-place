@@ -1,5 +1,5 @@
 """
-Management command to seed the database with sample data for Channah-Market.
+Management command to seed the database with sample data for Channah.
 """
 from django.core.management.base import BaseCommand
 from django.utils.text import slugify
@@ -194,14 +194,14 @@ class Command(BaseCommand):
 
     def create_vendors(self):
         vendors_data = [
-            {'business_name': 'TechHub Store', 'slug': 'techhub-store', 'description': 'Your one-stop shop for all electronics and gadgets.', 'email': 'vendor1@channah-market.com', 'city': 'Lagos', 'country': 'Nigeria'},
-            {'business_name': 'Fashion Forward', 'slug': 'fashion-forward', 'description': 'Trendy clothing and accessories for the modern shopper.', 'email': 'vendor2@channah-market.com', 'city': 'Abuja', 'country': 'Nigeria'},
-            {'business_name': 'Home Essentials', 'slug': 'home-essentials', 'description': 'Quality home goods at affordable prices.', 'email': 'vendor3@channah-market.com', 'city': 'Port Harcourt', 'country': 'Nigeria'},
-            {'business_name': 'Beauty Glow', 'slug': 'beauty-glow', 'description': 'Premium beauty and skincare products.', 'email': 'vendor4@channah-market.com', 'city': 'Ibadan', 'country': 'Nigeria'},
-            {'business_name': 'Sports Elite', 'slug': 'sports-elite', 'description': 'Everything for sports enthusiasts.', 'email': 'vendor5@channah-market.com', 'city': 'Kano', 'country': 'Nigeria'},
-            {'business_name': 'Gadget World', 'slug': 'gadget-world', 'description': 'Innovative gadgets and accessories.', 'email': 'vendor6@channah-market.com', 'city': 'Enugu', 'country': 'Nigeria'},
-            {'business_name': 'Style Hub', 'slug': 'style-hub', 'description': 'Fashion-forward styles for everyone.', 'email': 'vendor7@channah-market.com', 'city': 'Benin City', 'country': 'Nigeria'},
-            {'business_name': 'Kids Paradise', 'slug': 'kids-paradise', 'description': 'Everything your children need.', 'email': 'vendor8@channah-market.com', 'city': 'Calabar', 'country': 'Nigeria'},
+            {'business_name': 'TechHub Store', 'slug': 'techhub-store', 'description': 'Your one-stop shop for all electronics and gadgets.', 'email': 'vendor1@channah.com', 'city': 'Lagos', 'country': 'Nigeria'},
+            {'business_name': 'Fashion Forward', 'slug': 'fashion-forward', 'description': 'Trendy clothing and accessories for the modern shopper.', 'email': 'vendor2@channah.com', 'city': 'Abuja', 'country': 'Nigeria'},
+            {'business_name': 'Home Essentials', 'slug': 'home-essentials', 'description': 'Quality home goods at affordable prices.', 'email': 'vendor3@channah.com', 'city': 'Port Harcourt', 'country': 'Nigeria'},
+            {'business_name': 'Beauty Glow', 'slug': 'beauty-glow', 'description': 'Premium beauty and skincare products.', 'email': 'vendor4@channah.com', 'city': 'Ibadan', 'country': 'Nigeria'},
+            {'business_name': 'Sports Elite', 'slug': 'sports-elite', 'description': 'Everything for sports enthusiasts.', 'email': 'vendor5@channah.com', 'city': 'Kano', 'country': 'Nigeria'},
+            {'business_name': 'Gadget World', 'slug': 'gadget-world', 'description': 'Innovative gadgets and accessories.', 'email': 'vendor6@channah.com', 'city': 'Enugu', 'country': 'Nigeria'},
+            {'business_name': 'Style Hub', 'slug': 'style-hub', 'description': 'Fashion-forward styles for everyone.', 'email': 'vendor7@channah.com', 'city': 'Benin City', 'country': 'Nigeria'},
+            {'business_name': 'Kids Paradise', 'slug': 'kids-paradise', 'description': 'Everything your children need.', 'email': 'vendor8@channah.com', 'city': 'Calabar', 'country': 'Nigeria'},
         ]
 
         created_vendors = []

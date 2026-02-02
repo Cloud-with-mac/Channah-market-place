@@ -45,7 +45,7 @@ export function RelatedProducts({
           // Try AI recommendations first
           try {
             response = await aiAPI.getRecommendations(productId, categoryId, 4)
-            if (response.data?.products?.length > 0) {
+            if (response?.products?.length > 0) {
               setIsAIPowered(true)
             }
           } catch {
@@ -53,7 +53,7 @@ export function RelatedProducts({
           }
         }
 
-        if (!response?.data?.products?.length) {
+        if (!response?.products?.length) {
           // Fallback to category-based related products
           response = await productsAPI.getAll({
             category: categoryId,
@@ -62,7 +62,7 @@ export function RelatedProducts({
           })
         }
 
-        const data = response?.data?.products || response?.data?.results || response?.data || []
+        const data = response?.products || response?.results || response || []
 
         const transformedProducts = data.map((p: any) => ({
           id: p.id,
@@ -77,7 +77,7 @@ export function RelatedProducts({
             'https://images.unsplash.com/photo-1560393464-5c69a73c5770?w=400&h=400&fit=crop',
           rating: p.rating || 4.0,
           reviewCount: p.review_count || 0,
-          vendorName: p.vendor?.business_name || p.vendor_name || 'Vendora Vendor',
+          vendorName: p.vendor?.business_name || p.vendor_name || 'Channah Vendor',
         }))
 
         setProducts(transformedProducts)

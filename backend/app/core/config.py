@@ -87,7 +87,7 @@ class Settings(BaseSettings):
     SMTP_PORT: int = 587
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
-    FROM_EMAIL: str = "noreply@markethub.com"
+    FROM_EMAIL: str = "noreply@channah.com"
 
     # Platform Settings
     PLATFORM_COMMISSION_PERCENT: float = 10.0

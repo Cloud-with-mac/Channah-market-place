@@ -75,7 +75,7 @@ export default function VendorRegisterPage() {
     setError(null)
 
     try {
-      // Register as vendor
+      // Register as vendor via standalone signup endpoint
       const response = await authAPI.registerVendor({
         first_name: data.first_name,
         last_name: data.last_name,
@@ -85,11 +85,34 @@ export default function VendorRegisterPage() {
         phone: data.phone,
       })
 
+      // Auto-login: store tokens and user info
+      if (response.access_token) {
+        localStorage.setItem('vendor_access_token', response.access_token)
+        localStorage.setItem('vendor_refresh_token', response.refresh_token)
+
+        login(response.access_token, {
+          id: response.user.id,
+          email: response.user.email,
+          first_name: response.user.first_name,
+          last_name: response.user.last_name,
+          role: 'vendor',
+          is_active: true,
+          created_at: new Date().toISOString(),
+          vendor_profile: {
+            id: response.user.vendor_id,
+            business_name: data.business_name,
+            status: response.user.vendor_status || 'pending',
+            rating: 0,
+            total_sales: 0,
+          },
+        })
+      }
+
       setSuccess(true)
 
-      // Auto-login after successful registration
+      // Redirect to dashboard after brief delay
       setTimeout(() => {
-        router.push('/login')
+        router.push('/')
       }, 2000)
     } catch (err: any) {
       console.error('Registration error:', err)
@@ -128,10 +151,11 @@ export default function VendorRegisterPage() {
             </div>
             <h2 className="text-2xl font-bold mb-2">Registration Successful!</h2>
             <p className="text-muted-foreground mb-4">
-              Your vendor account has been created. You can now sign in to your dashboard.
+              Your vendor account has been created. Your account is pending admin approval.
+              You can start setting up your store while you wait.
             </p>
             <Button asChild className="w-full">
-              <Link href="/login">Go to Login</Link>
+              <Link href="/">Go to Dashboard</Link>
             </Button>
           </CardContent>
         </Card>

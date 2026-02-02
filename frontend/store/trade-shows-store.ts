@@ -1,4 +1,4 @@
-﻿import { create } from 'zustand'
+import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 // ============================================================================
@@ -707,7 +707,7 @@ export const useTradeShowsStore = create<TradeShowsState>()(
       },
     }),
     {
-      name: 'vendora-trade-shows',
+      name: 'channah-trade-shows',
     }
   )
 )

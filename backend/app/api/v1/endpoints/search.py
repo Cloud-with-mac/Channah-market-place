@@ -60,7 +60,6 @@ async def global_search(
             or_(
                 Product.name.ilike(search_term),
                 Product.description.ilike(search_term),
-                Product.tags.any(q.lower())
             )
         )
         .options(selectinload(Product.images))

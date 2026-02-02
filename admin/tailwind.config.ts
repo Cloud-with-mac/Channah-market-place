@@ -64,7 +64,7 @@ const config: Config = {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))',
         },
-        // Channah-Market brand colors (SophieX Dark Theme)
+        // Channah brand colors (SophieX Dark Theme)
         gold: {
           DEFAULT: 'hsl(var(--gold))',
           light: 'hsl(var(--gold-light))',

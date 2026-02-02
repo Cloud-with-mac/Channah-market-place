@@ -789,7 +789,7 @@ export const useRecommendationsStore = create<RecommendationsState>()(
       },
     }),
     {
-      name: 'vendora-recommendations',
+      name: 'channah-recommendations',
       partialize: (state) => ({
         viewedProducts: state.viewedProducts,
         purchaseHistory: state.purchaseHistory,

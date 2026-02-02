@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import Image from 'next/image'
+import { useEffect, useState, useMemo } from 'react'
 import {
   ArrowRight,
   Truck,
@@ -11,8 +12,8 @@ import {
   Sparkles,
   Star,
   ChevronRight,
+  ChevronLeft,
   Zap,
-  Timer,
   Package,
   Laptop,
   Shirt,
@@ -22,15 +23,19 @@ import {
   Monitor,
   Smartphone,
   Watch,
+  Search,
+  Grid3X3,
+  LayoutGrid,
+  Loader2,
+  ShoppingBag,
+  TrendingUp,
+  Eye,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ProductCard } from '@/components/product/product-card'
-import { CategoryCard } from '@/components/category/category-card'
-import { CountdownTimer } from '@/components/deals'
-import { productsAPI, categoriesAPI } from '@/lib/api'
-import { AnimatedSection } from '@/components/ui/animated-section'
+import { productsAPI, categoriesAPI, bannersAPI } from '@/lib/api'
 
 interface Product {
   id: string
@@ -43,6 +48,7 @@ interface Product {
   review_count: number
   vendor?: { business_name: string }
   primary_image?: string
+  category?: { name: string; slug: string }
 }
 
 interface Category {
@@ -51,615 +57,560 @@ interface Category {
   slug: string
   image_url?: string
   product_count?: number
+  children?: Category[]
 }
+
+const categoryIcons: Record<string, any> = {
+  'electronics': Laptop,
+  'fashion': Shirt,
+  'home-garden': Home,
+  'sports-outdoors': Trophy,
+  'baby-kids': Baby,
+  'computers-tablets': Monitor,
+  'phones-accessories': Smartphone,
+  'jewelry-watches': Watch,
+}
+
+const PRODUCTS_PER_PAGE = 60
+
+const DEFAULT_BANNERS = [
+  { title: 'Trade Assurance', subtitle: 'Built-in order protection service for every purchase', color_from: '#2563eb', color_to: '#4338ca', link_url: '/products', icon: '' },
+  { title: 'New Arrivals Weekly', subtitle: 'Fresh products from verified suppliers around the world', color_from: '#059669', color_to: '#0f766e', link_url: '/products', icon: '' },
+  { title: 'Bulk Discounts Available', subtitle: 'Save more when you buy in volume from trusted vendors', color_from: '#f97316', color_to: '#dc2626', link_url: '/products', icon: '' },
+]
 
 const features = [
-  { icon: Truck, title: 'Free Worldwide Delivery', description: 'On orders over $50' },
-  { icon: Shield, title: 'Secure Payment', description: '100% protected' },
-  { icon: Headphones, title: '24/7 Support', description: 'Always here to help' },
-  { icon: CreditCard, title: 'Easy Returns', description: '30-day policy' },
-]
-
-
-function ProductSkeleton() {
-  return (
-    <div className="space-y-3">
-      <Skeleton className="aspect-square w-full rounded-lg" />
-      <Skeleton className="h-4 w-3/4" />
-      <Skeleton className="h-4 w-1/2" />
-      <Skeleton className="h-6 w-1/3" />
-    </div>
-  )
-}
-
-// Hero Image Carousel
-const heroImages = [
-  { url: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800&h=800&fit=crop', alt: 'Shopping' },
-  { url: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&h=800&fit=crop', alt: 'Fashion' },
-  { url: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=800&fit=crop', alt: 'Store' },
-]
-
-function HeroImageCarousel() {
-  const [currentIndex, setCurrentIndex] = useState(0)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % heroImages.length)
-    }, 4000)
-    return () => clearInterval(interval)
-  }, [])
-
-  return (
-    <div className="absolute inset-0 flex items-center justify-center">
-      <div className="relative w-80 h-80 md:w-[400px] md:h-[400px] lg:w-[480px] lg:h-[480px]">
-        {heroImages.map((image, index) => (
-          <div
-            key={index}
-            className={`absolute inset-0 transition-all duration-1000 ease-in-out ${
-              index === currentIndex ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
-            }`}
-          >
-            <div className="relative w-full h-full rounded-3xl overflow-hidden border-4 border-cyan/30 shadow-2xl">
-              <img src={image.url} alt={image.alt} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-navy/60 via-transparent to-transparent" />
-            </div>
-          </div>
-        ))}
-        <div className="absolute -bottom-4 -right-4 h-full w-full rounded-3xl bg-cyan/20 -z-10 transform rotate-6" />
-      </div>
-    </div>
-  )
-}
-
-function EmptyState({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
-      <Package className="h-16 w-16 text-muted-foreground/50 mb-4" />
-      <h3 className="text-lg font-semibold mb-2">{title}</h3>
-      <p className="text-muted-foreground mb-4">{description}</p>
-      <Button variant="outline" asChild>
-        <Link href="/sell">Become a Seller</Link>
-      </Button>
-    </div>
-  )
-}
-
-// Category sections configuration
-const categorySections = [
-  { slug: 'electronics', name: 'Electronics', subtitle: 'Latest gadgets and devices', icon: Laptop, color: 'cyan' },
-  { slug: 'fashion', name: 'Fashion', subtitle: 'Trending styles and accessories', icon: Shirt, color: 'pink' },
-  { slug: 'home-garden', name: 'Home & Garden', subtitle: 'Everything for your home', icon: Home, color: 'green' },
-  { slug: 'sports-outdoors', name: 'Sports & Outdoors', subtitle: 'Gear up for adventure', icon: Trophy, color: 'amber' },
-  { slug: 'baby-kids', name: 'Baby & Kids', subtitle: 'Everything for little ones', icon: Baby, color: 'sky' },
-  { slug: 'computers-tablets', name: 'Computers & Tablets', subtitle: 'Computing power for everyone', icon: Monitor, color: 'indigo' },
-  { slug: 'phones-accessories', name: 'Phones & Accessories', subtitle: 'Stay connected in style', icon: Smartphone, color: 'violet' },
-  { slug: 'jewelry-watches', name: 'Jewelry & Watches', subtitle: 'Elegant timepieces and accessories', icon: Watch, color: 'yellow' },
+  { icon: Truck, title: 'Fast Delivery', desc: 'Worldwide shipping' },
+  { icon: Shield, title: 'Trade Assurance', desc: 'Buyer protection' },
+  { icon: Headphones, title: '24/7 Support', desc: 'Always available' },
+  { icon: CreditCard, title: 'Secure Pay', desc: 'Safe transactions' },
 ]
 
 export default function HomePage() {
-  const [categoryProducts, setCategoryProducts] = useState<Record<string, Product[]>>({})
+  const [allProducts, setAllProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  const [categoryLoading, setCategoryLoading] = useState(false)
+  const [activeCategory, setActiveCategory] = useState<string>('all')
+  const [visibleCount, setVisibleCount] = useState(PRODUCTS_PER_PAGE)
+  const [heroBanners, setHeroBanners] = useState<any[]>(DEFAULT_BANNERS)
+  const [bannerIndex, setBannerIndex] = useState(0)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [hoveredCategory, setHoveredCategory] = useState<string | null>(null)
 
+  // Fetch initial data (categories + all products)
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch products for each category section
-        const categoryPromises = categorySections.map(cat =>
-          productsAPI.getAll({ category: cat.slug, limit: 8 }).catch(() => [])
-        )
-
-        const [categoriesRes, ...categoryResults] = await Promise.all([
-          categoriesAPI.getFeatured(8).catch(() => []),
-          ...categoryPromises,
+        const [catsRes, productsRes, bannersRes] = await Promise.all([
+          categoriesAPI.getAll().catch(() => []),
+          productsAPI.getAll({ limit: 500, sort_by: 'created_at', sort_order: 'desc' }).catch(() => []),
+          bannersAPI.getAll().catch(() => []),
         ])
 
-        // Map products to their category slugs
-        const productsMap: Record<string, Product[]> = {}
-        categorySections.forEach((cat, index) => {
-          const res = categoryResults[index]
-          productsMap[cat.slug] = Array.isArray(res) ? res : (res?.results || res?.items || [])
-        })
+        const cats = Array.isArray(catsRes) ? catsRes : (catsRes?.results || catsRes?.items || [])
+        const prods = Array.isArray(productsRes) ? productsRes : (productsRes?.results || productsRes?.items || [])
+        const banners = Array.isArray(bannersRes) ? bannersRes : []
 
-        setCategoryProducts(productsMap)
-        setCategories(Array.isArray(categoriesRes) ? categoriesRes : (categoriesRes?.results || categoriesRes?.items || []))
+        setCategories(cats)
+        setAllProducts(prods)
+        if (banners.length > 0) setHeroBanners(banners)
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
         setLoading(false)
       }
     }
-
     fetchData()
   }, [])
 
+  // Fetch products when category changes
+  useEffect(() => {
+    async function fetchCategoryProducts() {
+      setCategoryLoading(true)
+      setVisibleCount(PRODUCTS_PER_PAGE)
+      try {
+        const params: any = { limit: 500, sort_by: 'created_at', sort_order: 'desc' }
+        if (activeCategory !== 'all') {
+          params.category = activeCategory
+        }
+        const res = await productsAPI.getAll(params).catch(() => [])
+        const prods = Array.isArray(res) ? res : (res?.results || res?.items || [])
+        setAllProducts(prods)
+      } catch (error) {
+        console.error('Error fetching category products:', error)
+      } finally {
+        setCategoryLoading(false)
+      }
+    }
+    if (!loading) {
+      fetchCategoryProducts()
+    }
+  }, [activeCategory])
+
+  // Auto-rotate banner
+  useEffect(() => {
+    if (heroBanners.length === 0) return
+    const interval = setInterval(() => {
+      setBannerIndex(i => (i + 1) % heroBanners.length)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [heroBanners])
+
+  const filteredProducts = useMemo(() => {
+    let prods = allProducts
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      prods = prods.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        p.vendor?.business_name?.toLowerCase().includes(q)
+      )
+    }
+    return prods
+  }, [allProducts, searchQuery])
+
+  const visibleProducts = filteredProducts.slice(0, visibleCount)
+  const hasMore = visibleCount < filteredProducts.length
+
+  const topCategories = categories.filter((c: any) => !c.parent_id).slice(0, 16)
+
+  const newArrivals = allProducts.slice(0, 10)
+  const topRated = [...allProducts].sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 10)
+
   return (
-    <div className="flex flex-col">
-      {/* Hero Section - Alibaba Style with Integrated Search */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-background via-background to-primary/5 border-b">
-        <div className="container relative py-12 md:py-16">
-          <div className="max-w-5xl mx-auto">
-            {/* Main Heading */}
-            <div className="text-center mb-8">
-              <Badge className="px-4 py-2 text-sm bg-primary/10 text-primary border-primary/20 mb-4">
-                <Sparkles className="mr-2 h-4 w-4" />
-                The Leading B2B Marketplace
-              </Badge>
-              <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold font-display leading-tight mb-4">
-                Find Quality Suppliers<br />
-                <span className="text-primary">Ship Worldwide</span>
-              </h1>
-              <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto">
-                Connect with verified suppliers and manufacturers. Get competitive quotes and trade assurance.
-              </p>
+    <div className="flex flex-col bg-muted/30">
+
+      {/* ═══════ HERO: Sidebar Categories + Banner ═══════ */}
+      <section className="border-b bg-background">
+        <div className="container py-4">
+          <div className="flex gap-4 h-[360px]">
+
+            {/* Left Category Sidebar */}
+            <div className="hidden lg:flex flex-col w-[240px] shrink-0 bg-card rounded-xl border overflow-hidden">
+              <div className="px-4 py-3 border-b bg-muted/50">
+                <h3 className="font-semibold text-sm flex items-center gap-2">
+                  <Grid3X3 className="h-4 w-4 text-primary" />
+                  All Categories
+                </h3>
+              </div>
+              <nav className="flex-1 overflow-y-auto py-1">
+                {loading ? (
+                  Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="px-4 py-2"><Skeleton className="h-4 w-full" /></div>
+                  ))
+                ) : topCategories.length > 0 ? (
+                  topCategories.map(cat => {
+                    const Icon = categoryIcons[cat.slug] || Package
+                    return (
+                      <Link
+                        key={cat.id}
+                        href={`/category/${cat.slug}`}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-primary/5 hover:text-primary transition-colors group"
+                        onMouseEnter={() => setHoveredCategory(cat.slug)}
+                        onMouseLeave={() => setHoveredCategory(null)}
+                      >
+                        <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <span className="flex-1 truncate">{cat.name}</span>
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
+                      </Link>
+                    )
+                  })
+                ) : (
+                  <div className="px-4 py-8 text-center text-xs text-muted-foreground">No categories</div>
+                )}
+              </nav>
             </div>
 
-            {/* Search Bar - Alibaba Style */}
-            <div className="bg-card rounded-2xl shadow-2xl border-2 border-border p-2 mb-6">
-              <div className="flex gap-2">
-                <div className="flex-1 flex items-center gap-3 px-4">
-                  <Package className="h-5 w-5 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Search for products, suppliers, or categories..."
-                    className="flex-1 bg-transparent border-0 outline-none text-foreground placeholder:text-muted-foreground py-3"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        const searchValue = (e.target as HTMLInputElement).value
-                        if (searchValue.trim()) {
-                          window.location.href = `/search?q=${encodeURIComponent(searchValue)}`
-                        }
-                      }
+            {/* Center Banner Carousel */}
+            <div className="flex-1 relative rounded-xl overflow-hidden">
+              {heroBanners.map((banner, i) => (
+                <div
+                  key={banner.id || i}
+                  style={{ background: `linear-gradient(to bottom right, ${banner.color_from || '#2563eb'}, ${banner.color_to || '#4338ca'})` }}
+                  className={`absolute inset-0 transition-opacity duration-700 flex flex-col justify-center px-8 md:px-12 ${
+                    i === bannerIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
+                >
+                  <Badge className="bg-white/20 text-white border-0 w-fit mb-4">
+                    {banner.icon ? <span className="mr-1">{banner.icon}</span> : <Sparkles className="h-3 w-3 mr-1" />}
+                    Channah
+                  </Badge>
+                  <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 font-display">
+                    {banner.title}
+                  </h1>
+                  <p className="text-white/80 text-base md:text-lg mb-6 max-w-lg">
+                    {banner.subtitle}
+                  </p>
+                  <Button size="lg" className="bg-white text-gray-900 hover:bg-white/90 w-fit font-semibold" asChild>
+                    <Link href={banner.link_url || '/products'}>
+                      Shop Now
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+              ))}
+              {/* Banner dots */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                {heroBanners.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setBannerIndex(i)}
+                    aria-label="Select banner slide"
+                    className={`w-2.5 h-2.5 rounded-full transition-all ${
+                      i === bannerIndex ? 'bg-white w-6' : 'bg-white/50'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Right Side Cards */}
+            <div className="hidden xl:flex flex-col gap-3 w-[220px] shrink-0">
+              <Link
+                href="/sell"
+                className="flex-1 rounded-xl bg-gradient-to-br from-primary to-primary/80 p-5 flex flex-col justify-between text-white hover:shadow-lg transition-shadow"
+              >
+                <ShoppingBag className="h-8 w-8 mb-2 opacity-80" />
+                <div>
+                  <p className="font-bold text-sm">Start Selling</p>
+                  <p className="text-xs text-white/70 mt-1">Join thousands of suppliers</p>
+                </div>
+              </Link>
+              <Link
+                href="/products"
+                className="flex-1 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 p-5 flex flex-col justify-between text-white hover:shadow-lg transition-shadow"
+              >
+                <Zap className="h-8 w-8 mb-2 opacity-80" />
+                <div>
+                  <p className="font-bold text-sm">Deals & Offers</p>
+                  <p className="text-xs text-white/70 mt-1">Up to 50% off on top items</p>
+                </div>
+              </Link>
+              <div className="flex-1 rounded-xl bg-card border p-5 flex flex-col justify-between">
+                <TrendingUp className="h-8 w-8 mb-2 text-primary opacity-80" />
+                <div>
+                  <p className="font-bold text-sm text-foreground">{allProducts.length}+</p>
+                  <p className="text-xs text-muted-foreground mt-1">Products available</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════ FEATURES BAR ═══════ */}
+      <section className="border-b bg-background">
+        <div className="container py-3">
+          <div className="flex items-center justify-between gap-4 overflow-x-auto">
+            {features.map(f => (
+              <div key={f.title} className="flex items-center gap-2.5 shrink-0">
+                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <f.icon className="h-4.5 w-4.5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold">{f.title}</p>
+                  <p className="text-[10px] text-muted-foreground">{f.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════ SEARCH BAR ═══════ */}
+      <section className="bg-background border-b">
+        <div className="container py-4">
+          <div className="flex items-center gap-3 max-w-3xl mx-auto">
+            <div className="flex-1 flex items-center gap-3 bg-card border-2 border-primary/30 focus-within:border-primary rounded-xl px-4 py-2.5 transition-colors">
+              <Search className="h-5 w-5 text-muted-foreground shrink-0" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search products, suppliers, categories..."
+                aria-label="Search products"
+                className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && searchQuery.trim()) {
+                    window.location.href = `/search?q=${encodeURIComponent(searchQuery)}`
+                  }
+                }}
+              />
+            </div>
+            <Button
+              className="bg-primary text-primary-foreground px-6 font-semibold shrink-0"
+              onClick={() => {
+                if (searchQuery.trim()) {
+                  window.location.href = `/search?q=${encodeURIComponent(searchQuery)}`
+                }
+              }}
+            >
+              Search
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════ CATEGORY CHIPS (mobile-friendly horizontal scroll) ═══════ */}
+      <section className="bg-background border-b sticky top-0 z-30">
+        <div className="container py-3">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <button
+              onClick={() => setActiveCategory('all')}
+              className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+                activeCategory === 'all'
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-card text-foreground border-border hover:border-primary/40'
+              }`}
+            >
+              All Products
+            </button>
+            {topCategories.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.slug)}
+                className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+                  activeCategory === cat.slug
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-card text-foreground border-border hover:border-primary/40'
+                }`}
+              >
+                {cat.name}
+                {cat.product_count ? <span className="ml-1.5 text-xs opacity-70">({cat.product_count})</span> : null}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════ NEW ARRIVALS (horizontal scroll) ═══════ */}
+      {newArrivals.length > 0 && (
+        <section className="bg-background py-6">
+          <div className="container">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-1 bg-primary rounded-full" />
+                <h2 className="text-lg md:text-xl font-bold">New Arrivals</h2>
+                <Badge variant="secondary" className="text-xs">Fresh</Badge>
+              </div>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/products?sort=newest">
+                  View All <ChevronRight className="h-4 w-4 ml-0.5" />
+                </Link>
+              </Button>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              {newArrivals.map(product => (
+                <div key={product.id} className="shrink-0 w-[180px]">
+                  <ProductCard
+                    product={{
+                      id: product.id,
+                      name: product.name,
+                      slug: product.slug,
+                      price: product.price,
+                      compareAtPrice: product.compare_at_price,
+                      image: product.primary_image || product.images?.[0]?.url || '',
+                      rating: product.rating,
+                      reviewCount: product.review_count,
+                      vendorName: product.vendor?.business_name,
                     }}
                   />
                 </div>
-                <Button
-                  size="lg"
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 font-semibold"
-                  onClick={() => {
-                    const input = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement
-                    if (input && input.value.trim()) {
-                      window.location.href = `/search?q=${encodeURIComponent(input.value)}`
-                    }
-                  }}
-                >
-                  Search
-                </Button>
-              </div>
+              ))}
             </div>
+          </div>
+        </section>
+      )}
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-3 gap-6 max-w-2xl mx-auto">
-              <div className="text-center">
-                <p className="text-2xl md:text-3xl font-bold text-primary">{Object.values(categoryProducts).flat().length > 0 ? `${Object.values(categoryProducts).flat().length}+` : '200K+'}</p>
-                <p className="text-xs md:text-sm text-muted-foreground mt-1">Products</p>
+      {/* ═══════ TOP RATED (horizontal scroll) ═══════ */}
+      {topRated.length > 0 && (
+        <section className="bg-card/50 py-6 border-y">
+          <div className="container">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-1 bg-amber-500 rounded-full" />
+                <h2 className="text-lg md:text-xl font-bold">Top Rated</h2>
+                <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700">
+                  <Star className="h-3 w-3 mr-1 fill-amber-500 text-amber-500" />
+                  Best
+                </Badge>
               </div>
-              <div className="text-center">
-                <p className="text-2xl md:text-3xl font-bold text-primary">{categories.length > 0 ? `${categories.length * 100}+` : '5K+'}</p>
-                <p className="text-xs md:text-sm text-muted-foreground mt-1">Suppliers</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl md:text-3xl font-bold text-primary">{categories.length > 0 ? categories.length : '50+'}</p>
-                <p className="text-xs md:text-sm text-muted-foreground mt-1">Categories</p>
-              </div>
-            </div>
-
-            {/* CTA Buttons */}
-            <div className="flex flex-wrap gap-4 justify-center mt-8">
-              <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg" asChild>
-                <Link href="/products">
-                  Browse Products
-                  <ArrowRight className="ml-2 h-5 w-5" />
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/products?sort=rating">
+                  View All <ChevronRight className="h-4 w-4 ml-0.5" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" className="border-primary/30 hover:bg-primary/5" asChild>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              {topRated.map(product => (
+                <div key={`rated-${product.id}`} className="shrink-0 w-[180px]">
+                  <ProductCard
+                    product={{
+                      id: product.id,
+                      name: product.name,
+                      slug: product.slug,
+                      price: product.price,
+                      compareAtPrice: product.compare_at_price,
+                      image: product.primary_image || product.images?.[0]?.url || '',
+                      rating: product.rating,
+                      reviewCount: product.review_count,
+                      vendorName: product.vendor?.business_name,
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ═══════ MAIN PRODUCT GRID (Alibaba-style dense grid) ═══════ */}
+      <section className="py-8">
+        <div className="container">
+          {/* Section header */}
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-1 bg-primary rounded-full" />
+              <h2 className="text-lg md:text-xl font-bold">
+                {activeCategory === 'all' ? 'Recommended For You' : topCategories.find(c => c.slug === activeCategory)?.name || 'Products'}
+              </h2>
+              <span className="text-sm text-muted-foreground">
+                ({filteredProducts.length} products)
+              </span>
+            </div>
+          </div>
+
+          {/* Product Grid */}
+          {loading || categoryLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {Array.from({ length: 18 }).map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="aspect-square w-full rounded-lg" />
+                  <Skeleton className="h-3 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-4 w-1/3" />
+                </div>
+              ))}
+            </div>
+          ) : visibleProducts.length > 0 ? (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                {visibleProducts.map(product => (
+                  <ProductCard
+                    key={product.id}
+                    product={{
+                      id: product.id,
+                      name: product.name,
+                      slug: product.slug,
+                      price: product.price,
+                      compareAtPrice: product.compare_at_price,
+                      image: product.primary_image || product.images?.[0]?.url || '',
+                      rating: product.rating,
+                      reviewCount: product.review_count,
+                      vendorName: product.vendor?.business_name,
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Load More */}
+              {hasMore && (
+                <div className="flex justify-center mt-8">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="px-12"
+                    onClick={() => setVisibleCount(v => v + PRODUCTS_PER_PAGE)}
+                  >
+                    Load More Products
+                    <span className="ml-2 text-sm text-muted-foreground">
+                      (showing {visibleProducts.length} of {filteredProducts.length})
+                    </span>
+                  </Button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <Package className="h-16 w-16 text-muted-foreground/40 mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No products found</h3>
+              <p className="text-muted-foreground mb-4 text-sm">
+                {searchQuery ? 'Try a different search term' : 'Products will appear here when suppliers add them'}
+              </p>
+              <Button variant="outline" asChild>
                 <Link href="/sell">Become a Supplier</Link>
               </Button>
             </div>
-          </div>
+          )}
         </div>
       </section>
 
-      {/* Features */}
-      <AnimatedSection delay={0}>
-      <section className="py-12 border-b border-border bg-card/30">
-        <div className="container">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {features.map((feature) => (
-              <div
-                key={feature.title}
-                className="group flex items-center gap-3 p-4 rounded-xl bg-background hover:bg-primary/5 border border-border hover:border-primary/30 transition-all duration-300"
-              >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                  <feature.icon className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm">{feature.title}</h3>
-                  <p className="text-xs text-muted-foreground">{feature.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      </AnimatedSection>
-
-      {/* Categories - Alibaba Grid Style */}
-      <AnimatedSection delay={0.1}>
-      <section className="py-12 bg-background">
-        <div className="container">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold font-display">Shop by Category</h2>
-              <p className="text-sm text-muted-foreground mt-1">Browse millions of products from verified suppliers</p>
+      {/* ═══════ CATEGORY BROWSE GRID ═══════ */}
+      {topCategories.length > 0 && (
+        <section className="py-8 bg-background border-t">
+          <div className="container">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="h-8 w-1 bg-primary rounded-full" />
+              <h2 className="text-lg md:text-xl font-bold">Browse Categories</h2>
             </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/categories">
-                View All
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-          <div className="bg-card border border-border rounded-xl p-6">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
-              {loading ? (
-                Array.from({ length: 8 }).map((_, i) => (
-                  <Skeleton key={i} className="h-24 rounded-lg" />
-                ))
-              ) : categories.length > 0 ? (
-                categories.slice(0, 8).map((category) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+              {topCategories.map(cat => {
+                const Icon = categoryIcons[cat.slug] || Package
+                return (
                   <Link
-                    key={category.id}
-                    href={`/category/${category.slug}`}
-                    className="group flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-primary/5 border border-transparent hover:border-primary/20 transition-all"
+                    key={cat.id}
+                    href={`/category/${cat.slug}`}
+                    className="group flex flex-col items-center gap-2.5 p-4 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-md transition-all"
                   >
-                    <div className="relative h-12 w-12 rounded-full bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center">
-                      {category.image_url ? (
-                        <img
-                          src={category.image_url}
-                          alt={category.name}
-                          className="h-8 w-8 object-contain"
-                        />
+                    <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      {cat.image_url ? (
+                        <Image src={cat.image_url} alt={cat.name} width={28} height={28} className="h-7 w-7 object-contain" />
                       ) : (
-                        <Package className="h-6 w-6 text-primary" />
+                        <Icon className="h-6 w-6 text-primary" />
                       )}
                     </div>
-                    <div className="text-center">
-                      <p className="text-xs font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2">
-                        {category.name}
-                      </p>
-                    </div>
+                    <p className="text-xs font-medium text-center line-clamp-2 group-hover:text-primary transition-colors">
+                      {cat.name}
+                    </p>
+                    {cat.product_count ? (
+                      <span className="text-[10px] text-muted-foreground">{cat.product_count} items</span>
+                    ) : null}
                   </Link>
-                ))
-              ) : (
-                <div className="col-span-full text-center py-8 text-muted-foreground">
-                  <p className="text-sm">No categories available</p>
-                </div>
-              )}
+                )
+              })}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      </AnimatedSection>
-
-      {/* Featured Suppliers - Alibaba Style */}
-      <AnimatedSection delay={0.2}>
-      <section className="py-12 bg-card/30">
+      {/* ═══════ SUPPLIER CTA ═══════ */}
+      <section className="py-12 bg-background border-t">
         <div className="container">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold font-display">Featured Suppliers</h2>
-              <p className="text-sm text-muted-foreground mt-1">Connect with verified manufacturers and wholesalers</p>
-            </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/vendors">
-                View All Suppliers
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {([] as Array<{ name: string; rating: number; products: number; location: string; verified: boolean }>).map((supplier, index) => (
-              <Link
-                key={index}
-                href="/vendors"
-                className="group bg-background border border-border rounded-xl p-4 hover:shadow-lg hover:border-primary/30 transition-all"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0">
-                    <span className="text-lg font-bold text-primary">
-                      {supplier.name.charAt(0)}
-                    </span>
-                  </div>
-                  {supplier.verified && (
-                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-primary/30 text-primary">
-                      <Shield className="h-2.5 w-2.5 mr-1" />
-                      Verified
-                    </Badge>
-                  )}
-                </div>
-                <h3 className="font-semibold text-sm mb-2 line-clamp-1 group-hover:text-primary transition-colors">
-                  {supplier.name}
-                </h3>
-                <div className="flex items-center gap-1 mb-2">
-                  <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                  <span className="text-sm font-medium">{supplier.rating}</span>
-                  <span className="text-xs text-muted-foreground ml-1">({supplier.products} products)</span>
-                </div>
-                <p className="text-xs text-muted-foreground">{supplier.location}</p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      </AnimatedSection>
-
-      {/* Flash Sale Section */}
-      <AnimatedSection delay={0}>
-      <section className="py-12">
-        <div className="container">
-          <div className="relative rounded-2xl bg-gradient-to-br from-primary to-primary/80 overflow-hidden p-8 md:p-12">
+          <div className="relative rounded-2xl bg-gradient-to-br from-primary via-primary to-indigo-700 p-8 md:p-12 text-white overflow-hidden">
             <div className="absolute top-0 right-0 h-64 w-64 bg-white/10 rounded-full blur-3xl" />
-            <div className="relative max-w-xl">
-              <Badge className="bg-white/20 text-white border-0 mb-4">
-                <Zap className="h-3 w-3 mr-1" />
-                Flash Sale
-              </Badge>
-              <h2 className="text-3xl md:text-5xl font-bold font-display text-white mb-4">
-                Up to 50% Off
-              </h2>
-              <p className="text-white/90 mb-6 text-lg">
-                Amazing deals on selected products! Limited time offer.
-              </p>
-
-              <div className="mb-8">
-                <div className="flex items-center gap-2 mb-3">
-                  <Timer className="h-5 w-5 text-white" />
-                  <span className="text-white font-medium">Sale ends in:</span>
-                </div>
-                <CountdownTimer
-                  endDate={new Date(Date.now() + 24 * 60 * 60 * 1000)}
-                  size="lg"
-                  className="[&_div]:bg-white/20 [&_div]:text-white [&_span]:text-white/60"
-                />
-              </div>
-
-              <Button size="lg" className="bg-white text-primary hover:bg-white/90 font-bold shadow-lg" asChild>
-                <Link href="/deals">
-                  Shop Now
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      </AnimatedSection>
-
-      {/* Electronics */}
-      <AnimatedSection delay={0.1}>
-      <section className="py-12 bg-background">
-        <div className="container">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Laptop className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-xl md:text-2xl font-bold font-display">Electronics & Technology</h2>
-                <p className="text-xs text-muted-foreground">Latest gadgets from verified suppliers</p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/category/electronics">
-                View All
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {loading ? (
-              Array.from({ length: 5 }).map((_, i) => <ProductSkeleton key={i} />)
-            ) : (categoryProducts['electronics'] || []).length > 0 ? (
-              (categoryProducts['electronics'] || []).slice(0, 10).map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={{
-                    id: product.id,
-                    name: product.name,
-                    slug: product.slug,
-                    price: product.price,
-                    compareAtPrice: product.compare_at_price,
-                    image: product.primary_image || product.images?.[0]?.url || '',
-                    rating: product.rating,
-                    reviewCount: product.review_count,
-                    vendorName: product.vendor?.business_name,
-                  }}
-                />
-              ))
-            ) : (
-              <EmptyState
-                title="No electronics yet"
-                description="Electronics products will appear here when suppliers add them."
-              />
-            )}
-          </div>
-        </div>
-      </section>
-
-      </AnimatedSection>
-
-      {/* Request for Quotation Banner - B2B Feature */}
-      <AnimatedSection delay={0}>
-      <section className="py-12 bg-card/30">
-        <div className="container">
-          <div className="relative rounded-2xl bg-gradient-to-br from-primary via-primary to-accent p-8 md:p-10 text-white overflow-hidden">
-            <div className="absolute top-0 right-0 h-48 w-48 bg-white/10 rounded-full blur-3xl" />
             <div className="absolute bottom-0 left-0 h-48 w-48 bg-white/10 rounded-full blur-3xl" />
             <div className="relative z-10 max-w-2xl mx-auto text-center">
-              <Badge className="bg-white/20 text-white backdrop-blur-sm border-0 mb-4">
-                <Sparkles className="mr-2 h-3.5 w-3.5" />
-                B2B Trade Services
-              </Badge>
-              <h3 className="text-2xl md:text-4xl font-bold font-display mb-4">
-                Request Quotes from Multiple Suppliers
+              <h3 className="text-2xl md:text-3xl font-bold font-display mb-3">
+                Start Selling on Channah
               </h3>
-              <p className="text-white/90 mb-6 text-base md:text-lg">
-                Tell us what you need. Get quotes from verified suppliers. Compare and choose the best deal.
+              <p className="text-white/80 mb-6 text-base">
+                Reach millions of buyers worldwide. Get verified and grow your business.
               </p>
-              <div className="flex flex-wrap gap-4 justify-center">
-                <Button size="lg" className="bg-white text-primary hover:bg-white/90 font-semibold shadow-xl" asChild>
-                  <Link href="/products">
-                    Request Quote
+              <div className="flex gap-4 justify-center flex-wrap">
+                <Button size="lg" className="bg-white text-primary hover:bg-white/90 font-semibold" asChild>
+                  <Link href="/sell">
+                    Become a Supplier
+                    <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10" asChild>
-                  <Link href="/vendors">Find Suppliers</Link>
+                  <Link href="/vendors">Browse Suppliers</Link>
                 </Button>
               </div>
             </div>
           </div>
         </div>
       </section>
-
-      </AnimatedSection>
-
-      {/* Fashion */}
-      <AnimatedSection delay={0.1}>
-      <section className="py-12 bg-card/30">
-        <div className="container">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-pink-500/10 flex items-center justify-center">
-                <Shirt className="h-5 w-5 text-pink-500" />
-              </div>
-              <div>
-                <h2 className="text-xl md:text-2xl font-bold font-display">Fashion & Apparel</h2>
-                <p className="text-xs text-muted-foreground">Trending styles from fashion suppliers</p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/category/fashion">
-                View All
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {loading ? (
-              Array.from({ length: 5 }).map((_, i) => <ProductSkeleton key={i} />)
-            ) : (categoryProducts['fashion'] || []).length > 0 ? (
-              (categoryProducts['fashion'] || []).slice(0, 10).map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={{
-                    id: product.id,
-                    name: product.name,
-                    slug: product.slug,
-                    price: product.price,
-                    compareAtPrice: product.compare_at_price,
-                    image: product.primary_image || product.images?.[0]?.url || '',
-                    rating: product.rating,
-                    reviewCount: product.review_count,
-                    vendorName: product.vendor?.business_name,
-                  }}
-                />
-              ))
-            ) : (
-              <EmptyState
-                title="No fashion items yet"
-                description="Fashion products will appear here when suppliers add them."
-              />
-            )}
-          </div>
-        </div>
-      </section>
-
-      </AnimatedSection>
-
-      {/* Home & Garden */}
-      <AnimatedSection delay={0.2}>
-      <section className="py-12 bg-background">
-        <div className="container">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                <Home className="h-5 w-5 text-green-500" />
-              </div>
-              <div>
-                <h2 className="text-xl md:text-2xl font-bold font-display">Home & Garden</h2>
-                <p className="text-xs text-muted-foreground">Quality home products from manufacturers</p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/category/home-garden">
-                View All
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {loading ? (
-              Array.from({ length: 5 }).map((_, i) => <ProductSkeleton key={i} />)
-            ) : (categoryProducts['home-garden'] || []).length > 0 ? (
-              (categoryProducts['home-garden'] || []).slice(0, 10).map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={{
-                    id: product.id,
-                    name: product.name,
-                    slug: product.slug,
-                    price: product.price,
-                    compareAtPrice: product.compare_at_price,
-                    image: product.primary_image || product.images?.[0]?.url || '',
-                    rating: product.rating,
-                    reviewCount: product.review_count,
-                    vendorName: product.vendor?.business_name,
-                  }}
-                />
-              ))
-            ) : (
-              <EmptyState
-                title="No home & garden items yet"
-                description="Home & garden products will appear here when suppliers add them."
-              />
-            )}
-          </div>
-        </div>
-      </section>
-
-      </AnimatedSection>
-
-      {/* Become a Supplier CTA */}
-      <AnimatedSection delay={0}>
-      <section className="py-16 bg-background">
-        <div className="container">
-          <div className="text-center max-w-2xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-bold font-display mb-3">
-              Start Selling on Vendora
-            </h2>
-            <p className="text-base text-muted-foreground mb-6">
-              Reach millions of buyers worldwide. Get verified and start growing your business today.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg" asChild>
-                <Link href="/sell">
-                  Become a Supplier
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild>
-                <Link href="/vendors">Browse Suppliers</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-      </AnimatedSection>
     </div>
   )
 }

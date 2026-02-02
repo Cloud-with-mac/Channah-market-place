@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select'
 import { OrderList } from '@/components/account/order-list'
 import { ordersAPI } from '@/lib/api'
+import { useAuthStore } from '@/store'
 
 interface Order {
   id: string
@@ -28,7 +29,15 @@ interface Order {
 }
 
 function OrdersContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
+  const { user, isAuthenticated } = useAuthStore()
+
+  React.useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/login?redirect=/account/orders')
+    }
+  }, [isAuthenticated, router])
   const [orders, setOrders] = React.useState<Order[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -94,6 +103,14 @@ function OrdersContent() {
     fetchOrders(nextPage, true)
   }
 
+  if (!isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -112,7 +129,7 @@ function OrdersContent() {
             <SelectItem value="all">All Orders</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="processing">Processing</SelectItem>
-            <SelectItem value="shipped">Shipped to Vendora</SelectItem>
+            <SelectItem value="shipped">Shipped to Channah</SelectItem>
             <SelectItem value="delivered">Delivered</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>

@@ -1,11 +1,10 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-// Change this to your backend URL
-// For local development: use your computer's local IP address (not localhost)
-// localhost won't work on physical devices - use your machine's IP instead
-// Example: 'http://192.168.1.100:8000/api/v1'
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.39.14.63:8000/api/v1';
+// Set EXPO_PUBLIC_API_URL in your .env file to point to your backend
+// For Android emulator use 10.0.2.2, for physical devices use your machine's IP
+// WARNING: The default URL uses HTTP which is insecure. In production, always use HTTPS.
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:8000/api/v1';
 
 export interface ApiError {
   message: string;
@@ -13,9 +12,26 @@ export interface ApiError {
   errors?: Record<string, string[]>;
 }
 
+// Global auth expiry callback — set by the auth store to handle logout on token expiry
+let onAuthExpired: (() => void) | null = null;
+export const setOnAuthExpired = (callback: (() => void) | null) => {
+  onAuthExpired = callback;
+};
+
 class ApiClient {
   private client: AxiosInstance;
   private tokenPrefix: string;
+  private isRefreshing = false;
+  private refreshSubscribers: ((token: string) => void)[] = [];
+
+  private onTokenRefreshed(token: string) {
+    this.refreshSubscribers.forEach(cb => cb(token));
+    this.refreshSubscribers = [];
+  }
+
+  private addRefreshSubscriber(callback: (token: string) => void) {
+    this.refreshSubscribers.push(callback);
+  }
 
   constructor(tokenPrefix: 'customer' | 'vendor' = 'customer') {
     this.tokenPrefix = tokenPrefix;
@@ -31,9 +47,13 @@ class ApiClient {
     // Request interceptor to add auth token
     this.client.interceptors.request.use(
       async (config) => {
-        const token = await SecureStore.getItemAsync(`${this.tokenPrefix}_access_token`);
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
+        try {
+          const token = await SecureStore.getItemAsync(`${this.tokenPrefix}_access_token`);
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+        } catch {
+          // SecureStore may fail on some platforms — continue without token
         }
         return config;
       },
@@ -49,6 +69,18 @@ class ApiClient {
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
 
+          // If already refreshing, queue this request to retry after refresh completes
+          if (this.isRefreshing) {
+            return new Promise((resolve) => {
+              this.addRefreshSubscriber((newToken: string) => {
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                resolve(this.client(originalRequest));
+              });
+            });
+          }
+
+          this.isRefreshing = true;
+
           try {
             const refreshToken = await SecureStore.getItemAsync(`${this.tokenPrefix}_refresh_token`);
 
@@ -57,16 +89,33 @@ class ApiClient {
                 refresh_token: refreshToken,
               });
 
-              const { access_token } = response.data;
-              await SecureStore.setItemAsync(`${this.tokenPrefix}_access_token`, access_token);
+              const { access_token, refresh_token: newRefreshToken } = response.data;
+              if (access_token) {
+                await SecureStore.setItemAsync(`${this.tokenPrefix}_access_token`, access_token);
+              }
+              if (newRefreshToken) {
+                await SecureStore.setItemAsync(`${this.tokenPrefix}_refresh_token`, newRefreshToken);
+              }
+
+              this.isRefreshing = false;
+              this.onTokenRefreshed(access_token);
 
               originalRequest.headers.Authorization = `Bearer ${access_token}`;
               return this.client(originalRequest);
             }
           } catch (refreshError) {
+            this.isRefreshing = false;
+            this.refreshSubscribers = [];
             await this.clearTokens();
+            if (onAuthExpired) onAuthExpired();
             return Promise.reject(refreshError);
           }
+
+          // No refresh token — session expired
+          this.isRefreshing = false;
+          this.refreshSubscribers = [];
+          await this.clearTokens();
+          if (onAuthExpired) onAuthExpired();
         }
 
         return Promise.reject(this.handleError(error));
@@ -77,8 +126,14 @@ class ApiClient {
   private handleError(error: AxiosError): ApiError {
     if (error.response) {
       const data: any = error.response.data;
+      let message = data.detail || data.message || 'An error occurred';
+      if (Array.isArray(message)) {
+        message = message.map((m: any) => (typeof m === 'string' ? m : m.msg || JSON.stringify(m))).join(', ');
+      } else if (typeof message !== 'string') {
+        message = JSON.stringify(message);
+      }
       return {
-        message: data.detail || data.message || 'An error occurred',
+        message,
         statusCode: error.response.status,
         errors: data.errors,
       };

@@ -219,7 +219,7 @@ function CategoryContent() {
             image: p.primary_image || p.images?.[0]?.url || p.image || null,
             rating: p.rating || 0,
             reviewCount: p.review_count || 0,
-            vendorName: p.vendor?.business_name || p.vendor_name || 'Vendora Vendor',
+            vendorName: p.vendor?.business_name || p.vendor_name || 'Channah Vendor',
           })
         )
 

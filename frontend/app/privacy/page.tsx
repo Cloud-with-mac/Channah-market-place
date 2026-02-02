@@ -2,8 +2,8 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy - Vendora-Market',
-  description: 'Learn how Vendora-Market collects, uses, and protects your personal information.',
+  title: 'Privacy Policy - Channah',
+  description: 'Learn how Channah collects, uses, and protects your personal information.',
 }
 
 export default function PrivacyPage() {
@@ -18,7 +18,7 @@ export default function PrivacyPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">1. Introduction</h2>
           <p className="text-muted-foreground mb-4">
-            Welcome to Vendora-Market. We are committed to protecting your personal
+            Welcome to Channah. We are committed to protecting your personal
             information and your right to privacy. This Privacy Policy explains how
             we collect, use, disclose, and safeguard your information when you visit
             our website and use our services.
@@ -141,7 +141,7 @@ export default function PrivacyPage() {
             If you have any questions about this Privacy Policy, please contact us at:
           </p>
           <ul className="list-none text-muted-foreground mt-4 space-y-1">
-            <li>Email: privacy@channah-market.com</li>
+            <li>Email: privacy@channah.com</li>
             <li>Address: 123 Market Street, Lagos, Nigeria</li>
           </ul>
           <p className="mt-4">

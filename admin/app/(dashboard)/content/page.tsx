@@ -72,14 +72,18 @@ import { contentAPI, uploadAPI } from '@/lib/api'
 interface Banner {
   id: string
   title: string
+  subtitle: string
+  icon: string
+  color_from: string
+  color_to: string
   image_url: string
   link_url: string
-  position: string
   is_active: boolean
-  start_date: string
-  end_date: string
-  clicks: number
-  impressions: number
+  sort_order: number
+  countdown_end: string | null
+  countdown_label: string | null
+  created_at: string
+  updated_at: string
 }
 
 interface Promotion {
@@ -136,12 +140,16 @@ export default function ContentPage() {
   // Form states
   const [bannerForm, setBannerForm] = React.useState({
     title: '',
+    subtitle: '',
+    icon: '',
+    color_from: '#3b82f6',
+    color_to: '#1d4ed8',
     image_url: '',
     link_url: '',
-    position: 'hero',
     is_active: true,
-    start_date: '',
-    end_date: '',
+    sort_order: 0,
+    countdown_end: '',
+    countdown_label: '',
   })
 
   const [promoForm, setPromoForm] = React.useState({
@@ -179,11 +187,10 @@ export default function ContentPage() {
     try {
       setLoadingBanners(true)
       const response = await contentAPI.getBanners()
-      // Ensure we always set an array
-      setBanners(Array.isArray(response.data) ? response.data : [])
+      setBanners(Array.isArray(response) ? response : Array.isArray(response?.data) ? response.data : [])
     } catch (error) {
       console.error('Failed to fetch banners:', error)
-      setBanners([]) // Reset to empty array on error
+      setBanners([])
       toast({
         title: 'Error',
         description: 'Failed to load banners',
@@ -263,14 +270,17 @@ export default function ContentPage() {
       setEditingBanner(banner)
       setBannerForm({
         title: banner.title,
-        image_url: banner.image_url,
-        link_url: banner.link_url,
-        position: banner.position,
+        subtitle: banner.subtitle || '',
+        icon: banner.icon || '',
+        color_from: banner.color_from || '#3b82f6',
+        color_to: banner.color_to || '#1d4ed8',
+        image_url: banner.image_url || '',
+        link_url: banner.link_url || '',
         is_active: banner.is_active,
-        start_date: banner.start_date,
-        end_date: banner.end_date,
+        sort_order: banner.sort_order || 0,
+        countdown_end: banner.countdown_end ? banner.countdown_end.slice(0, 16) : '',
+        countdown_label: banner.countdown_label || '',
       })
-      // If banner has an image, set it as preview
       if (banner.image_url) {
         setPreviewUrl(banner.image_url.startsWith('/') ? `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1').replace('/api/v1', '')}${banner.image_url}` : banner.image_url)
       }
@@ -278,12 +288,16 @@ export default function ContentPage() {
       setEditingBanner(null)
       setBannerForm({
         title: '',
+        subtitle: '',
+        icon: '',
+        color_from: '#3b82f6',
+        color_to: '#1d4ed8',
         image_url: '',
         link_url: '',
-        position: 'hero',
         is_active: true,
-        start_date: '',
-        end_date: '',
+        sort_order: 0,
+        countdown_end: '',
+        countdown_label: '',
       })
     }
     setShowBannerDialog(true)
@@ -314,7 +328,12 @@ export default function ContentPage() {
         }
       }
 
-      const bannerData = { ...bannerForm, image_url: imageUrl }
+      const bannerData = {
+        ...bannerForm,
+        image_url: imageUrl,
+        countdown_end: bannerForm.countdown_end ? new Date(bannerForm.countdown_end).toISOString() : null,
+        countdown_label: bannerForm.countdown_label || null,
+      }
 
       if (editingBanner) {
         await contentAPI.updateBanner(editingBanner.id, bannerData)
@@ -340,7 +359,8 @@ export default function ContentPage() {
 
   const handleToggleBanner = async (bannerId: string) => {
     try {
-      await contentAPI.toggleBanner(bannerId)
+      const banner = banners.find(b => b.id === bannerId)
+      await contentAPI.toggleBanner(bannerId, !banner?.is_active)
       setBanners(banners.map(b =>
         b.id === bannerId ? { ...b, is_active: !b.is_active } : b
       ))
@@ -637,7 +657,7 @@ export default function ContentPage() {
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {banners.map((banner) => (
                     <Card key={banner.id} className="overflow-hidden">
-                      <div className="aspect-video bg-muted relative">
+                      <div className="aspect-video relative" style={{ background: `linear-gradient(to right, ${banner.color_from || '#3b82f6'}, ${banner.color_to || '#1d4ed8'})` }}>
                         {banner.image_url ? (
                           <img
                             src={banner.image_url.startsWith('/') ? `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1').replace('/api/v1', '')}${banner.image_url}` : banner.image_url}
@@ -645,17 +665,15 @@ export default function ContentPage() {
                             className="w-full h-full object-cover"
                             onError={(e) => {
                               (e.target as HTMLImageElement).style.display = 'none'
-                              const parent = (e.target as HTMLImageElement).parentElement
-                              if (parent) {
-                                const fallback = parent.querySelector('.fallback-icon')
-                                if (fallback) (fallback as HTMLElement).style.display = 'flex'
-                              }
                             }}
                           />
-                        ) : null}
-                        <div className={`fallback-icon absolute inset-0 ${banner.image_url ? 'hidden' : 'flex'} items-center justify-center`}>
-                          <ImageIcon className="h-12 w-12 text-muted-foreground" />
-                        </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-full text-white p-4 text-center">
+                            {banner.icon && <span className="text-3xl mb-2">{banner.icon}</span>}
+                            <h4 className="font-bold text-lg">{banner.title}</h4>
+                            {banner.subtitle && <p className="text-sm opacity-80 mt-1">{banner.subtitle}</p>}
+                          </div>
+                        )}
                         <div className="absolute top-2 right-2">
                           <Badge variant={banner.is_active ? 'success' : 'secondary'}>
                             {banner.is_active ? 'Active' : 'Inactive'}
@@ -666,7 +684,7 @@ export default function ContentPage() {
                         <div className="flex items-start justify-between">
                           <div>
                             <h3 className="font-semibold">{banner.title}</h3>
-                            <p className="text-sm text-muted-foreground capitalize">{banner.position}</p>
+                            {banner.subtitle && <p className="text-sm text-muted-foreground">{banner.subtitle}</p>}
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -696,15 +714,13 @@ export default function ContentPage() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
-                        <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>{banner.clicks.toLocaleString()} clicks</span>
-                          <span>{banner.impressions.toLocaleString()} views</span>
-                        </div>
-                        <div className="mt-2 text-xs text-muted-foreground">
-                          {banner.start_date && banner.end_date ? (
-                            `${new Date(banner.start_date).toLocaleDateString()} - ${new Date(banner.end_date).toLocaleDateString()}`
-                          ) : (
-                            'No date range set'
+                        <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+                          <span>Order: {banner.sort_order}</span>
+                          {banner.countdown_end && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {banner.countdown_label || 'Countdown'}: {new Date(banner.countdown_end).toLocaleString()}
+                            </span>
                           )}
                         </div>
                       </CardContent>
@@ -925,7 +941,7 @@ export default function ContentPage() {
               {editingBanner ? 'Update banner details' : 'Add a new promotional banner'}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
             <div className="grid gap-2">
               <Label htmlFor="title">Title</Label>
               <Input
@@ -936,9 +952,75 @@ export default function ContentPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label>Banner Image</Label>
+              <Label htmlFor="subtitle">Subtitle</Label>
+              <Input
+                id="subtitle"
+                placeholder="Banner subtitle text"
+                value={bannerForm.subtitle}
+                onChange={(e) => setBannerForm({ ...bannerForm, subtitle: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="icon">Icon (emoji)</Label>
+                <Input
+                  id="icon"
+                  placeholder="e.g. 🔥 🛍️ ⚡"
+                  value={bannerForm.icon}
+                  onChange={(e) => setBannerForm({ ...bannerForm, icon: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="sort_order">Sort Order</Label>
+                <Input
+                  id="sort_order"
+                  type="number"
+                  value={bannerForm.sort_order}
+                  onChange={(e) => setBannerForm({ ...bannerForm, sort_order: Number(e.target.value) })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="color_from">Gradient Start</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    id="color_from"
+                    value={bannerForm.color_from}
+                    onChange={(e) => setBannerForm({ ...bannerForm, color_from: e.target.value })}
+                    className="h-9 w-12 rounded border cursor-pointer"
+                  />
+                  <Input
+                    value={bannerForm.color_from}
+                    onChange={(e) => setBannerForm({ ...bannerForm, color_from: e.target.value })}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="color_to">Gradient End</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    id="color_to"
+                    value={bannerForm.color_to}
+                    onChange={(e) => setBannerForm({ ...bannerForm, color_to: e.target.value })}
+                    className="h-9 w-12 rounded border cursor-pointer"
+                  />
+                  <Input
+                    value={bannerForm.color_to}
+                    onChange={(e) => setBannerForm({ ...bannerForm, color_to: e.target.value })}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+            </div>
+            {/* Color preview */}
+            <div className="h-8 rounded-md" style={{ background: `linear-gradient(to right, ${bannerForm.color_from}, ${bannerForm.color_to})` }} />
+            <div className="grid gap-2">
+              <Label>Banner Image (optional)</Label>
               <div className="space-y-3">
-                {/* Preview area */}
                 {previewUrl ? (
                   <div className="relative aspect-video rounded-lg border overflow-hidden bg-muted">
                     <img
@@ -959,15 +1041,13 @@ export default function ContentPage() {
                   </div>
                 ) : (
                   <div
-                    className="aspect-video rounded-lg border-2 border-dashed border-muted-foreground/25 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
+                    className="h-20 rounded-lg border-2 border-dashed border-muted-foreground/25 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">Click to upload an image</p>
-                    <p className="text-xs text-muted-foreground mt-1">PNG, JPG, GIF up to 5MB</p>
+                    <Upload className="h-5 w-5 text-muted-foreground mb-1" />
+                    <p className="text-xs text-muted-foreground">Click to upload (optional)</p>
                   </div>
                 )}
-                {/* Hidden file input */}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -975,18 +1055,6 @@ export default function ContentPage() {
                   className="hidden"
                   onChange={handleFileSelect}
                 />
-                {/* Upload button */}
-                {!previewUrl && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    Choose Image
-                  </Button>
-                )}
               </div>
             </div>
             <div className="grid gap-2">
@@ -1000,53 +1068,31 @@ export default function ContentPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="position">Position</Label>
-                <Select
-                  value={bannerForm.position}
-                  onValueChange={(value) => setBannerForm({ ...bannerForm, position: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="hero">Hero</SelectItem>
-                    <SelectItem value="sidebar">Sidebar</SelectItem>
-                    <SelectItem value="footer">Footer</SelectItem>
-                    <SelectItem value="popup">Popup</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="countdown_label">Countdown Label</Label>
+                <Input
+                  id="countdown_label"
+                  placeholder="e.g. Flash Sale"
+                  value={bannerForm.countdown_label}
+                  onChange={(e) => setBannerForm({ ...bannerForm, countdown_label: e.target.value })}
+                />
               </div>
               <div className="grid gap-2">
-                <Label>Status</Label>
-                <div className="flex items-center space-x-2 pt-2">
-                  <Switch
-                    id="active"
-                    checked={bannerForm.is_active}
-                    onCheckedChange={(checked) => setBannerForm({ ...bannerForm, is_active: checked })}
-                  />
-                  <Label htmlFor="active">Active</Label>
-                </div>
+                <Label htmlFor="countdown_end">Countdown End</Label>
+                <Input
+                  type="datetime-local"
+                  id="countdown_end"
+                  value={bannerForm.countdown_end}
+                  onChange={(e) => setBannerForm({ ...bannerForm, countdown_end: e.target.value })}
+                />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="start">Start Date</Label>
-                <Input
-                  type="date"
-                  id="start"
-                  value={bannerForm.start_date}
-                  onChange={(e) => setBannerForm({ ...bannerForm, start_date: e.target.value })}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="end">End Date</Label>
-                <Input
-                  type="date"
-                  id="end"
-                  value={bannerForm.end_date}
-                  onChange={(e) => setBannerForm({ ...bannerForm, end_date: e.target.value })}
-                />
-              </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="active"
+                checked={bannerForm.is_active}
+                onCheckedChange={(checked) => setBannerForm({ ...bannerForm, is_active: checked })}
+              />
+              <Label htmlFor="active">Active</Label>
             </div>
           </div>
           <DialogFooter>

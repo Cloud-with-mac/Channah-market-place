@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Facebook, Twitter, Instagram, Youtube, Mail, MapPin, Phone, Clock, CheckCircle, Loader2 } from 'lucide-react'
 import { newsletterAPI } from '@/lib/api'
 
@@ -35,7 +36,7 @@ const footerLinks = {
     { name: 'Track Order', href: '/track-order' },
   ],
   company: [
-    { name: 'About Vendora', href: '/about' },
+    { name: 'About Channah', href: '/about' },
     { name: 'Careers', href: '/careers' },
     { name: 'Press & Media', href: '/press' },
     { name: 'Blog', href: '/blog' },
@@ -80,18 +81,7 @@ export function Footer() {
       setIsSubscribed(true)
       setEmail('')
     } catch (err: any) {
-      // If the API returns an error or doesn't exist, we'll still show success
-      // since we want a good UX. In production, you'd handle this properly.
-      if (err.response?.status === 404) {
-        // API endpoint doesn't exist yet, simulate success
-        setIsSubscribed(true)
-        setEmail('')
-      } else {
-        setError(err.response?.data?.detail || 'Subscription successful! Thank you for joining.')
-        // Even on error, we'll show success since newsletter may not have backend yet
-        setIsSubscribed(true)
-        setEmail('')
-      }
+      setError(err.response?.data?.detail || 'Subscription failed. Please try again later.')
     } finally {
       setIsLoading(false)
     }
@@ -105,7 +95,7 @@ export function Footer() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="text-center md:text-left">
               <h3 className="text-2xl font-bold font-display mb-2">
-                Join the Vendora Community
+                Join the Channah Community
               </h3>
               <p className="text-sm text-white/80 max-w-md">
                 Subscribe for exclusive deals, new arrivals, and 10% off your first order! Shop worldwide.
@@ -165,22 +155,15 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-7 gap-8">
           {/* Brand */}
           <div className="col-span-2 md:col-span-2">
-            <Link href="/" className="flex items-center gap-2.5 mb-5 group">
-              <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan to-cyan-light text-navy font-bold shadow-lg shadow-cyan/20 group-hover:shadow-xl group-hover:shadow-cyan/30 transition-shadow">
-                <span className="text-2xl font-display">C</span>
-                <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-background border-2 border-cyan flex items-center justify-center">
-                  <div className="h-2 w-2 rounded-full bg-gradient-to-br from-cyan to-cyan-light" />
-                </div>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xl font-bold font-display leading-tight text-gradient-premium">
-                  Vendora
-                </span>
-                <span className="text-[10px] font-semibold text-cyan uppercase tracking-wider -mt-0.5">Global Marketplace</span>
+            <Link href="/" className="inline-flex items-center gap-2.5 mb-5 group">
+              <Image src="/logo-icon.svg" alt="" width={36} height={36} className="shrink-0" />
+              <div className="shrink-0">
+                <div className="text-lg font-bold font-display leading-tight text-foreground">Channah</div>
+                <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-widest">The Trusted Center for Everything</div>
               </div>
             </Link>
             <p className="text-sm text-muted-foreground mb-4 max-w-xs">
-              Your premium global marketplace. Discover quality products from trusted sellers worldwide. Based in the UK, shipping globally.
+              Your premium marketplace. Discover quality products from trusted sellers worldwide. Based in the UK, shipping globally.
             </p>
 
             {/* Contact Info */}
@@ -191,7 +174,7 @@ export function Footer() {
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Phone size={14} className="text-cyan" />
-                <span>+44 800 CHANNAH</span>
+                <span>+44 800 Channah</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Clock size={14} className="text-cyan" />
@@ -201,37 +184,30 @@ export function Footer() {
 
             {/* Social Links */}
             <div className="flex gap-3">
+              {/* TODO: Replace '#' with actual Channah social media URLs */}
               <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="#"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-light text-muted-foreground hover:bg-cyan hover:text-navy transition-colors"
                 aria-label="Facebook"
               >
                 <Facebook size={18} />
               </a>
               <a
-                href="https://twitter.com"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="#"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-light text-muted-foreground hover:bg-cyan hover:text-navy transition-colors"
                 aria-label="Twitter"
               >
                 <Twitter size={18} />
               </a>
               <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="#"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-light text-muted-foreground hover:bg-cyan hover:text-navy transition-colors"
                 aria-label="Instagram"
               >
                 <Instagram size={18} />
               </a>
               <a
-                href="https://youtube.com"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="#"
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-light text-muted-foreground hover:bg-cyan hover:text-navy transition-colors"
                 aria-label="Youtube"
               >
@@ -332,7 +308,7 @@ export function Footer() {
         <div className="container py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <span>&copy; {new Date().getFullYear()} Vendora Global Ltd. All rights reserved.</span>
+              <span>&copy; {new Date().getFullYear()} Channah Global Ltd. All rights reserved.</span>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link

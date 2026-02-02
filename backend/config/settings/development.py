@@ -30,7 +30,7 @@ if SMTP_USER and SMTP_PASSWORD:
 else:
     # Fall back to console email (prints to terminal)
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-    DEFAULT_FROM_EMAIL = 'noreply@channah-market.com'
+    DEFAULT_FROM_EMAIL = 'noreply@channah.com'
 
 # Frontend URL for password reset links
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')

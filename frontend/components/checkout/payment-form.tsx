@@ -1,15 +1,15 @@
 'use client'
 
 import * as React from 'react'
-import { CreditCard, Building, Wallet } from 'lucide-react'
+import { CreditCard, Building } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
 import { useCurrencyStore } from '@/store'
+import { paymentsAPI } from '@/lib/api'
 
-export type PaymentMethod = 'card' | 'bank' | 'paypal'
+export type PaymentMethod = string
 
 interface PaymentFormProps {
   onSubmit: (method: PaymentMethod, data: any) => void
@@ -29,88 +29,59 @@ function PayPalIcon({ className }: { className?: string }) {
 }
 
 export function PaymentForm({ onSubmit, onBack, isLoading, total }: PaymentFormProps) {
-  const { currency, convertAndFormat } = useCurrencyStore()
-  const isNigeria = currency.code === 'NGN'
+  const { convertAndFormat } = useCurrencyStore()
 
-  const [method, setMethod] = React.useState<PaymentMethod>('card')
-  const [cardNumber, setCardNumber] = React.useState('')
-  const [expiryDate, setExpiryDate] = React.useState('')
-  const [cvv, setCvv] = React.useState('')
-  const [cardName, setCardName] = React.useState('')
+  const [method, setMethod] = React.useState<PaymentMethod>('stripe')
+  const [availableMethods, setAvailableMethods] = React.useState<any[]>([])
 
-  // Reset method if it's not available for current currency
+  // Fetch available payment methods from backend
   React.useEffect(() => {
-    if (isNigeria && method === 'paypal') {
-      setMethod('card')
-    } else if (!isNigeria && method === 'bank') {
-      setMethod('card')
-    }
-  }, [isNigeria, method])
-
-  const formatCardNumber = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '')
-    const matches = v.match(/\d{4,16}/g)
-    const match = (matches && matches[0]) || ''
-    const parts = []
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4))
-    }
-    return parts.length ? parts.join(' ') : value
-  }
-
-  const formatExpiryDate = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '')
-    if (v.length >= 2) {
-      return `${v.substring(0, 2)}/${v.substring(2, 4)}`
-    }
-    return v
-  }
+    paymentsAPI.getPaymentMethods()
+      .then((res) => {
+        const methods = res?.methods || []
+        if (methods.length > 0) {
+          setAvailableMethods(methods)
+          setMethod(methods[0].id)
+        } else {
+          // Fallback
+          setAvailableMethods([
+            { id: 'stripe', name: 'Credit/Debit Card', icon: 'credit-card', enabled: true },
+            { id: 'paypal', name: 'PayPal', icon: 'paypal', enabled: true },
+          ])
+          setMethod('stripe')
+        }
+      })
+      .catch(() => {
+        setAvailableMethods([
+          { id: 'stripe', name: 'Credit/Debit Card', icon: 'credit-card', enabled: true },
+          { id: 'paypal', name: 'PayPal', icon: 'paypal', enabled: true },
+        ])
+        setMethod('stripe')
+      })
+  }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (method === 'card') {
-      onSubmit(method, {
-        cardNumber: cardNumber.replace(/\s/g, ''),
-        expiryDate,
-        cvv,
-        cardName,
-      })
-    } else {
-      onSubmit(method, {})
-    }
+    onSubmit(method, {})
   }
 
-  // Payment methods based on currency
-  const paymentMethods = isNigeria
-    ? [
-        {
-          id: 'card' as PaymentMethod,
-          name: 'Credit/Debit Card',
-          icon: CreditCard,
-          description: 'Pay with Visa, Mastercard, or Verve',
-        },
-        {
-          id: 'bank' as PaymentMethod,
-          name: 'Bank Transfer',
-          icon: Building,
-          description: 'Direct bank transfer to Nigerian bank account',
-        },
-      ]
-    : [
-        {
-          id: 'card' as PaymentMethod,
-          name: 'Credit/Debit Card',
-          icon: CreditCard,
-          description: 'Pay with Visa, Mastercard, or American Express',
-        },
-        {
-          id: 'paypal' as PaymentMethod,
-          name: 'PayPal',
-          icon: PayPalIcon,
-          description: 'Pay securely with your PayPal account',
-        },
-      ]
+  // Map backend icon names to Lucide components
+  const iconComponents: Record<string, any> = {
+    'credit-card': CreditCard,
+    'paypal': PayPalIcon,
+    'bank': Building,
+  }
+
+  const paymentMethods = availableMethods.map((m) => ({
+    id: m.id as PaymentMethod,
+    name: m.name,
+    icon: iconComponents[m.icon] || CreditCard,
+    description: m.id === 'stripe' ? 'Pay with Visa, Mastercard, or American Express'
+      : m.id === 'paypal' ? 'Pay securely with your PayPal account'
+      : m.id === 'flutterwave' ? 'Pay with Flutterwave (cards, bank transfer, mobile money)'
+      : m.id === 'razorpay' ? 'Pay with Razorpay (UPI, cards, net banking)'
+      : m.name,
+  }))
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -144,77 +115,20 @@ export function PaymentForm({ onSubmit, onBack, isLoading, total }: PaymentFormP
         </RadioGroup>
       </div>
 
-      {/* Card Details Form */}
-      {method === 'card' && (
-        <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
-          <div>
-            <Label htmlFor="cardName">Cardholder Name</Label>
-            <Input
-              id="cardName"
-              value={cardName}
-              onChange={(e) => setCardName(e.target.value)}
-              placeholder="Name on card"
-              className="mt-1"
-              required
-            />
-          </div>
-          <div>
-            <Label htmlFor="cardNumber">Card Number</Label>
-            <Input
-              id="cardNumber"
-              value={cardNumber}
-              onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-              placeholder="1234 5678 9012 3456"
-              maxLength={19}
-              className="mt-1"
-              required
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="expiryDate">Expiry Date</Label>
-              <Input
-                id="expiryDate"
-                value={expiryDate}
-                onChange={(e) => setExpiryDate(formatExpiryDate(e.target.value))}
-                placeholder="MM/YY"
-                maxLength={5}
-                className="mt-1"
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="cvv">CVV</Label>
-              <Input
-                id="cvv"
-                value={cvv}
-                onChange={(e) => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="123"
-                maxLength={4}
-                type="password"
-                className="mt-1"
-                required
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bank Transfer Info (Nigeria only) */}
-      {method === 'bank' && (
+      {/* Secure payment notice for card-based methods */}
+      {(method === 'stripe' || method === 'razorpay') && (
         <div className="p-4 bg-muted/50 rounded-lg">
           <p className="text-sm text-muted-foreground">
-            After clicking &quot;Place Order&quot;, you will receive bank account details
-            to complete your transfer. Your order will be processed once payment is confirmed.
+            Payment processing is handled securely through our payment partners. You will be redirected to complete payment after placing your order.
           </p>
         </div>
       )}
 
-      {/* PayPal Info (International only) */}
-      {method === 'paypal' && (
+      {/* Redirect-based payment info */}
+      {(method === 'paypal' || method === 'flutterwave') && (
         <div className="p-4 bg-muted/50 rounded-lg">
           <p className="text-sm text-muted-foreground">
-            You will be redirected to PayPal to complete your payment securely.
+            You will be redirected to {method === 'paypal' ? 'PayPal' : 'Flutterwave'} to complete your payment securely.
             After payment, you&apos;ll return to complete your order.
           </p>
         </div>

@@ -7,6 +7,7 @@ import { Footer } from '@/components/layout/footer'
 import { Toaster } from '@/components/ui/toaster'
 import { CartDrawer } from '@/components/cart/cart-drawer'
 import { AIChatWidget } from '@/components/ai'
+import { OrganizationJsonLd, WebsiteJsonLd } from '@/components/seo/json-ld'
 import { ComparisonBar } from '@/components/comparison/comparison-bar'
 import { SampleCartDrawer } from '@/components/samples/sample-cart-drawer'
 import { ToastListener } from '@/components/toast-listener'
@@ -29,30 +30,38 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://channah.com'),
   title: {
-    default: 'Vendora-Market | Your Premium African Marketplace',
-    template: '%s | Vendora-Market',
+    default: 'Channah | Your Premium African Marketplace',
+    template: '%s | Channah',
   },
   description: 'Discover quality products from trusted African vendors. Shop electronics, fashion, home goods, beauty, and more at competitive prices with secure payments and fast delivery.',
-  keywords: ['african marketplace', 'online shopping', 'e-commerce', 'buy online', 'vendors', 'nigeria', 'africa', 'channah'],
-  authors: [{ name: 'Vendora-Market' }],
-  creator: 'Vendora-Market',
+  keywords: ['african marketplace', 'online shopping', 'e-commerce', 'buy online', 'vendors', 'nigeria', 'africa', 'channah', 'B2B marketplace', 'wholesale', 'trade assurance'],
+  authors: [{ name: 'Channah' }],
+  creator: 'Channah',
+  publisher: 'Channah',
+  formatDetection: { email: false, address: false, telephone: false },
   openGraph: {
-    title: 'Vendora-Market | Your Premium African Marketplace',
+    title: 'Channah | Your Premium African Marketplace',
     description: 'Discover quality products from trusted African vendors. Shop with confidence.',
     type: 'website',
     locale: 'en_US',
-    siteName: 'Vendora-Market',
+    url: '/',
+    siteName: 'Channah',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Channah - Your Premium African Marketplace' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Vendora-Market | Your Premium African Marketplace',
+    title: 'Channah | Your Premium African Marketplace',
     description: 'Discover quality products from trusted African vendors.',
+    images: ['/og-image.png'],
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: { index: true, follow: true, 'max-video-preview': -1, 'max-image-preview': 'large', 'max-snippet': -1 },
   },
+  alternates: { canonical: '/' },
 }
 
 export default function RootLayout({
@@ -76,6 +85,8 @@ export default function RootLayout({
           <AIChatWidget />
           <ComparisonBar />
         </Providers>
+        <OrganizationJsonLd />
+        <WebsiteJsonLd />
       </body>
     </html>
   )

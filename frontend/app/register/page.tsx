@@ -77,7 +77,7 @@ export default function RegisterPage() {
     setIsLoading(true)
 
     try {
-      const { data } = await authAPI.register({
+      const data = await authAPI.register({
         email: formData.email,
         password: formData.password,
         password_confirm: formData.confirmPassword,
@@ -167,7 +167,7 @@ export default function RegisterPage() {
               <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
                 <CheckCircle2 className="h-5 w-5 text-cyan flex-shrink-0" />
                 <div>
-                  <h3 className="font-semibold text-sm">Global Marketplace</h3>
+                  <h3 className="font-semibold text-sm">The Trusted Center for Everything</h3>
                   <p className="text-xs text-white/60">Access products from 190+ countries</p>
                 </div>
               </div>
@@ -196,17 +196,14 @@ export default function RegisterPage() {
           {/* Logo */}
           <div className="text-center">
             <Link href="/" className="inline-flex items-center gap-2.5 mb-6">
-              <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan to-cyan-light text-navy font-bold shadow-lg shadow-cyan/20">
-                <span className="text-2xl font-display">C</span>
-              </div>
               <div className="flex flex-col text-left">
-                <span className="text-2xl font-bold font-display text-gradient-premium">Vendora</span>
-                <span className="text-[10px] font-semibold text-cyan uppercase tracking-wider -mt-1">Global Marketplace</span>
+                <span className="text-2xl font-bold font-display text-gradient-premium">Channah</span>
+                <span className="text-[10px] font-semibold text-cyan uppercase tracking-wider -mt-1">The Trusted Center for Everything</span>
               </div>
             </Link>
             <h1 className="text-3xl font-bold font-display">Create Account</h1>
             <p className="text-muted-foreground mt-2">
-              Join Vendora and start shopping worldwide
+              Join Channah and start shopping worldwide
             </p>
           </div>
 
@@ -396,7 +393,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <Button variant="outline" type="button" className="h-12 border-border hover:border-cyan hover:bg-cyan/5">
+              <Button variant="outline" type="button" className="h-12 border-border hover:border-cyan hover:bg-cyan/5" onClick={() => alert('Social login coming soon. Please use email/password.')}>
                 <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
                   <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -405,7 +402,7 @@ export default function RegisterPage() {
                 </svg>
                 Google
               </Button>
-              <Button variant="outline" type="button" className="h-12 border-border hover:border-cyan hover:bg-cyan/5">
+              <Button variant="outline" type="button" className="h-12 border-border hover:border-cyan hover:bg-cyan/5" onClick={() => alert('Social login coming soon. Please use email/password.')}>
                 <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                 </svg>
@@ -423,8 +420,8 @@ export default function RegisterPage() {
 
           <div className="pt-4 border-t border-border">
             <p className="text-center text-sm text-muted-foreground">
-              Want to sell on Vendora?{' '}
-              <Link href="/seller/register" className="text-emerald-500 hover:text-emerald-400 font-medium transition-colors">
+              Want to sell on Channah?{' '}
+              <Link href="/sell" className="text-emerald-500 hover:text-emerald-400 font-medium transition-colors">
                 Become a Seller
               </Link>
             </p>

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { ordersAPI } from '../../../../shared/api/customer-api';
+import { usePrice } from '../../hooks/usePrice';
 
 const getStatusColor = (status: string) => {
   switch (status?.toLowerCase()) {
@@ -38,6 +39,7 @@ const statusSteps = ['pending', 'processing', 'shipped', 'delivered'];
 
 export default function OrderDetailScreen({ route, navigation }: any) {
   const { orderNumber } = route.params;
+  const { formatPrice } = usePrice();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
@@ -164,17 +166,24 @@ export default function OrderDetailScreen({ route, navigation }: any) {
           <TouchableOpacity
             key={index}
             style={styles.itemRow}
-            onPress={() => item.product?.slug && navigation.navigate('ProductDetail', { slug: item.product.slug })}
+            onPress={() => item.product_id && navigation.navigate('ProductDetail', { id: item.product_id })}
           >
-            <Image
-              source={{ uri: item.product?.images?.[0]?.image || 'https://via.placeholder.com/60' }}
-              style={styles.itemImage}
-            />
+            {item.product_image ? (
+              <Image
+                source={{ uri: item.product_image }}
+                style={styles.itemImage}
+              />
+            ) : (
+              <View style={[styles.itemImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' }]}>
+                <Icon name="image-outline" size={20} color="#d1d5db" />
+              </View>
+            )}
             <View style={styles.itemInfo}>
-              <Text style={styles.itemName} numberOfLines={2}>{item.product?.name || 'Product'}</Text>
+              <Text style={styles.itemName} numberOfLines={2}>{item.product_name || 'Product'}</Text>
+              {item.variant_name && <Text style={styles.itemQty}>{item.variant_name}</Text>}
               <Text style={styles.itemQty}>Qty: {item.quantity}</Text>
             </View>
-            <Text style={styles.itemPrice}>${item.price}</Text>
+            <Text style={styles.itemPrice}>{formatPrice(Number(item.unit_price))}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -184,46 +193,47 @@ export default function OrderDetailScreen({ route, navigation }: any) {
         <Text style={styles.cardTitle}>Order Summary</Text>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Subtotal</Text>
-          <Text style={styles.summaryValue}>${order.subtotal || '0.00'}</Text>
+          <Text style={styles.summaryValue}>{formatPrice(Number(order.subtotal || 0))}</Text>
         </View>
         {order.shipping_amount > 0 && (
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Shipping</Text>
-            <Text style={styles.summaryValue}>${order.shipping_amount}</Text>
+            <Text style={styles.summaryValue}>{formatPrice(Number(order.shipping_amount))}</Text>
           </View>
         )}
         {order.tax_amount > 0 && (
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Tax</Text>
-            <Text style={styles.summaryValue}>${order.tax_amount}</Text>
+            <Text style={styles.summaryValue}>{formatPrice(Number(order.tax_amount))}</Text>
           </View>
         )}
         {order.discount_amount > 0 && (
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Discount</Text>
-            <Text style={[styles.summaryValue, { color: '#10b981' }]}>-${order.discount_amount}</Text>
+            <Text style={[styles.summaryValue, { color: '#10b981' }]}>-{formatPrice(Number(order.discount_amount))}</Text>
           </View>
         )}
         <View style={[styles.summaryRow, styles.totalRow]}>
           <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>${order.total}</Text>
+          <Text style={styles.totalValue}>{formatPrice(Number(order.total))}</Text>
         </View>
       </View>
 
       {/* Shipping Address */}
-      {order.shipping_address && (
+      {order.shipping_first_name && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Shipping Address</Text>
           <Text style={styles.addressText}>
-            {order.shipping_address.full_name || `${order.shipping_address.first_name || ''} ${order.shipping_address.last_name || ''}`}
+            {order.shipping_first_name} {order.shipping_last_name}
           </Text>
-          <Text style={styles.addressText}>{order.shipping_address.address_line_1}</Text>
-          {order.shipping_address.address_line_2 && (
-            <Text style={styles.addressText}>{order.shipping_address.address_line_2}</Text>
+          <Text style={styles.addressText}>{order.shipping_address_line1}</Text>
+          {order.shipping_address_line2 && (
+            <Text style={styles.addressText}>{order.shipping_address_line2}</Text>
           )}
           <Text style={styles.addressText}>
-            {order.shipping_address.city}, {order.shipping_address.state} {order.shipping_address.zip_code}
+            {order.shipping_city}, {order.shipping_state} {order.shipping_postal_code}
           </Text>
+          <Text style={styles.addressText}>{order.shipping_country}</Text>
         </View>
       )}
 
@@ -253,14 +263,25 @@ export default function OrderDetailScreen({ route, navigation }: any) {
       </View>
 
       {/* Write Review */}
-      {order.status?.toLowerCase() === 'delivered' && (
-        <TouchableOpacity
-          style={styles.reviewButton}
-          onPress={() => navigation.navigate('WriteReview', { orderId: order.id })}
-        >
-          <Icon name="star-outline" size={18} color="#f59e0b" />
-          <Text style={styles.reviewButtonText}>Write a Review</Text>
-        </TouchableOpacity>
+      {order.status?.toLowerCase() === 'delivered' && order.items?.length > 0 && (
+        <View style={styles.reviewSection}>
+          <Text style={styles.reviewSectionTitle}>Review Your Items</Text>
+          {order.items.map((item: any, index: number) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.reviewButton}
+              onPress={() => navigation.navigate('WriteReview', {
+                productId: item.product_id,
+                productName: item.product_name || 'Product',
+              })}
+            >
+              <Icon name="star-outline" size={18} color="#f59e0b" />
+              <Text style={styles.reviewButtonText} numberOfLines={1}>
+                Review {item.product_name || 'Product'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       )}
 
       <View style={{ height: 32 }} />
@@ -364,6 +385,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   cancelButtonText: { fontSize: 14, fontWeight: '600', color: '#ef4444', marginLeft: 6 },
+  reviewSection: { paddingHorizontal: 16 },
+  reviewSectionTitle: { fontSize: 15, fontWeight: '600', color: '#1f2937', marginBottom: 8 },
   reviewButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -371,7 +394,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fffbeb',
     borderRadius: 8,
     paddingVertical: 12,
-    marginHorizontal: 16,
+    paddingHorizontal: 16,
+    marginBottom: 8,
   },
-  reviewButtonText: { fontSize: 14, fontWeight: '600', color: '#f59e0b', marginLeft: 6 },
+  reviewButtonText: { fontSize: 14, fontWeight: '600', color: '#f59e0b', marginLeft: 6, flex: 1 },
 });

@@ -14,8 +14,13 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
 export const metadata: Metadata = {
-  title: 'About Us - Vendora-Market',
-  description: 'Learn about Vendora-Market, your trusted online marketplace.',
+  title: 'About Us',
+  description: 'Learn about Channah, your trusted African marketplace. Discover our story, values, and commitment to connecting buyers with quality vendors worldwide.',
+  openGraph: {
+    title: 'About Us | Channah',
+    description: 'Learn about Channah, your trusted African marketplace.',
+  },
+  alternates: { canonical: '/about' },
 }
 
 const values = [
@@ -71,7 +76,7 @@ export default function AboutPage() {
       {/* Hero Section */}
       <div className="text-center max-w-3xl mx-auto mb-16">
         <h1 className="text-4xl md:text-5xl font-bold font-display mb-4">
-          About Vendora-Market
+          About Channah
         </h1>
         <p className="text-lg text-muted-foreground">
           We&apos;re building the future of online shopping by connecting buyers with
@@ -86,7 +91,7 @@ export default function AboutPage() {
           <h2 className="text-3xl font-bold font-display mb-4">Our Story</h2>
           <div className="space-y-4 text-muted-foreground">
             <p>
-              Vendora-Market was founded with a simple vision: to create a marketplace
+              Channah was founded with a simple vision: to create a marketplace
               where quality meets affordability, and where both buyers and sellers
               can thrive together.
             </p>
@@ -108,7 +113,7 @@ export default function AboutPage() {
               <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
                 <Globe className="h-10 w-10 text-primary" />
               </div>
-              <p className="text-lg font-semibold">Global Marketplace</p>
+              <p className="text-lg font-semibold">The Trusted Center for Everything</p>
               <p className="text-sm text-muted-foreground">Connecting the world</p>
             </div>
           </div>

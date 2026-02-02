@@ -1,5 +1,52 @@
 import { customerApiClient } from './client';
 
+// ---- Type Definitions ----
+
+export interface BulkPricingTier {
+  min_qty: number;
+  max_qty: number | null;
+  price: number;
+}
+
+export interface ProductResponse {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  compare_at_price?: number;
+  description?: string;
+  primary_image?: string;
+  images?: { url: string }[];
+  quantity?: number;
+  rating?: number;
+  review_count?: number;
+  shipping_cost?: number;
+  moq?: number;
+  bulk_pricing?: BulkPricingTier[];
+  variants?: any[];
+  vendor?: VendorSummary;
+}
+
+export interface VendorSummary {
+  id: string;
+  business_name: string;
+  rating?: number;
+  badge_level?: 'gold' | 'silver' | 'bronze';
+  trust_score?: number;
+  verified_at?: string;
+  verification_status?: 'verified' | 'pending' | 'unverified';
+}
+
+export interface VendorProfile extends VendorSummary {
+  description?: string;
+  logo?: string;
+  review_count?: number;
+  product_count?: number;
+  joined_at?: string;
+  location?: string;
+  response_time?: string;
+}
+
 // Auth API
 export const authAPI = {
   login: async (email: string, password: string) => {
@@ -27,6 +74,11 @@ export const authAPI = {
   },
 
   logout: async () => {
+    try {
+      await customerApiClient.post('/auth/logout');
+    } catch (error) {
+      // Continue with local cleanup even if backend call fails
+    }
     await customerApiClient.clearTokens();
   },
 
@@ -53,18 +105,29 @@ export const productsAPI = {
     return response.data;
   },
 
-  getFeatured: async () => {
-    const response = await customerApiClient.get('/products/featured');
+  getFeatured: async (limit = 20) => {
+    const response = await customerApiClient.get('/products', {
+      params: { limit, featured: true, sort_by: 'sales_count', sort_order: 'desc' },
+    });
     return response.data;
   },
 
-  getNewArrivals: async () => {
-    const response = await customerApiClient.get('/products/new-arrivals');
+  getNewArrivals: async (limit = 20) => {
+    const response = await customerApiClient.get('/products', {
+      params: { limit, sort_by: 'created_at', sort_order: 'desc' },
+    });
     return response.data;
   },
 
-  getBestSellers: async () => {
-    const response = await customerApiClient.get('/products/best-sellers');
+  getBestSellers: async (limit = 20) => {
+    const response = await customerApiClient.get('/products', {
+      params: { limit, sort_by: 'sales_count', sort_order: 'desc' },
+    });
+    return response.data;
+  },
+
+  getFilters: async (categorySlug: string) => {
+    const response = await customerApiClient.get(`/products/filters/${categorySlug}`);
     return response.data;
   },
 
@@ -76,6 +139,14 @@ export const productsAPI = {
   },
 };
 
+// Banners API
+export const bannersAPI = {
+  getAll: async () => {
+    const response = await customerApiClient.get('/banners');
+    return response.data;
+  },
+};
+
 // Categories API
 export const categoriesAPI = {
   getAll: async () => {
@@ -83,8 +154,23 @@ export const categoriesAPI = {
     return response.data;
   },
 
+  getBySlug: async (slug: string) => {
+    const response = await customerApiClient.get(`/categories/${slug}`);
+    return response.data;
+  },
+
   getById: async (id: string) => {
     const response = await customerApiClient.get(`/categories/${id}`);
+    return response.data;
+  },
+
+  getTree: async () => {
+    const response = await customerApiClient.get('/categories/tree');
+    return response.data;
+  },
+
+  getFeatured: async () => {
+    const response = await customerApiClient.get('/categories/featured');
     return response.data;
   },
 };
@@ -121,7 +207,7 @@ export const cartAPI = {
   },
 
   applyCoupon: async (code: string) => {
-    const response = await customerApiClient.post('/cart/coupon', { code });
+    const response = await customerApiClient.post('/cart/coupon', { coupon_code: code });
     return response.data;
   },
 
@@ -284,6 +370,11 @@ export const vendorsAPI = {
     return response.data;
   },
 
+  getBySlug: async (slug: string) => {
+    const response = await customerApiClient.get(`/vendors/${slug}`);
+    return response.data;
+  },
+
   getProducts: async (id: string) => {
     const response = await customerApiClient.get(`/vendors/${id}/products`);
     return response.data;
@@ -298,7 +389,11 @@ export const paymentsAPI = {
   },
 
   createPaymentIntent: async (orderId: string, paymentMethod: string) => {
-    const response = await customerApiClient.post('/payments/create-intent', {
+    const gateway = paymentMethod === 'paypal' ? 'paypal/create-order'
+      : paymentMethod === 'flutterwave' ? 'flutterwave/initialize'
+      : paymentMethod === 'razorpay' ? 'razorpay/create-order'
+      : 'stripe/create-intent';
+    const response = await customerApiClient.post(`/payments/${gateway}`, {
       order_id: orderId,
       payment_method: paymentMethod,
     });
@@ -316,7 +411,7 @@ export const paymentsAPI = {
 // Profile API (extended auth operations)
 export const profileAPI = {
   changePassword: async (data: { current_password: string; new_password: string }) => {
-    const response = await customerApiClient.post('/auth/change-password', data);
+    const response = await customerApiClient.post('/auth/password-change', data);
     return response.data;
   },
 
@@ -335,6 +430,34 @@ export const profileAPI = {
 export const contactAPI = {
   submit: async (data: { name: string; email: string; subject: string; message: string }) => {
     const response = await customerApiClient.post('/contact', data);
+    return response.data;
+  },
+};
+
+// RFQ API
+export const rfqAPI = {
+  create: async (data: any) => {
+    const response = await customerApiClient.post('/rfq', data);
+    return response.data;
+  },
+  getAll: async () => {
+    const response = await customerApiClient.get('/rfq');
+    return response.data;
+  },
+  getById: async (id: string) => {
+    const response = await customerApiClient.get(`/rfq/${id}`);
+    return response.data;
+  },
+  submitQuote: async (rfqId: string, data: any) => {
+    const response = await customerApiClient.post(`/rfq/${rfqId}/quotes`, data);
+    return response.data;
+  },
+  getQuotes: async (rfqId: string) => {
+    const response = await customerApiClient.get(`/rfq/${rfqId}/quotes`);
+    return response.data;
+  },
+  acceptQuote: async (rfqId: string, quoteId: string) => {
+    const response = await customerApiClient.put(`/rfq/${rfqId}/quotes/${quoteId}/accept`);
     return response.data;
   },
 };

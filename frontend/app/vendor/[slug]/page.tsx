@@ -327,7 +327,7 @@ export default function VendorProfilePage() {
                     Trade Assurance
                   </h3>
                   <p className="text-xs text-green-700 dark:text-green-300 leading-relaxed">
-                    This supplier is protected by Vendora's buyer protection program, ensuring safe transactions from payment to delivery.
+                    This supplier is protected by Channah's buyer protection program, ensuring safe transactions from payment to delivery.
                   </p>
                 </div>
               </div>

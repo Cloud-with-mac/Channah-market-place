@@ -2,7 +2,6 @@
 
 import * as React from 'react'
 import { useParams } from 'next/navigation'
-import { notFound } from 'next/navigation'
 import { ProductGallery } from '@/components/product/product-gallery'
 import { ProductInfo } from '@/components/product/product-info'
 import { ProductVariants } from '@/components/product/product-variants'
@@ -18,6 +17,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from 
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { productsAPI } from '@/lib/api'
+import { ProductJsonLd, BreadcrumbJsonLd } from '@/components/seo/json-ld'
 
 // Helper function to transform flat variants into grouped format
 function transformVariantsFromAPI(variants: any[]): Array<{
@@ -136,7 +136,7 @@ export default function ProductDetailPage() {
           rating: data.rating || 4.0,
           reviewCount: data.review_count || 0,
           vendor: {
-            name: data.vendor?.business_name || data.vendor_name || 'Vendora Vendor',
+            name: data.vendor?.business_name || data.vendor_name || 'Channah Vendor',
             slug: data.vendor?.slug || 'vendor',
             logo: data.vendor?.logo,
             location: data.vendor?.location,
@@ -209,7 +209,13 @@ export default function ProductDetailPage() {
   }
 
   if (error) {
-    notFound()
+    return (
+      <div className="container mx-auto px-4 py-24 text-center">
+        <h1 className="text-4xl font-bold mb-4">Product Not Found</h1>
+        <p className="text-muted-foreground mb-8">The product you are looking for does not exist or has been removed.</p>
+        <a href="/products" className="inline-flex items-center px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90">Browse Products</a>
+      </div>
+    )
   }
 
   if (isLoading) {
@@ -217,11 +223,39 @@ export default function ProductDetailPage() {
   }
 
   if (!product) {
-    return notFound()
+    return (
+      <div className="container mx-auto px-4 py-24 text-center">
+        <h1 className="text-4xl font-bold mb-4">Product Not Found</h1>
+        <p className="text-muted-foreground mb-8">The product you are looking for does not exist or has been removed.</p>
+        <a href="/products" className="inline-flex items-center px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90">Browse Products</a>
+      </div>
+    )
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Structured Data */}
+      <ProductJsonLd
+        name={product.name}
+        description={product.description}
+        image={product.images[0]?.url || ''}
+        price={product.price}
+        sku={product.sku}
+        brand={product.vendor.name}
+        rating={product.rating}
+        reviewCount={product.reviewCount}
+        inStock={product.inStock}
+        url={typeof window !== 'undefined' ? window.location.href : '/product/' + product.slug}
+      />
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'Home', url: 'https://channah.com' },
+          { name: 'Products', url: 'https://channah.com/products' },
+          ...(product.category ? [{ name: product.category.name, url: 'https://channah.com/category/' + product.category.slug }] : []),
+          { name: product.name, url: 'https://channah.com/product/' + product.slug },
+        ]}
+      />
+
       {/* Breadcrumb */}
       <Breadcrumb className="mb-6">
         <BreadcrumbItem>
@@ -336,7 +370,7 @@ export default function ProductDetailPage() {
           <div className="flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Shipping:</span>
             {product.shippingCost > 0 ? (
-              <span className="font-medium">₦{product.shippingCost.toLocaleString()} per item</span>
+              <span className="font-medium">&pound;{product.shippingCost.toLocaleString()} per item</span>
             ) : (
               <span className="font-medium text-green-600">Free Shipping</span>
             )}
@@ -399,6 +433,28 @@ export default function ProductDetailPage() {
 function ProductDetailSkeleton() {
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Structured Data */}
+      <ProductJsonLd
+        name={product.name}
+        description={product.description}
+        image={product.images[0]?.url || ''}
+        price={product.price}
+        sku={product.sku}
+        brand={product.vendor.name}
+        rating={product.rating}
+        reviewCount={product.reviewCount}
+        inStock={product.inStock}
+        url={typeof window !== 'undefined' ? window.location.href : '/product/' + product.slug}
+      />
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'Home', url: 'https://channah.com' },
+          { name: 'Products', url: 'https://channah.com/products' },
+          ...(product.category ? [{ name: product.category.name, url: 'https://channah.com/category/' + product.category.slug }] : []),
+          { name: product.name, url: 'https://channah.com/product/' + product.slug },
+        ]}
+      />
+
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 mb-6">
         <Skeleton className="h-4 w-12" />

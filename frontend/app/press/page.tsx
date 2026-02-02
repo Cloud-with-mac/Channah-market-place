@@ -5,41 +5,41 @@ import Link from 'next/link'
 const pressReleases = [
   {
     date: 'January 15, 2026',
-    title: 'Vendora Raises £50M Series B to Expand Global Marketplace',
-    excerpt: 'London-based e-commerce platform Vendora announces major funding round to accelerate international expansion and AI development.',
+    title: 'Channah Raises £50M Series B to Expand Global Marketplace',
+    excerpt: 'London-based e-commerce platform Channah announces major funding round to accelerate international expansion and AI development.',
     category: 'Funding',
   },
   {
     date: 'December 10, 2025',
-    title: 'Vendora Launches AI-Powered Shopping Assistant',
+    title: 'Channah Launches AI-Powered Shopping Assistant',
     excerpt: 'Revolutionary AI technology helps customers find products, compare prices, and make smarter purchasing decisions.',
     category: 'Product',
   },
   {
     date: 'November 5, 2025',
-    title: 'Vendora Reaches 500,000 Active Sellers Worldwide',
+    title: 'Channah Reaches 500,000 Active Sellers Worldwide',
     excerpt: 'Global marketplace celebrates milestone as sellers from 190+ countries join the platform.',
     category: 'Milestone',
   },
   {
     date: 'October 20, 2025',
-    title: 'Vendora Partners with Major Logistics Providers for Faster Global Shipping',
+    title: 'Channah Partners with Major Logistics Providers for Faster Global Shipping',
     excerpt: 'Strategic partnerships with DHL, FedEx, and regional carriers to improve delivery times and reduce costs.',
     category: 'Partnership',
   },
   {
     date: 'September 8, 2025',
-    title: 'Vendora Introduces Zero-Fee Program for Small Sellers',
+    title: 'Channah Introduces Zero-Fee Program for Small Sellers',
     excerpt: 'New initiative waives commission fees for sellers earning under £1,000/month to support small businesses.',
     category: 'Announcement',
   },
 ]
 
 const mediaFeatures = [
-  { outlet: 'TechCrunch', quote: 'Vendora is redefining global e-commerce with AI-first approach' },
+  { outlet: 'TechCrunch', quote: 'Channah is redefining global e-commerce with AI-first approach' },
   { outlet: 'Forbes', quote: 'One of the most promising UK startups to watch in 2026' },
   { outlet: 'The Guardian', quote: 'The marketplace that\'s making global selling accessible to everyone' },
-  { outlet: 'Wired UK', quote: 'Vendora\'s AI assistant is the future of online shopping' },
+  { outlet: 'Wired UK', quote: 'Channah\'s AI assistant is the future of online shopping' },
 ]
 
 const companyStats = [
@@ -63,7 +63,7 @@ export default function PressPage() {
           </Badge>
           <h1 className="text-4xl md:text-5xl font-bold font-display mb-4">Newsroom</h1>
           <p className="text-xl text-white/70 max-w-2xl mx-auto">
-            The latest news, announcements, and resources for journalists covering Vendora.
+            The latest news, announcements, and resources for journalists covering Channah.
           </p>
         </div>
       </section>
@@ -158,7 +158,7 @@ export default function PressPage() {
         <div className="container max-w-4xl">
           <h2 className="text-2xl font-bold font-display text-center mb-2">Media Kit</h2>
           <p className="text-muted-foreground text-center mb-8">
-            Download official Vendora brand assets and resources
+            Download official Channah brand assets and resources
           </p>
           <div className="grid md:grid-cols-3 gap-6">
             <div className="bg-card border border-border rounded-xl p-6 text-center hover:border-cyan/30 transition-colors">

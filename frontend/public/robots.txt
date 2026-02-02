@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /checkout/
+Disallow: /account/
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+
+# Sitemaps
+Sitemap: https://channah.com/sitemap.xml
+
+Crawl-delay: 1

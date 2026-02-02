@@ -603,7 +603,7 @@ export const useSustainabilityStore = create<SustainabilityState>()(
       },
     }),
     {
-      name: 'vendora-sustainability',
+      name: 'channah-sustainability',
       partialize: (state) => ({
         ecoProducts: state.ecoProducts,
         greenSuppliers: state.greenSuppliers,

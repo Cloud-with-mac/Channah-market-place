@@ -20,6 +20,9 @@ from app.api.v1.endpoints import (
     websocket,
     contact,
     support_chat,
+    banners,
+    rfq,
+    verification,
 )
 
 api_router = APIRouter()
@@ -77,6 +80,15 @@ api_router.include_router(websocket.router, tags=["WebSocket"])
 
 # Support Chat
 api_router.include_router(support_chat.router, prefix="/support-chat", tags=["Support Chat"])
+
+# Banners
+api_router.include_router(banners.router, prefix="/banners", tags=["Banners"])
+
+# RFQ (Request for Quote)
+api_router.include_router(rfq.router, prefix="/rfq", tags=["RFQ"])
+
+# Verification / Trust
+api_router.include_router(verification.router, prefix="/verification", tags=["Verification"])
 
 # Contact & Newsletter
 api_router.include_router(contact.router, tags=["Contact"])

@@ -34,7 +34,7 @@ const orderSteps = [
   { id: 'pending', label: 'Order Placed', icon: Clock },
   { id: 'confirmed', label: 'Confirmed', icon: CheckCircle },
   { id: 'processing', label: 'Processing', icon: Package },
-  { id: 'shipped', label: 'Shipped to Vendora', icon: Truck },
+  { id: 'shipped', label: 'Shipped to Channah', icon: Truck },
   { id: 'out_for_delivery', label: 'Out for Delivery', icon: MapPin },
   { id: 'delivered', label: 'Delivered', icon: Home },
 ]

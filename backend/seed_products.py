@@ -64,6 +64,44 @@ CATEGORIES = [
     },
 ]
 
+SUBCATEGORIES = [
+    # Electronics
+    {"name": "Smartphones", "slug": "smartphones", "parent_slug": "electronics", "description": "Mobile phones and accessories", "icon": "Smartphone"},
+    {"name": "Laptops & Computers", "slug": "laptops-computers", "parent_slug": "electronics", "description": "Laptops, desktops and accessories", "icon": "Laptop"},
+    {"name": "Audio & Headphones", "slug": "audio-headphones", "parent_slug": "electronics", "description": "Speakers, headphones and earbuds", "icon": "Headphones"},
+    {"name": "Cameras", "slug": "cameras", "parent_slug": "electronics", "description": "Digital cameras and accessories", "icon": "Camera"},
+    {"name": "Gaming", "slug": "gaming", "parent_slug": "electronics", "description": "Gaming consoles and accessories", "icon": "Gamepad"},
+    {"name": "TV & Video", "slug": "tv-video", "parent_slug": "electronics", "description": "Televisions and video equipment", "icon": "Monitor"},
+    # Fashion
+    {"name": "Men's Clothing", "slug": "mens-clothing", "parent_slug": "fashion", "description": "Clothing for men", "icon": "Shirt"},
+    {"name": "Women's Clothing", "slug": "womens-clothing", "parent_slug": "fashion", "description": "Clothing for women", "icon": "Shirt"},
+    {"name": "Shoes", "slug": "shoes", "parent_slug": "fashion", "description": "Footwear for all", "icon": "Shoe"},
+    {"name": "Bags & Accessories", "slug": "bags-accessories", "parent_slug": "fashion", "description": "Bags, watches, jewelry and more", "icon": "ShoppingBag"},
+    {"name": "Kids' Fashion", "slug": "kids-fashion", "parent_slug": "fashion", "description": "Clothing for kids", "icon": "Shirt"},
+    # Home & Garden
+    {"name": "Furniture", "slug": "furniture", "parent_slug": "home-garden", "description": "Indoor and outdoor furniture", "icon": "Armchair"},
+    {"name": "Kitchen & Dining", "slug": "kitchen-dining", "parent_slug": "home-garden", "description": "Kitchen appliances and dining", "icon": "ChefHat"},
+    {"name": "Bedding & Bath", "slug": "bedding-bath", "parent_slug": "home-garden", "description": "Bedding, towels, bath accessories", "icon": "Bed"},
+    {"name": "Lighting", "slug": "lighting", "parent_slug": "home-garden", "description": "Indoor and outdoor lighting", "icon": "Lamp"},
+    {"name": "Garden & Outdoor", "slug": "garden-outdoor", "parent_slug": "home-garden", "description": "Garden tools and outdoor decor", "icon": "Flower"},
+    # Sports & Outdoors
+    {"name": "Fitness Equipment", "slug": "fitness-equipment", "parent_slug": "sports-outdoors", "description": "Gym and fitness gear", "icon": "Dumbbell"},
+    {"name": "Outdoor Recreation", "slug": "outdoor-recreation", "parent_slug": "sports-outdoors", "description": "Camping, hiking, outdoor activities", "icon": "Mountain"},
+    {"name": "Team Sports", "slug": "team-sports", "parent_slug": "sports-outdoors", "description": "Football, basketball, and more", "icon": "Trophy"},
+    {"name": "Cycling", "slug": "cycling", "parent_slug": "sports-outdoors", "description": "Bikes and cycling accessories", "icon": "Bike"},
+    # Books & Media
+    {"name": "Fiction", "slug": "fiction", "parent_slug": "books-media", "description": "Novels and fiction books", "icon": "BookOpen"},
+    {"name": "Non-Fiction", "slug": "non-fiction", "parent_slug": "books-media", "description": "Educational and informational", "icon": "BookOpen"},
+    {"name": "Textbooks", "slug": "textbooks", "parent_slug": "books-media", "description": "Academic and school textbooks", "icon": "BookOpen"},
+    {"name": "Music & Movies", "slug": "music-movies", "parent_slug": "books-media", "description": "CDs, DVDs, vinyl and streaming", "icon": "Music"},
+    # Health & Beauty
+    {"name": "Skincare", "slug": "skincare", "parent_slug": "health-beauty", "description": "Face and body skincare products", "icon": "Heart"},
+    {"name": "Hair Care", "slug": "hair-care", "parent_slug": "health-beauty", "description": "Shampoos, conditioners and styling", "icon": "Scissors"},
+    {"name": "Makeup", "slug": "makeup", "parent_slug": "health-beauty", "description": "Cosmetics and beauty tools", "icon": "Sparkles"},
+    {"name": "Health & Wellness", "slug": "health-wellness", "parent_slug": "health-beauty", "description": "Vitamins, supplements and health", "icon": "Heart"},
+    {"name": "Fragrances", "slug": "fragrances", "parent_slug": "health-beauty", "description": "Perfumes and body sprays", "icon": "Droplet"},
+]
+
 # No sample products - vendors will upload their own products
 
 
@@ -143,11 +181,46 @@ async def seed_database():
 
             category_map[cat_data["slug"]] = category
 
+        # 3. Create subcategories
+        for sub_data in SUBCATEGORIES:
+            parent = category_map.get(sub_data["parent_slug"])
+            if not parent:
+                print(f"[SKIP] Parent not found for subcategory: {sub_data['name']}")
+                continue
+
+            result = await db.execute(
+                select(Category).where(Category.slug == sub_data["slug"])
+            )
+            subcategory = result.scalar_one_or_none()
+
+            if not subcategory:
+                subcategory = Category(
+                    name=sub_data["name"],
+                    slug=sub_data["slug"],
+                    description=sub_data.get("description"),
+                    icon=sub_data.get("icon"),
+                    parent_id=parent.id,
+                    is_featured=False,
+                    is_active=True,
+                )
+                db.add(subcategory)
+                await db.flush()
+                print(f"  [OK] Created subcategory: {sub_data['name']} -> {sub_data['parent_slug']}")
+            else:
+                # Update parent_id if not set
+                if not subcategory.parent_id:
+                    subcategory.parent_id = parent.id
+                    print(f"  [OK] Updated parent for: {sub_data['name']}")
+                else:
+                    print(f"  [OK] Subcategory exists: {sub_data['name']}")
+
+            category_map[sub_data["slug"]] = subcategory
+
         # Products are not seeded - vendors will upload their own products
 
         await db.commit()
         print("\n[SUCCESS] Database seeding completed successfully!")
-        print(f"   - {len(CATEGORIES)} categories")
+        print(f"   - {len(CATEGORIES)} categories + {len(SUBCATEGORIES)} subcategories")
         print("   - 0 products (vendors will upload their own)")
         print("\nVendor credentials: vendor@markethub.com / vendor123")
 

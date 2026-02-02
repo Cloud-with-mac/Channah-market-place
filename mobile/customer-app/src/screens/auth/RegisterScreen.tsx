@@ -11,6 +11,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { useAuthStore } from '../../store/authStore';
 
 export default function RegisterScreen({ navigation }: any) {
@@ -21,11 +22,25 @@ export default function RegisterScreen({ navigation }: any) {
     last_name: '',
     phone: '',
   });
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const { register, isLoading } = useAuthStore();
 
   const handleRegister = async () => {
     if (!formData.email || !formData.password || !formData.first_name || !formData.last_name) {
       Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+    if (formData.password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+    if (formData.password.length < 8) {
+      Alert.alert('Error', 'Password must be at least 8 characters');
+      return;
+    }
+    if (!agreedToTerms) {
+      Alert.alert('Error', 'Please agree to the Terms of Service and Privacy Policy');
       return;
     }
 
@@ -98,10 +113,41 @@ export default function RegisterScreen({ navigation }: any) {
               editable={!isLoading}
             />
 
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm Password *"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              editable={!isLoading}
+            />
+
             <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
+              style={styles.termsRow}
+              onPress={() => setAgreedToTerms(!agreedToTerms)}
+              activeOpacity={0.7}
+            >
+              <Icon
+                name={agreedToTerms ? 'checkbox' : 'square-outline'}
+                size={22}
+                color={agreedToTerms ? '#3b82f6' : '#9ca3af'}
+              />
+              <Text style={styles.termsText}>
+                I agree to the{' '}
+                <Text style={styles.termsLink} onPress={() => navigation.navigate('Terms')}>
+                  Terms of Service
+                </Text>
+                {' '}and{' '}
+                <Text style={styles.termsLink} onPress={() => navigation.navigate('Privacy')}>
+                  Privacy Policy
+                </Text>
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, (isLoading || !agreedToTerms) && styles.buttonDisabled]}
               onPress={handleRegister}
-              disabled={isLoading}
+              disabled={isLoading || !agreedToTerms}
             >
               {isLoading ? (
                 <ActivityIndicator color="#fff" />
@@ -163,6 +209,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#e5e7eb',
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    gap: 10,
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#6b7280',
+    lineHeight: 20,
+  },
+  termsLink: {
+    color: '#3b82f6',
+    fontWeight: '600',
   },
   button: {
     backgroundColor: '#3b82f6',

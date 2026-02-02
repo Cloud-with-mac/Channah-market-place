@@ -14,8 +14,8 @@ import { contactAPI } from '../../../../shared/api/customer-api';
 
 const CONTACT_INFO = [
   { icon: 'mail-outline', label: 'Email', value: 'support@channah.com' },
-  { icon: 'call-outline', label: 'Phone', value: '+1 (800) 555-0199' },
-  { icon: 'location-outline', label: 'Address', value: '123 Market Street, Suite 400\nSan Francisco, CA 94105' },
+  { icon: 'call-outline', label: 'Phone', value: '+44 (0) 800 123 4567' },
+  { icon: 'location-outline', label: 'Address', value: 'Channah Marketplace\nLondon, United Kingdom' },
 ];
 
 export default function ContactScreen() {

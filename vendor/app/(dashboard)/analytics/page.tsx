@@ -4,7 +4,7 @@ import * as React from 'react'
 import { BarChart3, TrendingUp, Users, ShoppingCart } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { vendorAnalyticsAPI } from '@/lib/api'
+import { VendorAnalyticsAPI } from '@/lib/api'
 import { useCurrencyStore } from '@/store'
 
 export default function VendorAnalyticsPage() {
@@ -16,8 +16,8 @@ export default function VendorAnalyticsPage() {
     const fetchAnalytics = async () => {
       try {
         const [salesRes, customersRes] = await Promise.allSettled([
-          vendorAnalyticsAPI.getSales('30d'),
-          vendorAnalyticsAPI.getCustomerInsights(),
+          VendorAnalyticsAPI.getSales('30d'),
+          VendorAnalyticsAPI.getCustomerInsights(),
         ])
 
         setAnalytics({

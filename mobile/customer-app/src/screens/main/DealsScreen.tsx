@@ -12,11 +12,13 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { productsAPI } from '../../../../shared/api/customer-api';
+import { usePrice } from '../../hooks/usePrice';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
 export default function DealsScreen({ navigation }: any) {
+  const { formatPrice } = usePrice();
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -49,11 +51,17 @@ export default function DealsScreen({ navigation }: any) {
       style={styles.productCard}
       onPress={() => navigation.navigate('ProductDetail', { slug: item.slug })}
     >
-      <Image
-        source={{ uri: item.images?.[0]?.image || 'https://via.placeholder.com/150' }}
-        style={styles.productImage}
-        resizeMode="cover"
-      />
+      {(item.primary_image || item.images?.[0]?.url) ? (
+        <Image
+          source={{ uri: item.primary_image || item.images[0].url }}
+          style={styles.productImage}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[styles.productImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' }]}>
+          <Icon name="image-outline" size={32} color="#d1d5db" />
+        </View>
+      )}
       {item.compare_at_price && item.compare_at_price > item.price && (
         <View style={styles.discountBadge}>
           <Text style={styles.discountText}>
@@ -66,15 +74,15 @@ export default function DealsScreen({ navigation }: any) {
           {item.name}
         </Text>
         <View style={styles.priceRow}>
-          <Text style={styles.price}>${item.price}</Text>
+          <Text style={styles.price}>{formatPrice(Number(item.price))}</Text>
           {item.compare_at_price && (
-            <Text style={styles.comparePrice}>${item.compare_at_price}</Text>
+            <Text style={styles.comparePrice}>{formatPrice(Number(item.compare_at_price))}</Text>
           )}
         </View>
         <View style={styles.ratingRow}>
           <Icon name="star" size={14} color="#f59e0b" />
           <Text style={styles.rating}>
-            {item.average_rating?.toFixed(1) || '0.0'} ({item.review_count || 0})
+            {item.rating?.toFixed(1) || '0.0'} ({item.review_count || 0})
           </Text>
         </View>
       </View>

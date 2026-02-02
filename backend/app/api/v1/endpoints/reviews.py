@@ -4,6 +4,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from uuid import UUID
+import math
 
 from app.core.database import get_db
 from app.core.security import get_current_user, get_current_vendor
@@ -26,6 +27,7 @@ async def get_product_reviews(
     product_id: UUID,
     skip: int = 0,
     limit: int = 20,
+    page: int = 1,
     sort_by: str = "created_at",
     sort: str = None,  # Frontend sends 'sort' parameter
     db: AsyncSession = Depends(get_db)
@@ -50,7 +52,8 @@ async def get_product_reviews(
     else:  # newest or default
         query = query.order_by(Review.created_at.desc())
 
-    query = query.offset(skip).limit(limit)
+    actual_skip = skip if skip > 0 else (page - 1) * limit
+    query = query.offset(actual_skip).limit(limit)
     result = await db.execute(query)
     reviews = result.scalars().all()
 
@@ -117,7 +120,12 @@ async def get_product_reviews(
             "totalReviews": total_reviews or 0,
             "distribution": distribution
         },
-        "total": total_reviews or 0
+        "total": total_reviews or 0,
+        "page": page,
+        "page_size": limit,
+        "total_pages": math.ceil((total_reviews or 1) / limit),
+        "has_next": page < math.ceil((total_reviews or 1) / limit),
+        "has_prev": page > 1,
     }
 
 
@@ -336,6 +344,26 @@ async def vote_review(
     await db.commit()
 
     return MessageResponse(message="Vote recorded")
+
+
+
+@router.post("/{review_id}/helpful", response_model=MessageResponse)
+async def mark_review_helpful(
+    review_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Mark a review as helpful (simple increment, no body needed)"""
+    result = await db.execute(select(Review).where(Review.id == review_id))
+    review = result.scalar_one_or_none()
+
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    review.helpful_count += 1
+    await db.commit()
+
+    return MessageResponse(message="Marked as helpful")
 
 
 # Vendor endpoints

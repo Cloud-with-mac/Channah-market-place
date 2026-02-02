@@ -434,6 +434,24 @@ export const ordersAPI = {
     const response = await apiClient.put(`/admin/orders/${id}/status`, payload)
     return response.data
   },
+
+  bulkUpdateStatus: async (orderIds: string[], status: string) => {
+    const response = await apiClient.put('/admin/orders/bulk-status', { order_ids: orderIds, status })
+    return response.data
+  },
+}
+
+// ==================== ANALYTICS API ====================
+export const analyticsAPI = {
+  getOverview: async () => {
+    const response = await apiClient.get('/admin/analytics/overview')
+    return response.data
+  },
+
+  getSalesChart: async (days: number = 7) => {
+    const response = await apiClient.get('/admin/analytics/sales-chart', { params: { days } })
+    return response.data
+  },
 }
 
 // ==================== CONTENT API ====================
@@ -444,7 +462,7 @@ export const contentAPI = {
   },
 
   getBanners: async (params?: any) => {
-    const response = await apiClient.get('/admin/content/banners', { params })
+    const response = await apiClient.get('/banners', { params })
     return response.data
   },
 
@@ -473,21 +491,21 @@ export const contentAPI = {
     return response.data
   },
 
-  // Banner CRUD
+  // Banner CRUD (uses /banners endpoints)
   createBanner: async (data: any) => {
-    const response = await apiClient.post('/admin/content/banners', data)
+    const response = await apiClient.post('/banners', data)
     return response.data
   },
   updateBanner: async (id: string, data: any) => {
-    const response = await apiClient.put(`/admin/content/banners/${id}`, data)
+    const response = await apiClient.put(`/banners/${id}`, data)
     return response.data
   },
-  toggleBanner: async (id: string) => {
-    const response = await apiClient.patch(`/admin/content/banners/${id}/toggle`)
+  toggleBanner: async (id: string, is_active: boolean) => {
+    const response = await apiClient.put(`/banners/${id}`, { is_active })
     return response.data
   },
   deleteBanner: async (id: string) => {
-    const response = await apiClient.delete(`/admin/content/banners/${id}`)
+    const response = await apiClient.delete(`/banners/${id}`)
     return response.data
   },
 
@@ -602,6 +620,11 @@ export const vendorsAPI = {
 
   update: async (id: string, data: any) => {
     const response = await apiClient.put(`/admin/vendors/${id}`, data)
+    return response.data
+  },
+
+  reactivate: async (id: string) => {
+    const response = await apiClient.post(`/admin/vendors/${id}/approve`)
     return response.data
   },
 

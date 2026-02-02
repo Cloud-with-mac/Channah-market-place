@@ -227,7 +227,7 @@ export function AIChatDrawer({ open, onOpenChange }: AIChatDrawerProps) {
             </div>
             <div>
               <h3 className="font-semibold flex items-center gap-2">
-                Chat with Vendora
+                Chat with Channah
                 <Badge variant="secondary" className="text-[10px] bg-navy/50 text-cyan border border-cyan/30 h-5 font-semibold">
                   <Sparkles className="h-2.5 w-2.5 mr-1" />
                   AI
@@ -277,7 +277,7 @@ export function AIChatDrawer({ open, onOpenChange }: AIChatDrawerProps) {
                   <Sparkles className="absolute top-2 right-2 h-4 w-4 text-cyan-light animate-pulse" />
                 </div>
               </div>
-              <h4 className="font-bold text-xl mb-2 text-gradient-premium">Hi! I'm Vendora, your AI assistant</h4>
+              <h4 className="font-bold text-xl mb-2 text-gradient-premium">Hi! I'm Channah, your AI assistant</h4>
               <p className="text-sm text-muted-foreground mb-6 max-w-[300px]">
                 I can help you find products, discover deals, compare prices, track orders, and answer any questions.
               </p>
@@ -470,7 +470,7 @@ export function AIChatDrawer({ open, onOpenChange }: AIChatDrawerProps) {
           </form>
           <p className="text-[10px] text-center text-muted-foreground mt-3 flex items-center justify-center gap-1">
             <Sparkles className="h-3 w-3 text-cyan" />
-            Powered by Vendora AI - Your smart shopping companion
+            Powered by Channah AI - Your smart shopping companion
           </p>
         </div>
       </div>

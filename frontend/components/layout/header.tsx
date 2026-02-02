@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
@@ -113,7 +114,7 @@ export function Header() {
           </div>
           <div className="flex items-center gap-4">
             <Link href="/sell" className="hover:text-white/80 transition-colors font-medium">
-              Sell on Vendora
+              Sell on Channah
             </Link>
             <span className="text-white/30">|</span>
             <Link href="/help" className="hover:text-white/80 transition-colors">
@@ -135,18 +136,13 @@ export function Header() {
           </button>
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold shadow-lg shadow-primary/20 group-hover:shadow-xl group-hover:shadow-primary/30 group-hover:scale-105 transition-all duration-300">
-              <span className="text-2xl font-display">V</span>
-              <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-background border-2 border-primary flex items-center justify-center">
-                <div className="h-2 w-2 rounded-full bg-gradient-to-br from-primary to-accent" />
-              </div>
-            </div>
+          <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
+            <Image src="/logo-icon.svg" alt="" width={38} height={38} priority className="shrink-0 group-hover:scale-105 transition-transform" />
             <div className="hidden sm:flex flex-col">
-              <span className="text-xl font-bold font-display leading-tight">
-                Vendora
+              <span className="text-xl font-bold font-display leading-tight text-foreground whitespace-nowrap">
+                Channah
               </span>
-              <span className="text-[10px] font-semibold text-primary uppercase tracking-wider -mt-0.5">B2B Marketplace</span>
+              <span className="text-[8px] font-semibold text-muted-foreground uppercase tracking-[0.12em] -mt-0.5 whitespace-nowrap">The Trusted Center for Everything</span>
             </div>
           </Link>
 

@@ -482,7 +482,7 @@ export const useFinanceStore = create<FinanceState>()(
       },
     }),
     {
-      name: 'vendora-finance-storage',
+      name: 'channah-finance-storage',
     }
   )
 )

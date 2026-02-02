@@ -55,7 +55,7 @@ interface PlatformSettings {
 }
 
 const defaultSettings: PlatformSettings = {
-  site_name: 'Channah Global Marketplace',
+  site_name: 'Channah',
   site_description: 'Your trusted global marketplace',
   support_email: 'support@example.com',
   contact_phone: '',

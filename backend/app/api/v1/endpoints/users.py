@@ -157,6 +157,10 @@ async def update_user_role(
 
 # ============ WISHLIST ENDPOINTS ============
 
+class WishlistAddRequest(BaseModel):
+    product_id: UUID
+
+
 class WishlistItemResponse(BaseModel):
     id: str
     product_id: str
@@ -165,6 +169,9 @@ class WishlistItemResponse(BaseModel):
     price: float
     compare_at_price: float | None
     image: str | None
+    rating: float | None
+    review_count: int
+    quantity: int
     created_at: str
 
 class WishlistResponse(BaseModel):
@@ -197,6 +204,9 @@ async def get_user_wishlist(
                 price=float(product.price),
                 compare_at_price=float(product.compare_at_price) if product.compare_at_price else None,
                 image=product.images[0].url if product.images and len(product.images) > 0 else None,
+                rating=float(product.rating) if product.rating else None,
+                review_count=product.review_count or 0,
+                quantity=product.quantity or 0,
                 created_at=item.created_at.isoformat()
             ))
 
@@ -205,11 +215,12 @@ async def get_user_wishlist(
 
 @router.post("/me/wishlist", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
 async def add_to_wishlist(
-    product_id: UUID,
+    data: WishlistAddRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Add product to wishlist"""
+    product_id = data.product_id
     # Check if product exists
     product_result = await db.execute(
         select(Product).where(Product.id == product_id)

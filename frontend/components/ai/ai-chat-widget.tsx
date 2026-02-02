@@ -64,7 +64,7 @@ export function AIChatWidget() {
                 <Bot className="h-4 w-4 text-cyan-600 dark:text-cyan" />
               </div>
               <div className="text-left">
-                <p className="text-sm font-medium">Chat with Vendora</p>
+                <p className="text-sm font-medium">Chat with Channah</p>
                 <p className="text-[10px] text-muted-foreground">AI shopping assistant</p>
               </div>
             </button>

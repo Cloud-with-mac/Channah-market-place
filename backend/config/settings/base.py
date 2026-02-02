@@ -148,8 +148,8 @@ SIMPLE_JWT = {
 
 # drf-spectacular (API Documentation)
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Channah-Market API',
-    'DESCRIPTION': 'RESTful API for Channah-Market e-commerce platform',
+    'TITLE': 'Channah API',
+    'DESCRIPTION': 'RESTful API for Channah e-commerce platform',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,

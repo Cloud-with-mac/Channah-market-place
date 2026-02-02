@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,32 +9,46 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Platform,
+  StatusBar,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { cartAPI } from '../../../../shared/api/customer-api';
+import { useAuthStore } from '../../store/authStore';
+import { useCartStore } from '../../store/cartStore';
+import { usePrice } from '../../hooks/usePrice';
 
 const getImageUrl = (item: any) => {
-  const url = item.product?.images?.[0]?.image || item.product?.image;
+  const url = item.product?.primary_image || item.product?.images?.[0]?.url || item.product?.image;
   if (url && url.startsWith('http')) return url;
-  return 'https://via.placeholder.com/80';
+  return undefined;
 };
 
 export default function CartScreen({ navigation }: any) {
+  const { formatPrice } = usePrice();
+  const { user } = useAuthStore();
   const [cart, setCart] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState('');
   const [applyingCoupon, setApplyingCoupon] = useState(false);
 
-  useEffect(() => {
-    loadCart();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      if (user) loadCart();
+      else setLoading(false);
+    }, [user])
+  );
 
   const loadCart = async () => {
     try {
       setLoading(true);
       const response = await cartAPI.get();
       setCart(response);
+      const items = response?.items || [];
+      const total = items.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
+      useCartStore.getState().setCount(total);
     } catch (error) {
       console.error('Failed to load cart:', error);
     } finally {
@@ -132,15 +146,21 @@ export default function CartScreen({ navigation }: any) {
 
     return (
       <View style={styles.cartItem}>
-        <Image
-          source={{ uri: getImageUrl(item) }}
-          style={styles.itemImage}
-        />
+        {getImageUrl(item) ? (
+          <Image source={{ uri: getImageUrl(item) }} style={styles.itemImage} />
+        ) : (
+          <View style={[styles.itemImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' }]}>
+            <Icon name="image-outline" size={24} color="#d1d5db" />
+          </View>
+        )}
         <View style={styles.itemInfo}>
           <Text style={styles.itemName} numberOfLines={2}>
             {item.product?.name}
           </Text>
-          <Text style={styles.itemPrice}>${item.price}</Text>
+          <Text style={styles.itemPrice}>{formatPrice(Number(item.price) * (item.quantity || 1))}</Text>
+          {item.quantity > 1 && (
+            <Text style={styles.itemUnitPrice}>{formatPrice(Number(item.price))} each</Text>
+          )}
 
           <View style={styles.quantityRow}>
             <TouchableOpacity
@@ -174,19 +194,36 @@ export default function CartScreen({ navigation }: any) {
     );
   };
 
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Icon name="cart-outline" size={64} color="#9ca3af" />
-      <Text style={styles.emptyText}>Your cart is empty</Text>
-      <Text style={styles.emptySubtext}>Add some products to get started</Text>
-      <TouchableOpacity
-        style={styles.shopButton}
-        onPress={() => navigation.navigate('Products')}
-      >
-        <Text style={styles.shopButtonText}>Start Shopping</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  const renderEmpty = () => {
+    if (!user) {
+      return (
+        <View style={styles.emptyContainer}>
+          <Icon name="lock-closed-outline" size={64} color="#9ca3af" />
+          <Text style={styles.emptyText}>Sign in to view your cart</Text>
+          <Text style={styles.emptySubtext}>Log in to add items and check out</Text>
+          <TouchableOpacity
+            style={styles.shopButton}
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.shopButtonText}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.emptyContainer}>
+        <Icon name="cart-outline" size={64} color="#9ca3af" />
+        <Text style={styles.emptyText}>Your cart is empty</Text>
+        <Text style={styles.emptySubtext}>Add some products to get started</Text>
+        <TouchableOpacity
+          style={styles.shopButton}
+          onPress={() => navigation.navigate('Products')}
+        >
+          <Text style={styles.shopButtonText}>Start Shopping</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   if (loading) {
     return (
@@ -215,7 +252,7 @@ export default function CartScreen({ navigation }: any) {
       <FlatList
         data={items}
         renderItem={renderCartItem}
-        keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+        keyExtractor={(item, index) => item.id?.toString() || `cart-item-${index}`}
         contentContainerStyle={isEmpty ? styles.emptyList : styles.listContent}
         ListEmptyComponent={renderEmpty}
       />
@@ -225,23 +262,23 @@ export default function CartScreen({ navigation }: any) {
         <View style={styles.summary}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryValue}>${cart?.subtotal || '0.00'}</Text>
+            <Text style={styles.summaryValue}>{formatPrice(Number(cart?.subtotal || 0))}</Text>
           </View>
           {cart?.discount_amount > 0 && (
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Discount</Text>
               <Text style={[styles.summaryValue, styles.discountText]}>
-                -${cart.discount_amount}
+                -{formatPrice(Number(cart.discount_amount))}
               </Text>
             </View>
           )}
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Tax</Text>
-            <Text style={styles.summaryValue}>${cart?.tax_amount || '0.00'}</Text>
+            <Text style={styles.summaryValue}>{formatPrice(Number(cart?.tax_amount || 0))}</Text>
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>${cart?.total || '0.00'}</Text>
+            <Text style={styles.totalValue}>{formatPrice(Number(cart?.total || 0))}</Text>
           </View>
 
           {/* Coupon Input */}
@@ -302,6 +339,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 32) + 12 : 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },
@@ -314,6 +352,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#ef4444',
     fontWeight: '600',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   listContent: {
     padding: 16,
@@ -350,7 +390,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#3b82f6',
-    marginBottom: 8,
+    marginBottom: 2,
+  },
+  itemUnitPrice: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginBottom: 6,
   },
   quantityRow: {
     flexDirection: 'row',

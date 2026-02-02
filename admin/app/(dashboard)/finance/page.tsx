@@ -163,7 +163,7 @@ function SellerPlansManager() {
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Seller Plans</CardTitle>
-            <CardDescription>Manage the plans displayed on the &quot;Sell on Vendora&quot; page</CardDescription>
+            <CardDescription>Manage the plans displayed on the &quot;Sell on Channah&quot; page</CardDescription>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={addPlan}>

@@ -178,8 +178,26 @@ async def create_order(
     )
     order = result.scalar_one()
 
-    # TODO: Send order confirmation email in background
-    # background_tasks.add_task(send_order_confirmation, order)
+    # Send order confirmation email + notification in background
+    order_items_for_email = [
+        {"name": item.product_name, "quantity": item.quantity, "unit_price": float(item.unit_price)}
+        for item in order.items
+    ]
+    background_tasks.add_task(
+        _send_order_confirmation_background,
+        user_id=current_user.id,
+        email=current_user.email,
+        first_name=current_user.first_name,
+        order_id=order.id,
+        order_number=order.order_number,
+        items=order_items_for_email,
+        subtotal=float(order.subtotal),
+        shipping=float(order.shipping_amount),
+        tax=float(order.tax_amount),
+        total=float(order.total),
+        currency=order.currency,
+        estimated_delivery=order.estimated_delivery.strftime("%B %d, %Y") if order.estimated_delivery else None,
+    )
 
     return OrderResponse.model_validate(order)
 
@@ -635,6 +653,7 @@ async def get_admin_order(
 async def admin_update_order_status(
     order_id: UUID,
     status_data: OrderUpdateStatus,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
@@ -642,7 +661,7 @@ async def admin_update_order_status(
     result = await db.execute(
         select(Order)
         .where(Order.id == order_id)
-        .options(selectinload(Order.items), selectinload(Order.status_history))
+        .options(selectinload(Order.items), selectinload(Order.status_history), selectinload(Order.user))
     )
     order = result.scalar_one_or_none()
 
@@ -674,6 +693,20 @@ async def admin_update_order_status(
 
     await db.commit()
     await db.refresh(order)
+
+    # Notify customer of status change
+    if order.user and old_status != order.status:
+        background_tasks.add_task(
+            _send_order_status_background,
+            user_id=order.user.id,
+            email=order.user.email,
+            first_name=order.user.first_name,
+            order_id=order.id,
+            order_number=order.order_number,
+            new_status=status_data.status,
+            tracking_number=status_data.tracking_number,
+            carrier=status_data.carrier,
+        )
 
     return OrderResponse.model_validate(order)
 
@@ -744,3 +777,48 @@ async def get_order(
         raise HTTPException(status_code=404, detail="Order not found")
 
     return OrderResponse.model_validate(order)
+
+
+# ---------------------------------------------------------------------------
+# Background task helpers for email/notification dispatch
+# ---------------------------------------------------------------------------
+
+async def _send_order_confirmation_background(
+    user_id, email, first_name, order_id, order_number,
+    items, subtotal, shipping, tax, total, currency, estimated_delivery,
+):
+    from app.core.database import AsyncSessionLocal
+    from app.services.notifications import notify_order_confirmed
+    import logging
+
+    async with AsyncSessionLocal() as db:
+        try:
+            await notify_order_confirmed(
+                db=db, user_id=user_id, email=email, first_name=first_name,
+                order_id=order_id, order_number=order_number, items=items,
+                subtotal=subtotal, shipping=shipping, tax=tax,
+                total=total, currency=currency, estimated_delivery=estimated_delivery,
+            )
+            await db.commit()
+        except Exception as exc:
+            logging.getLogger(__name__).error("Order confirmation email failed: %s", exc)
+
+
+async def _send_order_status_background(
+    user_id, email, first_name, order_id, order_number,
+    new_status, tracking_number=None, carrier=None,
+):
+    from app.core.database import AsyncSessionLocal
+    from app.services.notifications import notify_order_status_change
+    import logging
+
+    async with AsyncSessionLocal() as db:
+        try:
+            await notify_order_status_change(
+                db=db, user_id=user_id, email=email, first_name=first_name,
+                order_id=order_id, order_number=order_number,
+                new_status=new_status, tracking_number=tracking_number, carrier=carrier,
+            )
+            await db.commit()
+        except Exception as exc:
+            logging.getLogger(__name__).error("Order status email failed: %s", exc)
