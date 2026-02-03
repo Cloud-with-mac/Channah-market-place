@@ -17,6 +17,19 @@ import type {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
+// Helper function to get CSRF token from cookie
+function getCsrfToken(): string | null {
+  if (typeof document === 'undefined') return null
+  const cookies = document.cookie.split(';')
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split('=')
+    if (name === 'csrf_token') {
+      return decodeURIComponent(value)
+    }
+  }
+  return null
+}
+
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -26,12 +39,22 @@ const apiClient: AxiosInstance = axios.create({
   withCredentials: true,
 })
 
-// Request interceptor (no longer needed for cookie auth, but kept for potential future use)
+// Request interceptor to add CSRF token for state-changing operations
 apiClient.interceptors.request.use(
   (config) => {
     // SECURITY FIX: Tokens are now in HTTP-only cookies
     // No need to add Authorization header - cookies are sent automatically
     // The backend reads from cookies via get_current_user()
+
+    // CSRF PROTECTION: Add CSRF token for state-changing operations
+    const method = config.method?.toUpperCase()
+    if (method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      const csrfToken = getCsrfToken()
+      if (csrfToken) {
+        config.headers['X-CSRF-Token'] = csrfToken
+      }
+    }
+
     return config
   },
   (error) => {

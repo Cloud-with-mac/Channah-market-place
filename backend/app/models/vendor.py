@@ -101,7 +101,7 @@ class Vendor(Base):
     # Relationships
     user = relationship("User", back_populates="vendor")
     products = relationship("Product", back_populates="vendor", cascade="all, delete-orphan")
-    payouts = relationship("VendorPayout", back_populates="vendor", cascade="all, delete-orphan")
+    payouts = relationship("Payout", back_populates="vendor", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Vendor {self.business_name}>"

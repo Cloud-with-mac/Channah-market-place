@@ -177,3 +177,104 @@ def get_optional_current_user(token: Optional[str] = Depends(oauth2_scheme)):
         return payload.get("sub")
     except:
         return None
+
+
+# CSRF Token Functions
+import secrets
+import hmac
+import hashlib
+
+
+def create_csrf_token(session_id: str) -> str:
+    """
+    Generate a CSRF token bound to the user's session.
+    Uses HMAC with the session ID to prevent token reuse across sessions.
+    """
+    # Generate random token
+    random_token = secrets.token_urlsafe(32)
+
+    # Create HMAC signature binding token to session
+    signature = hmac.new(
+        settings.SECRET_KEY.encode(),
+        f"{session_id}:{random_token}".encode(),
+        hashlib.sha256
+    ).hexdigest()
+
+    # Return token in format: random_token.signature
+    return f"{random_token}.{signature}"
+
+
+def validate_csrf_token(token: str, session_id: str) -> bool:
+    """
+    Validate a CSRF token against the current session.
+    Returns True if valid, False otherwise.
+    """
+    if not token or "." not in token:
+        return False
+
+    try:
+        random_token, signature = token.rsplit(".", 1)
+
+        # Recreate the expected signature
+        expected_signature = hmac.new(
+            settings.SECRET_KEY.encode(),
+            f"{session_id}:{random_token}".encode(),
+            hashlib.sha256
+        ).hexdigest()
+
+        # Constant-time comparison to prevent timing attacks
+        return hmac.compare_digest(signature, expected_signature)
+    except Exception:
+        return False
+
+
+async def verify_csrf_token(
+    request: Request,
+    current_user = Depends(get_current_user)
+):
+    """
+    Dependency to verify CSRF token for state-changing operations.
+    Checks X-CSRF-Token header against the csrf_token cookie.
+
+    CSRF validation is only enforced for cookie-based authentication (web clients).
+    Mobile apps using Bearer token authentication are exempt from CSRF checks.
+    """
+    # Get CSRF token from cookie (stored on login for web clients)
+    csrf_cookie = request.cookies.get("csrf_token")
+
+    # Check if request is using cookie-based auth (web) or Bearer token (mobile)
+    access_token_cookie = request.cookies.get("access_token")
+    authorization_header = request.headers.get("Authorization")
+
+    # If using Bearer token (mobile app), skip CSRF validation
+    if authorization_header and authorization_header.startswith("Bearer ") and not access_token_cookie:
+        return current_user
+
+    # If using cookie-based auth (web), enforce CSRF protection
+    if csrf_cookie:
+        csrf_header = request.headers.get("X-CSRF-Token")
+
+        if not csrf_header:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="CSRF token missing in header"
+            )
+
+        # Use user ID as session identifier
+        session_id = str(current_user.id)
+
+        # Validate that the token is valid for this session
+        if not validate_csrf_token(csrf_cookie, session_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid CSRF token"
+            )
+
+        # Validate that header matches cookie (constant-time comparison)
+        if not hmac.compare_digest(csrf_header, csrf_cookie):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="CSRF token mismatch"
+            )
+
+    return current_user

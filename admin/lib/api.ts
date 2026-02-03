@@ -2,6 +2,19 @@ import axios, { AxiosInstance } from 'axios'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
+// Helper function to get CSRF token from cookie
+function getCsrfToken(): string | null {
+  if (typeof document === 'undefined') return null
+  const cookies = document.cookie.split(';')
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split('=')
+    if (name === 'csrf_token') {
+      return decodeURIComponent(value)
+    }
+  }
+  return null
+}
+
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -11,13 +24,22 @@ const apiClient: AxiosInstance = axios.create({
   withCredentials: true,
 })
 
-// Request interceptor to add auth token
+// Request interceptor to add CSRF token for state-changing operations
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('admin_access_token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+    // SECURITY FIX: Tokens are now in HTTP-only cookies
+    // No need to add Authorization header - cookies are sent automatically
+    // The backend reads from cookies via get_current_user()
+
+    // CSRF PROTECTION: Add CSRF token for state-changing operations
+    const method = config.method?.toUpperCase()
+    if (method && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      const csrfToken = getCsrfToken()
+      if (csrfToken) {
+        config.headers['X-CSRF-Token'] = csrfToken
+      }
     }
+
     return config
   },
   (error) => {
@@ -31,26 +53,31 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
+    // SECURITY FIX: Token refresh now uses HTTP-only cookies
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
 
       try {
-        const refreshToken = localStorage.getItem('admin_refresh_token')
-        if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-            refresh_token: refreshToken,
-          })
+        // Refresh endpoint reads refresh_token from HTTP-only cookie
+        // No need to send token in body - it's automatically sent via cookie
+        const response = await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          {},
+          { withCredentials: true }  // Send cookies
+        )
 
-          const { access_token } = response.data
-          localStorage.setItem('admin_access_token', access_token)
-
-          originalRequest.headers.Authorization = `Bearer ${access_token}`
-          return apiClient(originalRequest)
-        }
+        // Token is set in HTTP-only cookie by backend
+        // No localStorage manipulation needed
+        // Retry the original request (cookie will be sent automatically)
+        return apiClient(originalRequest)
       } catch (refreshError) {
-        localStorage.removeItem('admin_access_token')
-        localStorage.removeItem('admin_refresh_token')
-        window.location.href = '/login'
+        // Token refresh failed - redirect to login
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('auth-storage')  // Clear Zustand persisted state
+        }
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+          window.location.href = '/login'
+        }
         return Promise.reject(refreshError)
       }
     }
@@ -72,17 +99,15 @@ export const authAPI = {
       },
     })
 
-    if (response.data.access_token) {
-      localStorage.setItem('admin_access_token', response.data.access_token)
-      localStorage.setItem('admin_refresh_token', response.data.refresh_token)
-    }
+    // SECURITY FIX: Tokens are now in HTTP-only cookies set by backend
+    // No need to store in localStorage - cookies are sent automatically
 
     return response.data
   },
 
   logout: async () => {
-    localStorage.removeItem('admin_access_token')
-    localStorage.removeItem('admin_refresh_token')
+    // SECURITY FIX: Backend clears HTTP-only cookies on logout
+    await apiClient.post('/auth/logout')
   },
 
   getCurrentUser: async () => {

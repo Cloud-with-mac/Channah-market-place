@@ -13,7 +13,7 @@ import secrets
 from app.core.database import get_db
 from app.core.security import (
     verify_password, get_password_hash, create_access_token,
-    create_refresh_token, decode_token, get_current_user
+    create_refresh_token, decode_token, get_current_user, create_csrf_token
 )
 from app.core.config import settings
 from app.models.user import User, UserRole, AuthProvider
@@ -28,8 +28,8 @@ router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
 
-def set_auth_cookies(response: Response, access_token: str, refresh_token: str):
-    """Set HTTP-only cookies for access and refresh tokens"""
+def set_auth_cookies(response: Response, access_token: str, refresh_token: str, user_id: str):
+    """Set HTTP-only cookies for access and refresh tokens, and CSRF token"""
     # Access token cookie (short-lived)
     response.set_cookie(
         key="access_token",
@@ -52,11 +52,24 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str):
         path="/api/v1/auth",  # Only sent to auth endpoints
     )
 
+    # CSRF token cookie (NOT httponly - JS needs to read it to send in headers)
+    csrf_token = create_csrf_token(user_id)
+    response.set_cookie(
+        key="csrf_token",
+        value=csrf_token,
+        httponly=False,  # JS needs to read this
+        secure=not settings.DEBUG,
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+
 
 def clear_auth_cookies(response: Response):
     """Clear authentication cookies"""
     response.delete_cookie(key="access_token", path="/")
     response.delete_cookie(key="refresh_token", path="/api/v1/auth")
+    response.delete_cookie(key="csrf_token", path="/")
 
 
 def verify_image_magic_bytes(contents: bytes) -> bool:
@@ -141,7 +154,8 @@ async def register(
 
     # SECURITY FIX: Set HTTP-only cookies instead of returning tokens in response
     # This prevents XSS attacks from stealing tokens
-    set_auth_cookies(response, access_token, refresh_token)
+    # Also sets CSRF token for protection against CSRF attacks
+    set_auth_cookies(response, access_token, refresh_token, str(user.id))
 
     return TokenResponse(
         access_token="",  # Empty - token is in HTTP-only cookie
@@ -187,8 +201,8 @@ async def login(
     access_token = create_access_token(data={"sub": str(user.id)})
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
-    # SECURITY FIX: Set HTTP-only cookies
-    set_auth_cookies(response, access_token, refresh_token)
+    # SECURITY FIX: Set HTTP-only cookies and CSRF token
+    set_auth_cookies(response, access_token, refresh_token, str(user.id))
 
     return TokenResponse(
         access_token="",  # Empty - token is in HTTP-only cookie
@@ -239,8 +253,8 @@ async def refresh_token(
     new_access_token = create_access_token(data={"sub": str(user.id)})
     new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
-    # SECURITY FIX: Set new tokens in HTTP-only cookies
-    set_auth_cookies(response, new_access_token, new_refresh_token)
+    # SECURITY FIX: Set new tokens and CSRF token in HTTP-only cookies
+    set_auth_cookies(response, new_access_token, new_refresh_token, str(user.id))
 
     return TokenResponse(
         access_token="",  # Empty - token is in HTTP-only cookie
@@ -487,6 +501,22 @@ async def delete_account(
     await db.commit()
 
     return MessageResponse(message="Your account has been permanently deleted")
+
+
+@router.get("/csrf-token")
+async def get_csrf_token(request: Request):
+    """
+    Get CSRF token for authenticated users.
+    The CSRF token is already set as a cookie on login, but this endpoint
+    allows clients to retrieve it if needed (e.g., after page refresh).
+    """
+    csrf_token = request.cookies.get("csrf_token")
+    if not csrf_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No CSRF token found. Please login first."
+        )
+    return {"csrf_token": csrf_token}
 
 
 # ---------------------------------------------------------------------------
