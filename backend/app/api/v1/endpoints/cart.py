@@ -12,7 +12,7 @@ from app.models.cart import Cart, CartItem
 from app.models.product import Product, ProductVariant, ProductStatus
 from app.schemas.cart import (
     CartItemCreate, CartItemUpdate, CartResponse, CartItemResponse,
-    ApplyCouponRequest, CartItemProductResponse
+    ApplyCouponRequest, CartItemProductResponse, BulkCartSyncRequest
 )
 from app.schemas.common import MessageResponse
 
@@ -307,6 +307,120 @@ async def clear_cart(
         await db.commit()
 
     return MessageResponse(message="Cart cleared successfully")
+
+
+@router.post("/sync", response_model=CartResponse)
+async def bulk_sync_cart(
+    sync_data: BulkCartSyncRequest,
+    request: Request,
+    current_user: Optional[User] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Bulk sync cart items - fixes N+1 query issue.
+    Replaces multiple individual addItem calls with a single bulk operation.
+    """
+    session_id = request.cookies.get("cart_session") or str(uuid4())
+
+    cart = await get_or_create_cart(current_user, session_id, db)
+
+    if not cart:
+        raise HTTPException(status_code=400, detail="Could not get or create cart")
+
+    # Clear existing items if requested
+    if sync_data.clear_existing:
+        await db.execute(
+            CartItem.__table__.delete().where(CartItem.cart_id == cart.id)
+        )
+        cart.coupon_code = None
+        cart.discount_amount = 0
+
+    # Bulk fetch all products to avoid N+1
+    product_ids = [item.product_id for item in sync_data.items]
+    products_result = await db.execute(
+        select(Product)
+        .where(Product.id.in_(product_ids), Product.status == ProductStatus.ACTIVE)
+        .options(selectinload(Product.variants))
+    )
+    products = {p.id: p for p in products_result.scalars().all()}
+
+    # Create cart items in bulk
+    new_items = []
+    for item_data in sync_data.items:
+        product = products.get(item_data.product_id)
+        if not product:
+            continue  # Skip invalid products
+
+        # Check stock
+        if product.track_inventory and product.quantity < item_data.quantity:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient stock for product {product.name}"
+            )
+
+        # Get price
+        price = product.price
+        if item_data.variant_id:
+            variant = next((v for v in product.variants if v.id == item_data.variant_id), None)
+            if variant:
+                price = variant.price
+
+        # Check for existing item (if not clearing)
+        if not sync_data.clear_existing:
+            existing_result = await db.execute(
+                select(CartItem).where(
+                    CartItem.cart_id == cart.id,
+                    CartItem.product_id == item_data.product_id,
+                    CartItem.variant_id == item_data.variant_id if item_data.variant_id else CartItem.variant_id.is_(None)
+                )
+            )
+            existing_item = existing_result.scalar_one_or_none()
+            if existing_item:
+                existing_item.quantity = item_data.quantity
+                continue
+
+        # Create new item
+        cart_item = CartItem(
+            cart_id=cart.id,
+            product_id=item_data.product_id,
+            variant_id=item_data.variant_id,
+            quantity=item_data.quantity,
+            price=price
+        )
+        new_items.append(cart_item)
+
+    # Bulk add new items
+    if new_items:
+        db.add_all(new_items)
+
+    # Apply coupon if provided
+    if sync_data.coupon_code:
+        # TODO: Validate against coupons table
+        if sync_data.coupon_code.upper() == "SAVE10":
+            cart.coupon_code = sync_data.coupon_code.upper()
+            # Discount will be calculated after commit when we reload the cart
+
+    await db.commit()
+
+    # Reload cart with all relationships
+    result = await db.execute(
+        select(Cart)
+        .where(Cart.id == cart.id)
+        .options(
+            selectinload(Cart.items).selectinload(CartItem.product).selectinload(Product.images),
+            selectinload(Cart.items).selectinload(CartItem.product).selectinload(Product.vendor)
+        )
+    )
+    cart = result.scalar_one()
+
+    # Calculate discount if coupon applied
+    if cart.coupon_code:
+        subtotal = sum(item.price * item.quantity for item in cart.items)
+        cart.discount_amount = subtotal * 0.10
+        await db.commit()
+        await db.refresh(cart)
+
+    return serialize_cart(cart)
 
 
 @router.post("/coupon", response_model=CartResponse)

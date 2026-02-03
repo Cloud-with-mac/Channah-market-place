@@ -58,6 +58,13 @@ class ApplyCouponRequest(BaseModel):
     coupon_code: str
 
 
+class BulkCartSyncRequest(BaseModel):
+    """Request to sync multiple cart items at once (fixes N+1 query issue)"""
+    items: List[CartItemCreate]
+    coupon_code: Optional[str] = None
+    clear_existing: bool = True  # Whether to clear existing items before syncing
+
+
 class CartVendorGroup(BaseModel):
     vendor_id: UUID
     vendor_name: str

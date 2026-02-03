@@ -75,27 +75,9 @@ export default function CheckoutPage() {
     setError(null)
 
     try {
-      // TODO: N+1 issue — this loop sends one request per cart item. Refactor to use
-      // a bulk cart sync endpoint (e.g. POST /cart/sync) that accepts all items at once.
-      // Ensure backend cart is in sync — add all frontend items
-      try {
-        await cartAPI.clear()
-      } catch {
-        // Cart might not exist yet
-      }
-
-      for (const item of items) {
-        await cartAPI.addItem(item.productId, item.quantity, item.variantId)
-      }
-
-      // Apply coupon if any
-      if (couponCode) {
-        try {
-          await cartAPI.applyCoupon(couponCode)
-        } catch {
-          // Coupon might not be valid, continue anyway
-        }
-      }
+      // FIXED: Use bulk cart sync endpoint to avoid N+1 query issue
+      // This replaces multiple individual addItem calls with a single bulk operation
+      await cartAPI.syncItems(items, couponCode || undefined)
 
       // Create order — backend reads items from the cart
       const orderData = {

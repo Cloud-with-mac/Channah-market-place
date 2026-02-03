@@ -142,7 +142,8 @@ export const useCurrencyStore = create<CurrencyState>()(
       detectCountry: async () => {
         if (get().country) return;
 
-        // Try device timezone first to avoid third-party IP lookups
+        // Use device timezone for privacy-friendly country detection
+        // No third-party IP services - respects user privacy
         try {
           const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
           const countryFromTz = timezoneToCountry[tz];
@@ -151,36 +152,11 @@ export const useCurrencyStore = create<CurrencyState>()(
             return;
           }
         } catch {
-          // Intl not available, fall through to IP geolocation
+          // Intl not available, use default
         }
 
-        // Fallback: IP geolocation
-        try {
-          const response = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(5000) });
-          const text = await response.text();
-          try {
-            const data = JSON.parse(text);
-            if (data.country_code) {
-              get().setCountry(data.country_code);
-              return;
-            }
-          } catch {
-            // Response was not JSON (rate limited), try fallback
-          }
-        } catch {
-          // Network error, try fallback
-        }
-        // Fallback API
-        try {
-          const res = await fetch('https://ip2c.org/s', { signal: AbortSignal.timeout(5000) });
-          const text = await res.text();
-          const parts = text.split(';');
-          if (parts[0] === '1' && parts[1]) {
-            get().setCountry(parts[1]);
-          }
-        } catch {
-          // All detection methods failed — default currency will be used
-        }
+        // If timezone detection fails, default currency (GBP) will be used
+        // Users can manually select their currency in settings
       },
 
       convertAndFormat: (priceInGBP: number) => {

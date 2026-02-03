@@ -291,6 +291,21 @@ export const cartAPI = {
     return response.data
   },
 
+  // Bulk sync cart items - fixes N+1 query issue
+  syncItems: async (items: Array<{ productId: string; quantity: number; variantId?: string }>, couponCode?: string) => {
+    const formattedItems = items.map(item => ({
+      product_id: item.productId,
+      quantity: item.quantity,
+      ...(item.variantId && { variant_id: item.variantId })
+    }))
+    const response = await apiClient.post('/cart/sync', {
+      items: formattedItems,
+      coupon_code: couponCode,
+      clear_existing: true
+    })
+    return response.data
+  },
+
   applyCoupon: async (code: string) => {
     const response = await apiClient.post('/cart/coupon', { coupon_code: code })
     return response.data
