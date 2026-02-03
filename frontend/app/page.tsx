@@ -94,6 +94,7 @@ export default function HomePage() {
   const [activeCategory, setActiveCategory] = useState<string>('all')
   const [visibleCount, setVisibleCount] = useState(PRODUCTS_PER_PAGE)
   const [heroBanners, setHeroBanners] = useState<any[]>(DEFAULT_BANNERS)
+  const [featuredAd, setFeaturedAd] = useState<any>(null)
   const [bannerIndex, setBannerIndex] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null)
@@ -102,10 +103,11 @@ export default function HomePage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [catsRes, productsRes, bannersRes] = await Promise.all([
+        const [catsRes, productsRes, bannersRes, featuredRes] = await Promise.all([
           categoriesAPI.getAll().catch(() => []),
           productsAPI.getAll({ limit: 500, sort_by: 'created_at', sort_order: 'desc' }).catch(() => []),
           bannersAPI.getAll().catch(() => []),
+          bannersAPI.getFeatured().catch(() => null),
         ])
 
         const cats = Array.isArray(catsRes) ? catsRes : (catsRes?.results || catsRes?.items || [])
@@ -115,6 +117,7 @@ export default function HomePage() {
         setCategories(cats)
         setAllProducts(prods)
         if (banners.length > 0) setHeroBanners(banners)
+        if (featuredRes) setFeaturedAd(featuredRes)
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -316,6 +319,66 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ═══════ LARGE ADVERTISEMENT BANNER ═══════ */}
+      {featuredAd && (
+        <section className="py-16 relative overflow-hidden min-h-[400px]">
+          {/* Background - Image Carousel or Gradient */}
+          {featuredAd.images && featuredAd.images.length > 0 ? (
+            <div className="absolute inset-0">
+              {featuredAd.images.map((img: string, i: number) => (
+                <div
+                  key={i}
+                  className={`absolute inset-0 transition-opacity duration-1000 ${
+                    i === bannerIndex % featuredAd.images.length ? 'opacity-100' : 'opacity-0'
+                  }`}
+                >
+                  <img src={img} alt={featuredAd.title} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-black/30" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div
+              className="absolute inset-0"
+              style={{ background: `linear-gradient(to bottom right, ${featuredAd.color_from || '#9333ea'}, ${featuredAd.color_to || '#ef4444'})` }}
+            >
+              <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
+              <div className="absolute top-10 left-10 w-20 h-20 rounded-full bg-white/10 blur-xl" />
+              <div className="absolute bottom-10 right-10 w-32 h-32 rounded-full bg-white/10 blur-xl" />
+            </div>
+          )}
+
+          {/* Content */}
+          <div className="container relative z-10">
+            <div className="max-w-4xl mx-auto text-center text-white">
+              <Badge className="bg-white/20 backdrop-blur-sm text-white border-0 mb-4 text-sm px-4 py-1.5">
+                <Sparkles className="h-4 w-4 mr-2" />
+                {featuredAd.icon?.toUpperCase() || 'FEATURED'}
+              </Badge>
+              <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 font-display drop-shadow-lg">
+                {featuredAd.title}
+              </h2>
+              <p className="text-lg md:text-xl text-white/95 mb-8 max-w-2xl mx-auto drop-shadow-md">
+                {featuredAd.subtitle}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <Button size="lg" className="bg-white text-gray-900 hover:bg-white/90 font-semibold text-lg px-8 shadow-xl" asChild>
+                  <Link href={featuredAd.link_url || '/products'}>
+                    Shop Now
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-sm border-2 border-white text-white hover:bg-white/20 font-semibold text-lg px-8" asChild>
+                  <Link href="/deals">
+                    View All Deals
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ═══════ SEARCH BAR ═══════ */}
       <section className="bg-background border-b">

@@ -60,7 +60,8 @@ async def init_db():
         User, Vendor, VendorPayout, Category, Product, ProductImage,
         ProductVariant, ProductAttribute, Cart, CartItem, Order, OrderItem,
         OrderStatusHistory, Review, Wishlist, Address, Payment, PaymentMethod,
-        Notification, Conversation, Message, SupportChat, SupportChatMessage
+        Notification, Conversation, Message, SupportChat, SupportChatMessage,
+        SearchQuery
     )
     from app.models.contact import ContactSubmission, NewsletterSubscriber
 

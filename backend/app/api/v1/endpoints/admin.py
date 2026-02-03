@@ -13,6 +13,10 @@ import io
 
 from app.core.database import get_db
 from app.core.security import get_current_admin, get_password_hash
+from app.core.fts5_setup import (
+    check_fts5_exists, get_fts5_stats, rebuild_fts5_index,
+    optimize_fts5_index, populate_fts5_table, create_fts5_table
+)
 from app.models.user import User, UserRole, AuthProvider
 from app.models.vendor import Vendor, VendorStatus
 from app.models.product import Product, ProductStatus
@@ -3229,3 +3233,376 @@ async def get_vendor_detail(
         "city": vendor.city if hasattr(vendor, 'city') else None,
         "country": vendor.country if hasattr(vendor, 'country') else None,
     }
+
+
+# ============ Test Email Endpoint ============
+
+class TestEmailRequest(BaseModel):
+    email_type: str
+    recipient_email: EmailStr
+
+
+@router.post("/test-email")
+async def send_test_email(
+    request: TestEmailRequest,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Send test emails (admin only).
+
+    Available email types:
+    - welcome
+    - password_reset
+    - order_confirmation
+    - order_shipped
+    - order_delivered
+    - payment_received
+    - vendor_new_order
+    - payout_request
+    - payout_approved
+    """
+    from app.services import email as email_service
+
+    try:
+        if request.email_type == "welcome":
+            success = email_service.send_welcome_email(
+                to_email=request.recipient_email,
+                first_name="John"
+            )
+
+        elif request.email_type == "password_reset":
+            success = email_service.send_password_reset_email(
+                to_email=request.recipient_email,
+                first_name="John",
+                reset_token="sample-reset-token-123456"
+            )
+
+        elif request.email_type == "order_confirmation":
+            success = email_service.send_order_confirmation_email(
+                to_email=request.recipient_email,
+                first_name="John",
+                order_number="ORD-2024-001",
+                items=[
+                    {
+                        "name": "Premium Wireless Headphones",
+                        "quantity": 1,
+                        "unit_price": 149.99,
+                        "variant": "Black"
+                    },
+                    {
+                        "name": "USB-C Cable (2m)",
+                        "quantity": 2,
+                        "unit_price": 12.99,
+                        "variant": None
+                    }
+                ],
+                subtotal=175.97,
+                shipping=10.00,
+                tax=18.60,
+                total=204.57,
+                shipping_address={
+                    "name": "John Doe",
+                    "street": "123 Main Street",
+                    "apartment": "Apt 4B",
+                    "city": "San Francisco",
+                    "state": "CA",
+                    "zip": "94102",
+                    "country": "United States",
+                    "phone": "+1 (555) 123-4567"
+                },
+                estimated_delivery="January 15-18, 2024"
+            )
+
+        elif request.email_type == "order_shipped":
+            success = email_service.send_order_shipped_email(
+                to_email=request.recipient_email,
+                first_name="John",
+                order_number="ORD-2024-001",
+                items=[
+                    {
+                        "name": "Premium Wireless Headphones",
+                        "quantity": 1,
+                        "variant": "Black"
+                    },
+                    {
+                        "name": "USB-C Cable (2m)",
+                        "quantity": 2,
+                        "variant": None
+                    }
+                ],
+                shipping_address={
+                    "name": "John Doe",
+                    "street": "123 Main Street",
+                    "apartment": "Apt 4B",
+                    "city": "San Francisco",
+                    "state": "CA",
+                    "zip": "94102",
+                    "country": "United States"
+                },
+                tracking_number="1Z999AA10123456784",
+                carrier="UPS",
+                tracking_url="https://www.ups.com/track?tracknum=1Z999AA10123456784",
+                estimated_delivery="January 15-18, 2024"
+            )
+
+        elif request.email_type == "order_delivered":
+            success = email_service.send_order_delivered_email(
+                to_email=request.recipient_email,
+                first_name="John",
+                order_number="ORD-2024-001",
+                items=[
+                    {
+                        "name": "Premium Wireless Headphones",
+                        "quantity": 1,
+                        "variant": "Black"
+                    },
+                    {
+                        "name": "USB-C Cable (2m)",
+                        "quantity": 2,
+                        "variant": None
+                    }
+                ]
+            )
+
+        elif request.email_type == "payment_received":
+            success = email_service.send_payment_received_email(
+                to_email=request.recipient_email,
+                first_name="John",
+                order_number="ORD-2024-001",
+                items=[
+                    {
+                        "name": "Premium Wireless Headphones",
+                        "quantity": 1,
+                        "unit_price": 149.99,
+                        "variant": "Black"
+                    }
+                ],
+                subtotal=149.99,
+                shipping=10.00,
+                tax=16.00,
+                total=175.99,
+                amount=175.99,
+                payment_method="Visa •••• 4242",
+                transaction_id="ch_1234567890abcdef"
+            )
+
+        elif request.email_type == "vendor_new_order":
+            success = email_service.send_vendor_new_order_email(
+                to_email=request.recipient_email,
+                vendor_name="Tech Store",
+                order_number="ORD-2024-001",
+                customer_name="John Doe",
+                customer_email="john@example.com",
+                customer_phone="+1 (555) 123-4567",
+                items=[
+                    {
+                        "name": "Premium Wireless Headphones",
+                        "quantity": 1,
+                        "unit_price": 149.99,
+                        "variant": "Black",
+                        "sku": "WH-1000XM4-BLK"
+                    }
+                ],
+                subtotal=149.99,
+                commission=15.00,
+                vendor_earnings=134.99,
+                commission_percent=10.0,
+                shipping_address={
+                    "name": "John Doe",
+                    "street": "123 Main Street",
+                    "apartment": "Apt 4B",
+                    "city": "San Francisco",
+                    "state": "CA",
+                    "zip": "94102",
+                    "country": "United States",
+                    "phone": "+1 (555) 123-4567"
+                }
+            )
+
+        elif request.email_type == "payout_request":
+            success = email_service.send_payout_request_email(
+                to_email=request.recipient_email,
+                vendor_name="Tech Store",
+                vendor_email="vendor@techstore.com",
+                vendor_phone="+1 (555) 987-6543",
+                vendor_id="vendor_123456",
+                payout_id="payout_789012",
+                payout_amount=1500.00,
+                available_balance=2000.00,
+                payment_method="Bank Transfer",
+                bank_name="Chase Bank",
+                account_number="1234567890",
+                account_holder="Tech Store LLC"
+            )
+
+        elif request.email_type == "payout_approved":
+            success = email_service.send_payout_approved_email(
+                to_email=request.recipient_email,
+                vendor_name="Tech Store",
+                payout_id="payout_789012",
+                payout_amount=1500.00,
+                payment_method="Bank Transfer",
+                bank_name="Chase Bank",
+                account_number="1234567890",
+                account_holder="Tech Store LLC",
+                estimated_arrival="3-5 business days"
+            )
+
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown email type: {request.email_type}"
+            )
+
+        if success:
+            return MessageResponse(
+                message=f"Test email '{request.email_type}' sent successfully to {request.recipient_email}"
+            )
+        else:
+            return MessageResponse(
+                message=f"Test email '{request.email_type}' logged (SMTP not configured). Check server logs."
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to send test email: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to send test email: {str(e)}"
+        )
+
+
+# ============================================================================
+# FTS5 Full-Text Search Management
+# ============================================================================
+
+
+@router.get("/fts5/status")
+async def get_fts5_status(
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get FTS5 full-text search status and statistics"""
+    exists = await check_fts5_exists(db)
+
+    if not exists:
+        return {
+            "status": "not_initialized",
+            "exists": False,
+            "message": "FTS5 table has not been created yet"
+        }
+
+    stats = await get_fts5_stats(db)
+
+    return {
+        "status": "active",
+        "exists": True,
+        "statistics": stats
+    }
+
+
+@router.post("/fts5/initialize")
+async def initialize_fts5(
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Initialize FTS5 table and populate with existing products"""
+    # Check if already exists
+    exists = await check_fts5_exists(db)
+
+    if exists:
+        raise HTTPException(
+            status_code=400,
+            detail="FTS5 table already exists. Use rebuild endpoint to recreate."
+        )
+
+    # Create FTS5 table and triggers
+    success = await create_fts5_table(db)
+
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to create FTS5 table"
+        )
+
+    # Populate with existing products
+    count = await populate_fts5_table(db)
+
+    return MessageResponse(
+        message=f"FTS5 initialized successfully. Indexed {count} products."
+    )
+
+
+@router.post("/fts5/rebuild")
+async def rebuild_fts5(
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Rebuild FTS5 index (useful after bulk data changes)"""
+    exists = await check_fts5_exists(db)
+
+    if not exists:
+        raise HTTPException(
+            status_code=404,
+            detail="FTS5 table does not exist. Use initialize endpoint first."
+        )
+
+    success = await rebuild_fts5_index(db)
+
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to rebuild FTS5 index"
+        )
+
+    return MessageResponse(
+        message="FTS5 index rebuilt successfully"
+    )
+
+
+@router.post("/fts5/optimize")
+async def optimize_fts5(
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Optimize FTS5 index for better performance"""
+    exists = await check_fts5_exists(db)
+
+    if not exists:
+        raise HTTPException(
+            status_code=404,
+            detail="FTS5 table does not exist. Use initialize endpoint first."
+        )
+
+    success = await optimize_fts5_index(db)
+
+    if not success:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to optimize FTS5 index"
+        )
+
+    return MessageResponse(
+        message="FTS5 index optimized successfully"
+    )
+
+
+@router.post("/fts5/repopulate")
+async def repopulate_fts5(
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Repopulate FTS5 table from existing products"""
+    exists = await check_fts5_exists(db)
+
+    if not exists:
+        raise HTTPException(
+            status_code=404,
+            detail="FTS5 table does not exist. Use initialize endpoint first."
+        )
+
+    count = await populate_fts5_table(db)
+
+    return MessageResponse(
+        message=f"FTS5 table repopulated with {count} products"
+    )

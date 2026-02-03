@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Payout Approved{% endblock %}
+
+{% block header_title %}Payout Approved!{% endblock %}
+{% block header_subtitle %}Your earnings are on the way{% endblock %}
+
+{% block content %}
+<h2>Payout Approved</h2>
+
+<p>Hi {{ vendor_name }},</p>
+
+<p>Great news! Your payout request has been approved and is being processed.</p>
+
+<div style="margin: 20px 0;">
+    <span class="badge badge-green">Approved</span>
+    <span style="margin-left: 8px; color: #6b7280; font-size: 14px;">{{ approval_date }}</span>
+</div>
+
+<div class="success-box">
+    <p><strong>Your payment is on the way!</strong> You should receive the funds within 3-5 business days.</p>
+</div>
+
+<h3 style="margin-top: 32px; color: #1f2937;">Payout Details</h3>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 6px; margin: 16px 0;">
+    <tr>
+        <td style="padding: 16px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Payout ID</td>
+                    <td style="padding: 8px 0; text-align: right; font-family: monospace; font-size: 13px;">{{ payout_id }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Amount</td>
+                    <td style="padding: 8px 0; text-align: right; font-weight: 700; font-size: 18px; color: #10b981;">{{ currency }} {{ "%.2f"|format(payout_amount) }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Payment Method</td>
+                    <td style="padding: 8px 0; text-align: right;">{{ payment_method }}</td>
+                </tr>
+                {% if estimated_arrival %}
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Estimated Arrival</td>
+                    <td style="padding: 8px 0; text-align: right; font-weight: 600;">{{ estimated_arrival }}</td>
+                </tr>
+                {% endif %}
+            </table>
+        </td>
+    </tr>
+</table>
+
+<h3 style="margin-top: 32px; color: #1f2937;">Payment Destination</h3>
+
+<div style="background-color: #f9fafb; padding: 16px; border-radius: 6px; margin: 12px 0;">
+    <p style="margin: 4px 0;"><strong>{{ payment_method }}</strong></p>
+    {% if bank_name %}<p style="margin: 4px 0; color: #6b7280;">Bank: {{ bank_name }}</p>{% endif %}
+    {% if account_number %}<p style="margin: 4px 0; color: #6b7280;">Account: ****{{ account_number[-4:] }}</p>{% endif %}
+    {% if account_holder %}<p style="margin: 4px 0; color: #6b7280;">Account Holder: {{ account_holder }}</p>{% endif %}
+</div>
+
+<div style="text-align: center; margin: 32px 0;">
+    <a href="{{ vendor_url }}/payouts" class="btn">View Payout History</a>
+</div>
+
+<p style="font-size: 14px; color: #6b7280; margin-top: 24px;">
+    Questions about your payout? <a href="{{ vendor_url }}/support" style="color: #3b82f6;">Contact Support</a>
+</p>
+
+<p style="margin-top: 24px;">
+    Thank you for being a valued vendor!<br>
+    <strong>The Channah Team</strong>
+</p>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}New Order Received - #{{ order_number }}{% endblock %}
+
+{% block header_title %}New Order!{% endblock %}
+{% block header_subtitle %}You have a new order to fulfill{% endblock %}
+
+{% block content %}
+<h2>New Order Received</h2>
+
+<p>Hi {{ vendor_name }},</p>
+
+<p>Great news! You have a new order to fulfill.</p>
+
+<div style="margin: 20px 0;">
+    <span class="badge badge-blue">Order #{{ order_number }}</span>
+    <span style="margin-left: 8px; color: #6b7280; font-size: 14px;">{{ order_date }}</span>
+</div>
+
+<div class="info-box">
+    <p><strong>Action Required:</strong> Please process this order and mark it as shipped once dispatched.</p>
+</div>
+
+<h3 style="margin-top: 32px; color: #1f2937;">Customer Information</h3>
+
+<div style="background-color: #f9fafb; padding: 16px; border-radius: 6px; margin: 12px 0;">
+    <p style="margin: 4px 0;"><strong>{{ customer_name }}</strong></p>
+    {% if customer_email %}<p style="margin: 4px 0; color: #6b7280;">{{ customer_email }}</p>{% endif %}
+    {% if customer_phone %}<p style="margin: 4px 0; color: #6b7280;">Phone: {{ customer_phone }}</p>{% endif %}
+</div>
+
+<h3 style="margin-top: 32px; color: #1f2937;">Order Items</h3>
+
+<table class="data-table" role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th class="text-center">Qty</th>
+            <th class="text-right">Price</th>
+            <th class="text-right">Total</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td>
+                <strong>{{ item.name }}</strong>
+                {% if item.sku %}<br><span style="color: #6b7280; font-size: 13px;">SKU: {{ item.sku }}</span>{% endif %}
+                {% if item.variant %}<br><span style="color: #6b7280; font-size: 13px;">{{ item.variant }}</span>{% endif %}
+            </td>
+            <td class="text-center">{{ item.quantity }}</td>
+            <td class="text-right">{{ currency }} {{ "%.2f"|format(item.unit_price) }}</td>
+            <td class="text-right"><strong>{{ currency }} {{ "%.2f"|format(item.quantity * item.unit_price) }}</strong></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top: 16px;">
+    <tr>
+        <td style="padding: 8px 12px; color: #6b7280; text-align: right;">Subtotal</td>
+        <td style="padding: 8px 12px; text-align: right; width: 120px;">{{ currency }} {{ "%.2f"|format(subtotal) }}</td>
+    </tr>
+    <tr>
+        <td style="padding: 8px 12px; color: #6b7280; text-align: right;">Platform Fee ({{ commission_percent }}%)</td>
+        <td style="padding: 8px 12px; text-align: right; color: #ef4444;">-{{ currency }} {{ "%.2f"|format(commission) }}</td>
+    </tr>
+    <tr style="border-top: 2px solid #e5e7eb;">
+        <td style="padding: 12px 12px 8px; text-align: right; font-weight: 700; font-size: 16px;">Your Earnings</td>
+        <td style="padding: 12px 12px 8px; text-align: right; font-weight: 700; font-size: 18px; color: #10b981;">{{ currency }} {{ "%.2f"|format(vendor_earnings) }}</td>
+    </tr>
+</table>
+
+<h3 style="margin-top: 32px; color: #1f2937;">Shipping Address</h3>
+
+<div style="background-color: #f9fafb; padding: 16px; border-radius: 6px; margin: 12px 0;">
+    <p style="margin: 4px 0;"><strong>{{ shipping_address.name }}</strong></p>
+    <p style="margin: 4px 0; color: #6b7280;">{{ shipping_address.street }}</p>
+    {% if shipping_address.apartment %}<p style="margin: 4px 0; color: #6b7280;">{{ shipping_address.apartment }}</p>{% endif %}
+    <p style="margin: 4px 0; color: #6b7280;">{{ shipping_address.city }}, {{ shipping_address.state }} {{ shipping_address.zip }}</p>
+    <p style="margin: 4px 0; color: #6b7280;">{{ shipping_address.country }}</p>
+    {% if shipping_address.phone %}<p style="margin: 4px 0; color: #6b7280;">Phone: {{ shipping_address.phone }}</p>{% endif %}
+</div>
+
+<div style="text-align: center; margin: 32px 0;">
+    <a href="{{ vendor_url }}/orders/{{ order_number }}" class="btn">Process Order</a>
+</div>
+
+<p style="font-size: 14px; color: #6b7280; margin-top: 24px;">
+    Remember to update the order status and add tracking information once you ship the package.
+</p>
+
+<p style="margin-top: 24px;">
+    Best regards,<br>
+    <strong>The Channah Team</strong>
+</p>
+{% endblock %}

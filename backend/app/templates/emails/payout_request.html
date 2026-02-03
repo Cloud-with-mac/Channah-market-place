@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Payout Request - {{ vendor_name }}{% endblock %}
+
+{% block header_title %}Payout Request{% endblock %}
+{% block header_subtitle %}Vendor withdrawal request{% endblock %}
+
+{% block content %}
+<h2>New Payout Request</h2>
+
+<p>Hello Admin,</p>
+
+<p>A vendor has requested a payout from their earnings.</p>
+
+<div style="margin: 20px 0;">
+    <span class="badge badge-yellow">Pending Review</span>
+    <span style="margin-left: 8px; color: #6b7280; font-size: 14px;">{{ request_date }}</span>
+</div>
+
+<h3 style="margin-top: 32px; color: #1f2937;">Vendor Information</h3>
+
+<div style="background-color: #f9fafb; padding: 16px; border-radius: 6px; margin: 12px 0;">
+    <p style="margin: 4px 0;"><strong>{{ vendor_name }}</strong></p>
+    <p style="margin: 4px 0; color: #6b7280;">Email: {{ vendor_email }}</p>
+    {% if vendor_phone %}<p style="margin: 4px 0; color: #6b7280;">Phone: {{ vendor_phone }}</p>{% endif %}
+    <p style="margin: 4px 0; color: #6b7280;">Vendor ID: {{ vendor_id }}</p>
+</div>
+
+<h3 style="margin-top: 32px; color: #1f2937;">Payout Details</h3>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 6px; margin: 16px 0;">
+    <tr>
+        <td style="padding: 16px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Available Balance</td>
+                    <td style="padding: 8px 0; text-align: right; font-weight: 600;">{{ currency }} {{ "%.2f"|format(available_balance) }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Requested Amount</td>
+                    <td style="padding: 8px 0; text-align: right; font-weight: 700; font-size: 18px; color: #3b82f6;">{{ currency }} {{ "%.2f"|format(payout_amount) }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Remaining Balance</td>
+                    <td style="padding: 8px 0; text-align: right; font-weight: 600;">{{ currency }} {{ "%.2f"|format(available_balance - payout_amount) }}</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+
+<h3 style="margin-top: 32px; color: #1f2937;">Payment Method</h3>
+
+<div style="background-color: #f9fafb; padding: 16px; border-radius: 6px; margin: 12px 0;">
+    <p style="margin: 4px 0;"><strong>{{ payment_method }}</strong></p>
+    {% if bank_name %}<p style="margin: 4px 0; color: #6b7280;">Bank: {{ bank_name }}</p>{% endif %}
+    {% if account_number %}<p style="margin: 4px 0; color: #6b7280;">Account: ****{{ account_number[-4:] }}</p>{% endif %}
+    {% if account_holder %}<p style="margin: 4px 0; color: #6b7280;">Account Holder: {{ account_holder }}</p>{% endif %}
+</div>
+
+<div class="warning-box">
+    <p><strong>Action Required:</strong> Please review and process this payout request in the admin dashboard.</p>
+</div>
+
+<div style="text-align: center; margin: 32px 0;">
+    <a href="{{ admin_url }}/payouts/{{ payout_id }}" class="btn">Review Payout Request</a>
+</div>
+
+<p style="margin-top: 24px;">
+    <strong>Channah Admin System</strong>
+</p>
+{% endblock %}

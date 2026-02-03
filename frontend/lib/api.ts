@@ -786,6 +786,11 @@ export const bannersAPI = {
     const response = await apiClient.get('/banners')
     return response.data
   },
+
+  getFeatured: async () => {
+    const response = await apiClient.get('/banners/featured')
+    return response.data
+  },
 }
 
 // ==================== RFQ API ====================

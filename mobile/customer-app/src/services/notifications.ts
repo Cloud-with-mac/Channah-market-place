@@ -100,10 +100,23 @@ export async function registerForPushNotifications(): Promise<string | null> {
  */
 export async function savePushTokenToServer(token: string): Promise<void> {
   try {
-    await customerApi.post('/users/me/push-token', { push_token: token });
+    await customerApi.post('/users/me/push-token', {
+      push_token: token,
+      device_type: Platform.OS,
+    });
     console.log('Push token saved to server.');
   } catch (error) {
     console.warn('Failed to save push token to server:', error);
+  }
+}
+
+/**
+ * Register push notifications for the current user (call this after login).
+ */
+export async function registerPushForCurrentUser(): Promise<void> {
+  const token = await registerForPushNotifications();
+  if (token) {
+    await savePushTokenToServer(token);
   }
 }
 
@@ -216,4 +229,43 @@ export async function initPushNotifications(
   return () => {
     unsubs.forEach((fn) => fn());
   };
+}
+
+// ---------------------------------------------------------------------------
+// Notification handling helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Handle notification data and route to appropriate screen
+ */
+export function handleNotificationRoute(data: any, navigation: any): void {
+  if (!data || !navigation) return;
+
+  const { type, order_id, order_number, product_id, conversation_id } = data;
+
+  switch (type) {
+    case 'order_update':
+    case 'order_shipped':
+    case 'order_delivered':
+      if (order_number) {
+        navigation.navigate('OrderDetail', { orderNumber: order_number });
+      }
+      break;
+    case 'new_message':
+      if (conversation_id) {
+        navigation.navigate('Chat', { conversationId: conversation_id });
+      }
+      break;
+    case 'price_drop':
+    case 'back_in_stock':
+      if (product_id) {
+        navigation.navigate('ProductDetail', { id: product_id });
+      }
+      break;
+    case 'promotion':
+      navigation.navigate('Deals');
+      break;
+    default:
+      console.log('Unknown notification type:', type);
+  }
 }

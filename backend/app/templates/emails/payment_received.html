@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Received - #{{ order_number }}{% endblock %}
+
+{% block header_title %}Payment Confirmed{% endblock %}
+{% block header_subtitle %}Your receipt{% endblock %}
+
+{% block content %}
+<h2>Payment Received</h2>
+
+<p>Hi {{ first_name }},</p>
+
+<p>We've successfully received your payment. Thank you for your purchase!</p>
+
+<div style="margin: 20px 0;">
+    <span class="badge badge-green">Payment Confirmed</span>
+    <span style="margin-left: 8px; color: #6b7280; font-size: 14px;">{{ payment_date }}</span>
+</div>
+
+<h3 style="margin-top: 32px; color: #1f2937;">Payment Details</h3>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 6px; margin: 16px 0;">
+    <tr>
+        <td style="padding: 16px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Order Number</td>
+                    <td style="padding: 8px 0; text-align: right; font-weight: 600;">#{{ order_number }}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Payment Method</td>
+                    <td style="padding: 8px 0; text-align: right;">{{ payment_method }}</td>
+                </tr>
+                {% if transaction_id %}
+                <tr>
+                    <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Transaction ID</td>
+                    <td style="padding: 8px 0; text-align: right; font-family: monospace; font-size: 13px;">{{ transaction_id }}</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td colspan="2" style="padding: 12px 0 8px;"><div style="height: 1px; background-color: #e5e7eb;"></div></td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 0; font-weight: 700; font-size: 16px;">Total Paid</td>
+                    <td style="padding: 8px 0; text-align: right; font-weight: 700; font-size: 18px; color: #10b981;">{{ currency }} {{ "%.2f"|format(amount) }}</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+
+<h3 style="margin-top: 32px; color: #1f2937;">Order Summary</h3>
+
+<table class="data-table" role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th class="text-center">Qty</th>
+            <th class="text-right">Price</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td>
+                <strong>{{ item.name }}</strong>
+                {% if item.variant %}<br><span style="color: #6b7280; font-size: 13px;">{{ item.variant }}</span>{% endif %}
+            </td>
+            <td class="text-center">{{ item.quantity }}</td>
+            <td class="text-right">{{ currency }} {{ "%.2f"|format(item.unit_price) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<table class="summary-table" role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+        <td class="label">Subtotal</td>
+        <td class="value">{{ currency }} {{ "%.2f"|format(subtotal) }}</td>
+    </tr>
+    <tr>
+        <td class="label">Shipping</td>
+        <td class="value">{{ currency }} {{ "%.2f"|format(shipping) }}</td>
+    </tr>
+    <tr>
+        <td class="label">Tax</td>
+        <td class="value">{{ currency }} {{ "%.2f"|format(tax) }}</td>
+    </tr>
+    <tr class="total">
+        <td class="label"><strong>Total</strong></td>
+        <td class="value"><strong>{{ currency }} {{ "%.2f"|format(total) }}</strong></td>
+    </tr>
+</table>
+
+<div style="text-align: center; margin: 32px 0;">
+    <a href="{{ app_url }}/account/orders/{{ order_number }}" class="btn">View Order</a>
+</div>
+
+<p style="font-size: 14px; color: #6b7280; margin-top: 24px;">
+    Keep this email for your records. For any questions about your order, please visit our <a href="{{ app_url }}/support" style="color: #3b82f6;">Support Center</a>.
+</p>
+
+<p style="margin-top: 24px;">
+    Thank you for your business!<br>
+    <strong>The Channah Team</strong>
+</p>
+{% endblock %}

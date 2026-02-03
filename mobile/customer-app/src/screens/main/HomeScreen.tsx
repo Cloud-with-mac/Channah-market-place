@@ -461,6 +461,33 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </View>
 
+        {/* ═══════ LARGE ADVERTISEMENT BANNER ═══════ */}
+        <TouchableOpacity style={styles.largeAdBanner} activeOpacity={0.9}>
+          <LinearGradient
+            colors={['#9333ea', '#ec4899', '#ef4444']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.largeAdGradient}
+          >
+            <View style={styles.largeAdContent}>
+              <View style={styles.largeAdBadge}>
+                <Icon name="sparkles" size={14} color="#fff" />
+                <Text style={styles.largeAdBadgeText}>MEGA SALE EVENT</Text>
+              </View>
+              <Text style={styles.largeAdTitle}>Up to 70% Off{'\n'}Everything</Text>
+              <Text style={styles.largeAdSubtitle}>
+                Limited time offer on thousands of products
+              </Text>
+              <View style={styles.largeAdButton}>
+                <Text style={styles.largeAdButtonText}>Shop Now</Text>
+                <Icon name="arrow-forward" size={16} color="#000" />
+              </View>
+            </View>
+            <View style={styles.largeAdDecor1} />
+            <View style={styles.largeAdDecor2} />
+          </LinearGradient>
+        </TouchableOpacity>
+
         {/* ═══════ CATEGORIES (horizontal scroll with icons) ═══════ */}
         {categories.length > 0 && (
           <View style={styles.section}>
@@ -918,6 +945,91 @@ const styles = StyleSheet.create({
   bannerDotActive: {
     backgroundColor: '#3b82f6',
     width: 18,
+  },
+
+  // Large Advertisement Banner
+  largeAdBanner: {
+    marginHorizontal: 16,
+    marginVertical: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  largeAdGradient: {
+    padding: 24,
+    minHeight: 220,
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  largeAdContent: {
+    zIndex: 10,
+  },
+  largeAdBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+    gap: 6,
+  },
+  largeAdBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  largeAdTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 8,
+    lineHeight: 38,
+  },
+  largeAdSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 20,
+    maxWidth: '80%',
+  },
+  largeAdButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    alignSelf: 'flex-start',
+    gap: 8,
+  },
+  largeAdButtonText: {
+    color: '#000',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  largeAdDecor1: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  largeAdDecor2: {
+    position: 'absolute',
+    bottom: 20,
+    right: -20,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
 
   // Section

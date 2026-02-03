@@ -68,10 +68,10 @@ interface Payout {
   id: string
   vendor_name: string
   amount: number
-  status: 'pending' | 'processing' | 'completed' | 'failed'
-  method: string
-  requested_at: string
-  processed_at?: string
+  status: 'pending' | 'processing' | 'paid' | 'failed'
+  payment_method: string
+  created_at: string
+  paid_date?: string
 }
 
 interface Transaction {
@@ -432,8 +432,8 @@ export default function FinancePage() {
         return <Badge variant="warning"><Clock className="mr-1 h-3 w-3" />Pending</Badge>
       case 'processing':
         return <Badge variant="info"><RefreshCw className="mr-1 h-3 w-3" />Processing</Badge>
-      case 'completed':
-        return <Badge variant="success"><CheckCircle className="mr-1 h-3 w-3" />Completed</Badge>
+      case 'paid':
+        return <Badge variant="success"><CheckCircle className="mr-1 h-3 w-3" />Paid</Badge>
       case 'failed':
         return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />Failed</Badge>
       default:
@@ -518,7 +518,7 @@ export default function FinancePage() {
     },
     {
       title: 'Processed This Month',
-      value: formatPrice(payouts.filter(p => p.status === 'completed').reduce((sum, p) => sum + p.amount, 0), 'USD'),
+      value: formatPrice(payouts.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0), 'USD'),
       change: 15.8,
       trend: 'up',
       icon: CreditCard,
@@ -642,7 +642,7 @@ export default function FinancePage() {
                   {[
                     { status: 'Pending', count: payouts.filter(p => p.status === 'pending').length, amount: payouts.filter(p => p.status === 'pending').reduce((s, p) => s + p.amount, 0), color: 'bg-warning' },
                     { status: 'Processing', count: payouts.filter(p => p.status === 'processing').length, amount: payouts.filter(p => p.status === 'processing').reduce((s, p) => s + p.amount, 0), color: 'bg-info' },
-                    { status: 'Completed', count: payouts.filter(p => p.status === 'completed').length, amount: payouts.filter(p => p.status === 'completed').reduce((s, p) => s + p.amount, 0), color: 'bg-success' },
+                    { status: 'Paid', count: payouts.filter(p => p.status === 'paid').length, amount: payouts.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0), color: 'bg-success' },
                     { status: 'Failed', count: payouts.filter(p => p.status === 'failed').length, amount: payouts.filter(p => p.status === 'failed').reduce((s, p) => s + p.amount, 0), color: 'bg-destructive' },
                   ].map((item) => (
                     <div key={item.status} className="flex items-center justify-between">
@@ -689,7 +689,7 @@ export default function FinancePage() {
                       <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="processing">Processing</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
                       <SelectItem value="failed">Failed</SelectItem>
                     </SelectContent>
                   </Select>
@@ -713,9 +713,9 @@ export default function FinancePage() {
                     <TableRow key={payout.id}>
                       <TableCell className="font-medium">{payout.vendor_name}</TableCell>
                       <TableCell className="font-bold">{formatPrice(payout.amount, 'USD')}</TableCell>
-                      <TableCell>{payout.method}</TableCell>
+                      <TableCell className="capitalize">{payout.payment_method?.replace('_', ' ')}</TableCell>
                       <TableCell>{getPayoutStatusBadge(payout.status)}</TableCell>
-                      <TableCell>{formatRelativeTime(payout.requested_at)}</TableCell>
+                      <TableCell>{formatRelativeTime(payout.created_at)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button
@@ -828,7 +828,7 @@ export default function FinancePage() {
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Payment Method</Label>
-                  <p className="font-medium capitalize">{selectedPayout.method?.replace('_', ' ')}</p>
+                  <p className="font-medium capitalize">{selectedPayout.payment_method?.replace('_', ' ')}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Status</Label>
@@ -836,11 +836,11 @@ export default function FinancePage() {
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Requested</Label>
-                  <p className="font-medium">{formatRelativeTime(selectedPayout.requested_at)}</p>
+                  <p className="font-medium">{formatRelativeTime(selectedPayout.created_at)}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-xs">Processed</Label>
-                  <p className="font-medium">{selectedPayout.processed_at ? formatRelativeTime(selectedPayout.processed_at) : '-'}</p>
+                  <Label className="text-muted-foreground text-xs">Paid</Label>
+                  <p className="font-medium">{selectedPayout.paid_date ? formatRelativeTime(selectedPayout.paid_date) : '-'}</p>
                 </div>
               </div>
               {selectedPayout.status === 'pending' && (

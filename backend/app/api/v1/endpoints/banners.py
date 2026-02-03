@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 from pydantic import BaseModel
+import json
+import os
+import uuid as uuid_lib
 
 from app.core.database import get_db
 from app.core.security import get_current_admin
@@ -24,13 +27,30 @@ class BannerResponse(BaseModel):
     color_to: str
     link_url: Optional[str] = None
     image_url: Optional[str] = None
+    images: Optional[List[str]] = None
     is_active: bool
+    is_featured: bool = False
     sort_order: int
     countdown_end: Optional[datetime] = None
     countdown_label: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @classmethod
+    def model_validate(cls, obj):
+        # Parse images JSON string to list
+        data = {}
+        for field in cls.model_fields:
+            value = getattr(obj, field, None)
+            if field == 'images' and isinstance(value, str):
+                try:
+                    data[field] = json.loads(value) if value else []
+                except:
+                    data[field] = []
+            else:
+                data[field] = value
+        return cls(**data)
 
 
 class BannerCreate(BaseModel):
@@ -42,6 +62,7 @@ class BannerCreate(BaseModel):
     link_url: Optional[str] = None
     image_url: Optional[str] = None
     is_active: bool = True
+    is_featured: bool = False
     sort_order: int = 0
     countdown_end: Optional[datetime] = None
     countdown_label: Optional[str] = None
@@ -56,6 +77,7 @@ class BannerUpdate(BaseModel):
     link_url: Optional[str] = None
     image_url: Optional[str] = None
     is_active: Optional[bool] = None
+    is_featured: Optional[bool] = None
     sort_order: Optional[int] = None
     countdown_end: Optional[datetime] = None
     countdown_label: Optional[str] = None
@@ -74,6 +96,36 @@ async def list_banners(
     result = await db.execute(query)
     banners = result.scalars().all()
     return [BannerResponse.model_validate(b) for b in banners]
+
+
+@router.get("/featured", response_model=BannerResponse)
+async def get_featured_banner(db: AsyncSession = Depends(get_db)):
+    """Get the active featured banner for large ad slot"""
+    query = select(Banner).where(
+        Banner.is_active == True,
+        Banner.is_featured == True
+    ).order_by(Banner.sort_order, Banner.created_at.desc()).limit(1)
+    result = await db.execute(query)
+    banner = result.scalar_one_or_none()
+    if not banner:
+        # Return a default banner
+        return BannerResponse(
+            id=UUID('00000000-0000-0000-0000-000000000000'),
+            title="Up to 70% Off Everything",
+            subtitle="Limited time offer on thousands of products from verified suppliers worldwide",
+            icon="sparkles",
+            color_from="#9333ea",
+            color_to="#ef4444",
+            link_url="/products",
+            image_url=None,
+            is_active=True,
+            is_featured=True,
+            sort_order=0,
+            countdown_end=None,
+            countdown_label=None,
+            created_at=datetime.utcnow()
+        )
+    return BannerResponse.model_validate(banner)
 
 
 # Admin endpoints

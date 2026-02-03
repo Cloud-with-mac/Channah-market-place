@@ -354,6 +354,11 @@ export const vendorPayoutsAPI = {
     const response = await apiClient.get('/vendors/me/balance')
     return response.data
   },
+
+  getEarnings: async () => {
+    const response = await apiClient.get('/payouts/vendors/earnings')
+    return response.data
+  },
 }
 
 // ==================== REVIEWS API ====================

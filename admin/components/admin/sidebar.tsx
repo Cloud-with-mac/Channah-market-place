@@ -77,7 +77,8 @@ const navigation: NavSection[] = [
   {
     title: 'Content',
     items: [
-      { title: 'Banners & Promos', href: '/content', icon: FileImage },
+      { title: 'Banners', href: '/banners', icon: FileImage },
+      { title: 'Promos & Content', href: '/content', icon: FileImage },
     ],
   },
   {

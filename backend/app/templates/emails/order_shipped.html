@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Order Shipped - #{{ order_number }}{% endblock %}
+
+{% block header_title %}Your Order Has Shipped!{% endblock %}
+{% block header_subtitle %}On its way to you{% endblock %}
+
+{% block content %}
+<h2>Order Shipped</h2>
+
+<p>Hi {{ first_name }},</p>
+
+<p>Great news! Your order has been shipped and is on its way to you.</p>
+
+<div style="margin: 20px 0;">
+    <span class="badge badge-yellow">Order #{{ order_number }}</span>
+    <span style="margin-left: 8px; color: #6b7280; font-size: 14px;">Shipped on {{ shipped_date }}</span>
+</div>
+
+<div class="info-box">
+    <p style="margin: 4px 0;"><strong>Tracking Number:</strong> <span style="font-family: monospace;">{{ tracking_number }}</span></p>
+    <p style="margin: 4px 0;"><strong>Carrier:</strong> {{ carrier }}</p>
+    {% if estimated_delivery %}
+    <p style="margin: 4px 0;"><strong>Estimated Delivery:</strong> {{ estimated_delivery }}</p>
+    {% endif %}
+</div>
+
+{% if tracking_url %}
+<div style="text-align: center; margin: 32px 0;">
+    <a href="{{ tracking_url }}" class="btn">Track Your Package</a>
+</div>
+{% endif %}
+
+<h3 style="margin-top: 32px; color: #1f2937;">Order Summary</h3>
+
+<table class="data-table" role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th class="text-center">Qty</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td>
+                <strong>{{ item.name }}</strong>
+                {% if item.variant %}<br><span style="color: #6b7280; font-size: 13px;">{{ item.variant }}</span>{% endif %}
+            </td>
+            <td class="text-center">{{ item.quantity }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h3 style="margin-top: 32px; color: #1f2937;">Shipping Address</h3>
+<div style="background-color: #f9fafb; padding: 16px; border-radius: 6px; margin: 12px 0;">
+    <p style="margin: 4px 0;"><strong>{{ shipping_address.name }}</strong></p>
+    <p style="margin: 4px 0; color: #6b7280;">{{ shipping_address.street }}</p>
+    {% if shipping_address.apartment %}<p style="margin: 4px 0; color: #6b7280;">{{ shipping_address.apartment }}</p>{% endif %}
+    <p style="margin: 4px 0; color: #6b7280;">{{ shipping_address.city }}, {{ shipping_address.state }} {{ shipping_address.zip }}</p>
+    <p style="margin: 4px 0; color: #6b7280;">{{ shipping_address.country }}</p>
+</div>
+
+<div style="text-align: center; margin: 32px 0;">
+    <a href="{{ app_url }}/account/orders/{{ order_number }}" class="btn btn-secondary">View Order Details</a>
+</div>
+
+<p style="font-size: 14px; color: #6b7280; margin-top: 24px;">
+    Questions about your order? <a href="{{ app_url }}/support" style="color: #3b82f6;">Contact Support</a>
+</p>
+
+<p style="margin-top: 24px;">
+    Thank you for shopping with Channah!<br>
+    <strong>The Channah Team</strong>
+</p>
+{% endblock %}

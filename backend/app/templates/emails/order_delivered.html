@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Order Delivered - #{{ order_number }}{% endblock %}
+
+{% block header_title %}Order Delivered!{% endblock %}
+{% block header_subtitle %}We hope you love it{% endblock %}
+
+{% block content %}
+<h2>Your Order Has Been Delivered</h2>
+
+<p>Hi {{ first_name }},</p>
+
+<p>Your order has been successfully delivered! We hope you're happy with your purchase.</p>
+
+<div style="margin: 20px 0;">
+    <span class="badge badge-green">Order #{{ order_number }}</span>
+    <span style="margin-left: 8px; color: #6b7280; font-size: 14px;">Delivered on {{ delivered_date }}</span>
+</div>
+
+<div class="success-box">
+    <p><strong>Package delivered successfully!</strong> If you haven't received it, please check with your neighbors or building management.</p>
+</div>
+
+<h3 style="margin-top: 32px; color: #1f2937;">Your Items</h3>
+
+<table class="data-table" role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th class="text-center">Qty</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td>
+                <strong>{{ item.name }}</strong>
+                {% if item.variant %}<br><span style="color: #6b7280; font-size: 13px;">{{ item.variant }}</span>{% endif %}
+            </td>
+            <td class="text-center">{{ item.quantity }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div style="background-color: #f0f9ff; border: 2px solid #3b82f6; border-radius: 8px; padding: 24px; margin: 32px 0; text-align: center;">
+    <h3 style="margin: 0 0 12px; color: #1e40af;">Love your purchase?</h3>
+    <p style="margin: 0 0 20px; color: #1e40af;">Share your experience and help other shoppers!</p>
+    <a href="{{ app_url }}/account/orders/{{ order_number }}/review" class="btn">Write a Review</a>
+</div>
+
+<div class="info-box">
+    <p><strong>Need to return something?</strong><br>
+    You have 30 days from delivery to initiate a return. <a href="{{ app_url }}/returns" style="color: #1e40af;">Learn more</a></p>
+</div>
+
+<div style="text-align: center; margin: 32px 0;">
+    <a href="{{ app_url }}/account/orders/{{ order_number }}" class="btn btn-secondary">View Order Details</a>
+</div>
+
+<p style="margin-top: 32px;">
+    Thank you for shopping with Channah!<br>
+    <strong>The Channah Team</strong>
+</p>
+{% endblock %}

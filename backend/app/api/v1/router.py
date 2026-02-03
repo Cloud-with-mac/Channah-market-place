@@ -23,6 +23,7 @@ from app.api.v1.endpoints import (
     banners,
     rfq,
     verification,
+    payouts,
 )
 
 api_router = APIRouter()
@@ -89,6 +90,9 @@ api_router.include_router(rfq.router, prefix="/rfq", tags=["RFQ"])
 
 # Verification / Trust
 api_router.include_router(verification.router, prefix="/verification", tags=["Verification"])
+
+# Payouts
+api_router.include_router(payouts.router, prefix="/payouts", tags=["Payouts"])
 
 # Contact & Newsletter
 api_router.include_router(contact.router, tags=["Contact"])

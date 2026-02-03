@@ -8,8 +8,11 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Image,
+  Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import * as ImagePicker from 'expo-image-picker';
 import { reviewsAPI } from '../../../../shared/api/customer-api';
 
 export default function WriteReviewScreen({ route, navigation }: any) {
@@ -17,7 +20,36 @@ export default function WriteReviewScreen({ route, navigation }: any) {
   const [rating, setRating] = useState(0);
   const [title, setTitle] = useState('');
   const [comment, setComment] = useState('');
+  const [images, setImages] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const pickImage = async () => {
+    if (images.length >= 3) {
+      Alert.alert('Limit Reached', 'You can upload up to 3 images per review');
+      return;
+    }
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Please grant camera roll permissions to upload photos');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: false,
+      quality: 0.8,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setImages([...images, result.assets[0].uri]);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setImages(images.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async () => {
     if (rating === 0) {
@@ -36,6 +68,7 @@ export default function WriteReviewScreen({ route, navigation }: any) {
         rating,
         title: title.trim() || undefined,
         comment: comment.trim(),
+        images: images.length > 0 ? images : undefined,
       });
       Alert.alert('Success', 'Your review has been submitted!', [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -112,6 +145,33 @@ export default function WriteReviewScreen({ route, navigation }: any) {
         <Text style={styles.charCount}>{comment.length}/1000</Text>
       </View>
 
+      {/* Photos */}
+      <View style={styles.inputSection}>
+        <Text style={styles.sectionTitle}>Add Photos (Optional)</Text>
+        <Text style={styles.photoSubtitle}>Upload up to 3 photos to showcase your experience</Text>
+
+        <View style={styles.photoGrid}>
+          {images.map((uri, index) => (
+            <View key={index} style={styles.photoItem}>
+              <Image source={{ uri }} style={styles.photoImage} />
+              <TouchableOpacity
+                style={styles.photoRemove}
+                onPress={() => removeImage(index)}
+              >
+                <Icon name="close-circle" size={24} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
+          ))}
+
+          {images.length < 3 && (
+            <TouchableOpacity style={styles.photoAddButton} onPress={pickImage}>
+              <Icon name="camera-outline" size={32} color="#9ca3af" />
+              <Text style={styles.photoAddText}>Add Photo</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
       {/* Submit */}
       <TouchableOpacity
         style={[styles.submitButton, isSubmitting && styles.buttonDisabled]}
@@ -164,6 +224,45 @@ const styles = StyleSheet.create({
     minHeight: 120,
   },
   charCount: { fontSize: 12, color: '#9ca3af', textAlign: 'right', marginTop: 4 },
+  photoSubtitle: { fontSize: 13, color: '#6b7280', marginBottom: 12 },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  photoItem: {
+    position: 'relative',
+    width: 100,
+    height: 100,
+  },
+  photoImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
+  },
+  photoRemove: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+  },
+  photoAddButton: {
+    width: 100,
+    height: 100,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f9fafb',
+  },
+  photoAddText: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 4,
+  },
   submitButton: {
     backgroundColor: '#3b82f6',
     borderRadius: 10,

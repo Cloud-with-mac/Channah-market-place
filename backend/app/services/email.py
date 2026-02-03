@@ -3,23 +3,54 @@ Email service for Channah Marketplace.
 
 Sends transactional emails via SMTP (Gmail by default).
 Falls back to logging if SMTP credentials are not configured.
+Uses Jinja2 templates for professional HTML emails.
 """
 
 import logging
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
+from pathlib import Path
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Initialize Jinja2 environment
+TEMPLATES_DIR = Path(__file__).parent.parent / "templates" / "emails"
+jinja_env = Environment(
+    loader=FileSystemLoader(str(TEMPLATES_DIR)),
+    autoescape=select_autoescape(['html', 'xml'])
+)
+
 
 def _smtp_configured() -> bool:
     """Check if SMTP credentials are configured."""
     return bool(settings.SMTP_USER and settings.SMTP_PASSWORD)
+
+
+def render_template(template_name: str, context: Dict[str, Any]) -> str:
+    """
+    Render an email template with the given context.
+
+    Args:
+        template_name: Name of the template file (e.g., 'welcome.html')
+        context: Dictionary of variables to pass to the template
+
+    Returns:
+        Rendered HTML string
+    """
+    # Add common context variables
+    context.setdefault('current_year', datetime.utcnow().year)
+    context.setdefault('app_url', settings.ALLOWED_ORIGINS[0] if settings.ALLOWED_ORIGINS else 'http://localhost:3000')
+    context.setdefault('admin_url', settings.ALLOWED_ORIGINS[1] if len(settings.ALLOWED_ORIGINS) > 1 else 'http://localhost:3001')
+    context.setdefault('vendor_url', settings.ALLOWED_ORIGINS[2] if len(settings.ALLOWED_ORIGINS) > 2 else 'http://localhost:3002')
+
+    template = jinja_env.get_template(template_name)
+    return template.render(**context)
 
 
 def _send_raw_email(to_email: str, subject: str, html_body: str) -> bool:
@@ -57,97 +88,27 @@ def _send_raw_email(to_email: str, subject: str, html_body: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# HTML template helpers
-# ---------------------------------------------------------------------------
-
-_BASE_STYLE = """
-body { margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-.wrapper { width: 100%; background-color: #f4f4f7; padding: 40px 0; }
-.container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-.header { background-color: #3b82f6; padding: 32px; text-align: center; }
-.header h1 { color: #ffffff; margin: 0; font-size: 28px; letter-spacing: 1px; }
-.header p { color: rgba(255,255,255,0.85); margin: 4px 0 0; font-size: 14px; }
-.content { padding: 32px; color: #333333; line-height: 1.6; }
-.content h2 { color: #1f2937; margin-top: 0; }
-.btn { display: inline-block; padding: 12px 28px; background-color: #3b82f6; color: #ffffff !important; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 16px 0; }
-.footer { background-color: #f9fafb; padding: 24px 32px; text-align: center; font-size: 12px; color: #9ca3af; }
-.order-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-.order-table th, .order-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #e5e7eb; }
-.order-table th { background-color: #f9fafb; font-size: 13px; color: #6b7280; text-transform: uppercase; }
-.badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; }
-.badge-blue { background-color: #dbeafe; color: #1d4ed8; }
-.badge-green { background-color: #d1fae5; color: #065f46; }
-.badge-yellow { background-color: #fef3c7; color: #92400e; }
-"""
-
-
-def _wrap_template(body_html: str) -> str:
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<style>{_BASE_STYLE}</style></head>
-<body>
-<div class="wrapper">
-<div class="container">
-<div class="header">
-  <h1>Channah</h1>
-  <p>Your Trusted Marketplace</p>
-</div>
-{body_html}
-<div class="footer">
-  <p>&copy; {datetime.utcnow().year} Channah. All rights reserved.</p>
-  <p>You are receiving this email because you have an account with Channah.</p>
-</div>
-</div>
-</div>
-</body>
-</html>"""
-
-
-# ---------------------------------------------------------------------------
-# Public email functions
+# Email sending functions
 # ---------------------------------------------------------------------------
 
 def send_welcome_email(to_email: str, first_name: str) -> bool:
     """Send a welcome email after user registration."""
-    body = f"""
-    <div class="content">
-      <h2>Welcome to Channah, {first_name}!</h2>
-      <p>We're excited to have you on board. Channah is your trusted marketplace
-      where you can discover amazing products from verified vendors around the world.</p>
-      <p>Here's what you can do now:</p>
-      <ul>
-        <li>Browse thousands of products across multiple categories</li>
-        <li>Save items to your wishlist for later</li>
-        <li>Get personalized recommendations</li>
-        <li>Chat directly with vendors</li>
-      </ul>
-      <p style="text-align:center;">
-        <a href="{settings.ALLOWED_ORIGINS[0]}" class="btn">Start Shopping</a>
-      </p>
-      <p>If you have any questions, our support team is always here to help.</p>
-      <p>Happy shopping!<br><strong>The Channah Team</strong></p>
-    </div>"""
-    return _send_raw_email(to_email, "Welcome to Channah!", _wrap_template(body))
+    context = {
+        'first_name': first_name,
+    }
+    html_body = render_template('welcome.html', context)
+    return _send_raw_email(to_email, "Welcome to Channah!", html_body)
 
 
 def send_password_reset_email(to_email: str, first_name: str, reset_token: str) -> bool:
     """Send a password reset email with the reset link."""
     reset_url = f"{settings.ALLOWED_ORIGINS[0]}/reset-password?token={reset_token}"
-    body = f"""
-    <div class="content">
-      <h2>Password Reset Request</h2>
-      <p>Hi {first_name},</p>
-      <p>We received a request to reset your password. Click the button below to
-      set a new password. This link will expire in 1 hour.</p>
-      <p style="text-align:center;">
-        <a href="{reset_url}" class="btn">Reset Password</a>
-      </p>
-      <p style="font-size:13px;color:#6b7280;">If you didn't request a password reset,
-      you can safely ignore this email. Your password won't be changed.</p>
-      <p>Best regards,<br><strong>The Channah Team</strong></p>
-    </div>"""
-    return _send_raw_email(to_email, "Reset Your Channah Password", _wrap_template(body))
+    context = {
+        'first_name': first_name,
+        'reset_url': reset_url,
+    }
+    html_body = render_template('password_reset.html', context)
+    return _send_raw_email(to_email, "Reset Your Channah Password", html_body)
 
 
 def send_order_confirmation_email(
@@ -159,96 +120,210 @@ def send_order_confirmation_email(
     shipping: float,
     tax: float,
     total: float,
+    shipping_address: dict,
     currency: str = "USD",
     estimated_delivery: Optional[str] = None,
+    order_date: Optional[str] = None,
 ) -> bool:
     """
     Send order confirmation email.
-    items: list of dicts with keys: name, quantity, unit_price, image (optional)
+    items: list of dicts with keys: name, quantity, unit_price, variant (optional)
+    shipping_address: dict with keys: name, street, apartment, city, state, zip, country, phone
     """
-    rows = ""
-    for item in items:
-        rows += f"""<tr>
-          <td>{item['name']}</td>
-          <td style="text-align:center;">{item['quantity']}</td>
-          <td style="text-align:right;">{currency} {item['unit_price']:.2f}</td>
-        </tr>"""
-
-    delivery_line = ""
-    if estimated_delivery:
-        delivery_line = f'<p><strong>Estimated Delivery:</strong> {estimated_delivery}</p>'
-
-    body = f"""
-    <div class="content">
-      <h2>Order Confirmed!</h2>
-      <p>Hi {first_name},</p>
-      <p>Thank you for your order! We've received it and it is now being processed.</p>
-      <p><span class="badge badge-blue">Order #{order_number}</span></p>
-
-      <table class="order-table">
-        <thead>
-          <tr><th>Product</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Price</th></tr>
-        </thead>
-        <tbody>
-          {rows}
-        </tbody>
-      </table>
-
-      <table style="width:100%;margin-top:8px;">
-        <tr><td style="padding:4px 12px;color:#6b7280;">Subtotal</td><td style="text-align:right;padding:4px 12px;">{currency} {subtotal:.2f}</td></tr>
-        <tr><td style="padding:4px 12px;color:#6b7280;">Shipping</td><td style="text-align:right;padding:4px 12px;">{currency} {shipping:.2f}</td></tr>
-        <tr><td style="padding:4px 12px;color:#6b7280;">Tax</td><td style="text-align:right;padding:4px 12px;">{currency} {tax:.2f}</td></tr>
-        <tr><td style="padding:4px 12px;font-weight:700;">Total</td><td style="text-align:right;padding:4px 12px;font-weight:700;font-size:18px;">{currency} {total:.2f}</td></tr>
-      </table>
-
-      {delivery_line}
-
-      <p style="text-align:center;">
-        <a href="{settings.ALLOWED_ORIGINS[0]}/account/orders/{order_number}" class="btn">View Order</a>
-      </p>
-      <p>Thank you for shopping with Channah!<br><strong>The Channah Team</strong></p>
-    </div>"""
-    return _send_raw_email(to_email, f"Order Confirmed - #{order_number}", _wrap_template(body))
+    context = {
+        'first_name': first_name,
+        'order_number': order_number,
+        'order_date': order_date or datetime.utcnow().strftime('%B %d, %Y'),
+        'items': items,
+        'subtotal': subtotal,
+        'shipping': shipping,
+        'tax': tax,
+        'total': total,
+        'currency': currency,
+        'shipping_address': shipping_address,
+        'estimated_delivery': estimated_delivery,
+    }
+    html_body = render_template('order_confirmation.html', context)
+    return _send_raw_email(to_email, f"Order Confirmed - #{order_number}", html_body)
 
 
-def send_order_status_email(
+def send_order_shipped_email(
     to_email: str,
     first_name: str,
     order_number: str,
-    new_status: str,
-    tracking_number: Optional[str] = None,
-    carrier: Optional[str] = None,
+    items: List[dict],
+    shipping_address: dict,
+    tracking_number: str,
+    carrier: str,
+    tracking_url: Optional[str] = None,
+    estimated_delivery: Optional[str] = None,
+    shipped_date: Optional[str] = None,
 ) -> bool:
-    """Send email when order status changes (shipped, delivered, etc.)."""
-    status_display = new_status.replace("_", " ").title()
+    """Send email when order is shipped."""
+    context = {
+        'first_name': first_name,
+        'order_number': order_number,
+        'items': items,
+        'shipping_address': shipping_address,
+        'tracking_number': tracking_number,
+        'carrier': carrier,
+        'tracking_url': tracking_url,
+        'estimated_delivery': estimated_delivery,
+        'shipped_date': shipped_date or datetime.utcnow().strftime('%B %d, %Y'),
+    }
+    html_body = render_template('order_shipped.html', context)
+    return _send_raw_email(to_email, f"Order Shipped - #{order_number}", html_body)
 
-    badge_class = "badge-blue"
-    if new_status in ("delivered",):
-        badge_class = "badge-green"
-    elif new_status in ("shipped", "out_for_delivery"):
-        badge_class = "badge-yellow"
 
-    tracking_html = ""
-    if tracking_number:
-        carrier_name = carrier or "your carrier"
-        tracking_html = f"""
-        <p><strong>Tracking Number:</strong> {tracking_number}</p>
-        <p><strong>Carrier:</strong> {carrier_name}</p>"""
+def send_order_delivered_email(
+    to_email: str,
+    first_name: str,
+    order_number: str,
+    items: List[dict],
+    delivered_date: Optional[str] = None,
+) -> bool:
+    """Send email when order is delivered."""
+    context = {
+        'first_name': first_name,
+        'order_number': order_number,
+        'items': items,
+        'delivered_date': delivered_date or datetime.utcnow().strftime('%B %d, %Y'),
+    }
+    html_body = render_template('order_delivered.html', context)
+    return _send_raw_email(to_email, f"Order Delivered - #{order_number}", html_body)
 
-    body = f"""
-    <div class="content">
-      <h2>Order Update</h2>
-      <p>Hi {first_name},</p>
-      <p>Your order <strong>#{order_number}</strong> has been updated:</p>
-      <p><span class="badge {badge_class}">{status_display}</span></p>
-      {tracking_html}
-      <p style="text-align:center;">
-        <a href="{settings.ALLOWED_ORIGINS[0]}/account/orders/{order_number}" class="btn">Track Order</a>
-      </p>
-      <p>Thank you for shopping with Channah!<br><strong>The Channah Team</strong></p>
-    </div>"""
-    return _send_raw_email(
-        to_email,
-        f"Order #{order_number} - {status_display}",
-        _wrap_template(body),
-    )
+
+def send_payment_received_email(
+    to_email: str,
+    first_name: str,
+    order_number: str,
+    items: List[dict],
+    subtotal: float,
+    shipping: float,
+    tax: float,
+    total: float,
+    amount: float,
+    payment_method: str,
+    currency: str = "USD",
+    transaction_id: Optional[str] = None,
+    payment_date: Optional[str] = None,
+) -> bool:
+    """Send payment confirmation email."""
+    context = {
+        'first_name': first_name,
+        'order_number': order_number,
+        'items': items,
+        'subtotal': subtotal,
+        'shipping': shipping,
+        'tax': tax,
+        'total': total,
+        'amount': amount,
+        'payment_method': payment_method,
+        'currency': currency,
+        'transaction_id': transaction_id,
+        'payment_date': payment_date or datetime.utcnow().strftime('%B %d, %Y at %I:%M %p'),
+    }
+    html_body = render_template('payment_received.html', context)
+    return _send_raw_email(to_email, f"Payment Confirmed - #{order_number}", html_body)
+
+
+def send_vendor_new_order_email(
+    to_email: str,
+    vendor_name: str,
+    order_number: str,
+    customer_name: str,
+    items: List[dict],
+    subtotal: float,
+    commission: float,
+    vendor_earnings: float,
+    shipping_address: dict,
+    currency: str = "USD",
+    customer_email: Optional[str] = None,
+    customer_phone: Optional[str] = None,
+    order_date: Optional[str] = None,
+    commission_percent: float = 10.0,
+) -> bool:
+    """Send email to vendor when they receive a new order."""
+    context = {
+        'vendor_name': vendor_name,
+        'order_number': order_number,
+        'order_date': order_date or datetime.utcnow().strftime('%B %d, %Y'),
+        'customer_name': customer_name,
+        'customer_email': customer_email,
+        'customer_phone': customer_phone,
+        'items': items,
+        'subtotal': subtotal,
+        'commission': commission,
+        'commission_percent': commission_percent,
+        'vendor_earnings': vendor_earnings,
+        'shipping_address': shipping_address,
+        'currency': currency,
+    }
+    html_body = render_template('vendor_new_order.html', context)
+    return _send_raw_email(to_email, f"New Order Received - #{order_number}", html_body)
+
+
+def send_payout_request_email(
+    to_email: str,
+    vendor_name: str,
+    vendor_email: str,
+    vendor_id: str,
+    payout_id: str,
+    payout_amount: float,
+    available_balance: float,
+    payment_method: str,
+    currency: str = "USD",
+    vendor_phone: Optional[str] = None,
+    bank_name: Optional[str] = None,
+    account_number: Optional[str] = None,
+    account_holder: Optional[str] = None,
+    request_date: Optional[str] = None,
+) -> bool:
+    """Send email to admin when vendor requests a payout."""
+    context = {
+        'vendor_name': vendor_name,
+        'vendor_email': vendor_email,
+        'vendor_phone': vendor_phone,
+        'vendor_id': vendor_id,
+        'payout_id': payout_id,
+        'payout_amount': payout_amount,
+        'available_balance': available_balance,
+        'payment_method': payment_method,
+        'currency': currency,
+        'bank_name': bank_name,
+        'account_number': account_number,
+        'account_holder': account_holder,
+        'request_date': request_date or datetime.utcnow().strftime('%B %d, %Y at %I:%M %p'),
+    }
+    html_body = render_template('payout_request.html', context)
+    return _send_raw_email(to_email, f"Payout Request - {vendor_name}", html_body)
+
+
+def send_payout_approved_email(
+    to_email: str,
+    vendor_name: str,
+    payout_id: str,
+    payout_amount: float,
+    payment_method: str,
+    currency: str = "USD",
+    bank_name: Optional[str] = None,
+    account_number: Optional[str] = None,
+    account_holder: Optional[str] = None,
+    estimated_arrival: Optional[str] = None,
+    approval_date: Optional[str] = None,
+) -> bool:
+    """Send email to vendor when their payout is approved."""
+    context = {
+        'vendor_name': vendor_name,
+        'payout_id': payout_id,
+        'payout_amount': payout_amount,
+        'payment_method': payment_method,
+        'currency': currency,
+        'bank_name': bank_name,
+        'account_number': account_number,
+        'account_holder': account_holder,
+        'estimated_arrival': estimated_arrival or '3-5 business days',
+        'approval_date': approval_date or datetime.utcnow().strftime('%B %d, %Y'),
+    }
+    html_body = render_template('payout_approved.html', context)
+    return _send_raw_email(to_email, "Payout Approved!", html_body)

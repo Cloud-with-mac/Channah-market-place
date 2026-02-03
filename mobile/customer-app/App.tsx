@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
+import * as Notifications from 'expo-notifications';
 
 // Auth Screens
 import LoginScreen from './src/screens/auth/LoginScreen';
@@ -27,6 +28,8 @@ import ChatScreen from './src/screens/main/ChatScreen';
 import VendorProfileScreen from './src/screens/main/VendorProfileScreen';
 import OrderDetailScreen from './src/screens/main/OrderDetailScreen';
 import WriteReviewScreen from './src/screens/main/WriteReviewScreen';
+import ReviewsScreen from './src/screens/main/ReviewsScreen';
+import NotificationSettingsScreen from './src/screens/main/NotificationSettingsScreen';
 import AddressesScreen from './src/screens/main/AddressesScreen';
 import CategoryBrowseScreen from './src/screens/main/CategoryBrowseScreen';
 import DealsScreen from './src/screens/main/DealsScreen';
@@ -50,6 +53,13 @@ import { useCartStore } from './src/store/cartStore';
 
 // Error Boundary
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+
+// Notifications
+import {
+  initPushNotifications,
+  handleNotificationRoute,
+  registerPushForCurrentUser,
+} from './src/services/notifications';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -205,14 +215,60 @@ const networkErrorStyles = StyleSheet.create({
 });
 
 export default function App() {
-  const { isLoading, initError, initialize, retry } = useAuthStore();
+  const { isLoading, initError, initialize, retry, user } = useAuthStore();
   const { detectCountry, fetchExchangeRates } = useCurrencyStore();
+  const navigationRef = useRef<any>(null);
+  const notificationCleanupRef = useRef<(() => void) | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     initialize();
     detectCountry();
     fetchExchangeRates();
   }, []);
+
+  // Initialize push notifications and set up listeners
+  useEffect(() => {
+    const setupNotifications = async () => {
+      const cleanup = await initPushNotifications(
+        // Notification received in foreground
+        (notification) => {
+          console.log('Notification received:', notification);
+        },
+        // Notification tapped
+        (response) => {
+          console.log('Notification tapped:', response);
+          if (navigationRef.current) {
+            handleNotificationRoute(response.notification.request.content.data, navigationRef.current);
+          }
+        }
+      );
+      notificationCleanupRef.current = cleanup;
+    };
+
+    setupNotifications();
+
+    // Check for initial notification (app opened from notification)
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response && navigationRef.current) {
+        handleNotificationRoute(response.notification.request.content.data, navigationRef.current);
+      }
+    });
+
+    return () => {
+      if (notificationCleanupRef.current) {
+        notificationCleanupRef.current();
+      }
+    };
+  }, []);
+
+  // Register push token when user logs in
+  useEffect(() => {
+    if (user) {
+      registerPushForCurrentUser().catch((err) =>
+        console.warn('Failed to register push notifications:', err)
+      );
+    }
+  }, [user]);
 
   if (isLoading) {
     return <SplashScreen />;
@@ -225,7 +281,7 @@ export default function App() {
   return (
     <ErrorBoundary>
     <SafeAreaProvider>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         <StatusBar style="auto" />
         <Stack.Navigator
           screenOptions={{
@@ -308,6 +364,16 @@ export default function App() {
             name="WriteReview"
             component={WriteReviewScreen}
             options={{ title: 'Write a Review' }}
+          />
+          <Stack.Screen
+            name="Reviews"
+            component={ReviewsScreen}
+            options={{ title: 'Customer Reviews' }}
+          />
+          <Stack.Screen
+            name="NotificationSettings"
+            component={NotificationSettingsScreen}
+            options={{ title: 'Notification Settings' }}
           />
           <Stack.Screen
             name="Addresses"

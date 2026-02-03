@@ -14,6 +14,8 @@ from app.models.support_chat import SupportChat, SupportChatMessage
 from app.models.banner import Banner
 from app.models.verification import VerificationApplication, VerificationDocument
 from app.models.rfq import RFQ, RFQQuote
+from app.models.payout import Payout, PayoutItem
+from app.models.search_query import SearchQuery
 
 __all__ = [
     "User",
@@ -44,4 +46,7 @@ __all__ = [
     "VerificationDocument",
     "RFQ",
     "RFQQuote",
+    "Payout",
+    "PayoutItem",
+    "SearchQuery",
 ]

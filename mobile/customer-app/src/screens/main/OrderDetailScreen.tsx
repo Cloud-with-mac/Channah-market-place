@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Linking,
+  RefreshControl,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { ordersAPI } from '../../../../shared/api/customer-api';
@@ -43,9 +45,12 @@ export default function OrderDetailScreen({ route, navigation }: any) {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [trackingInfo, setTrackingInfo] = useState<any>(null);
 
   useEffect(() => {
     loadOrder();
+    loadTrackingInfo();
   }, [orderNumber]);
 
   const loadOrder = async () => {
@@ -59,6 +64,22 @@ export default function OrderDetailScreen({ route, navigation }: any) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadTrackingInfo = async () => {
+    try {
+      const data = await ordersAPI.trackOrder(orderNumber);
+      setTrackingInfo(data);
+    } catch (error) {
+      // Tracking info may not be available for all orders
+      console.log('Tracking info not available:', error);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([loadOrder(), loadTrackingInfo()]);
+    setRefreshing(false);
   };
 
   const handleCancel = () => {
@@ -84,16 +105,23 @@ export default function OrderDetailScreen({ route, navigation }: any) {
   };
 
   const handleTrack = async () => {
-    try {
-      const tracking = await ordersAPI.trackOrder(orderNumber);
+    if (!trackingInfo) {
+      await loadTrackingInfo();
+      return;
+    }
+
+    if (trackingInfo.tracking_url) {
+      Linking.openURL(trackingInfo.tracking_url);
+    } else if (trackingInfo.tracking_number) {
       Alert.alert(
-        'Order Tracking',
-        tracking.tracking_number
-          ? `Tracking Number: ${tracking.tracking_number}\nCarrier: ${tracking.carrier || 'N/A'}`
-          : 'Tracking information not available yet'
+        'Tracking Information',
+        `Tracking Number: ${trackingInfo.tracking_number}\nCarrier: ${trackingInfo.carrier || 'N/A'}\n\nCopy this number to track your package on the carrier's website.`,
+        [
+          { text: 'OK', style: 'cancel' },
+        ]
       );
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to get tracking info');
+    } else {
+      Alert.alert('Tracking Not Available', 'Tracking information will be available once your order ships.');
     }
   };
 
@@ -112,7 +140,12 @@ export default function OrderDetailScreen({ route, navigation }: any) {
   const canCancel = order.status?.toLowerCase() === 'pending';
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+      }
+    >
       {/* Order Header */}
       <View style={styles.headerCard}>
         <View style={styles.orderNumberRow}>
@@ -155,6 +188,81 @@ export default function OrderDetailScreen({ route, navigation }: any) {
                 </View>
               );
             })}
+          </View>
+        </View>
+      )}
+
+      {/* Tracking Information */}
+      {trackingInfo && trackingInfo.tracking_number && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Tracking Information</Text>
+          <View style={styles.trackingInfo}>
+            <View style={styles.trackingRow}>
+              <Icon name="cube-outline" size={20} color="#6b7280" />
+              <View style={styles.trackingDetails}>
+                <Text style={styles.trackingLabel}>Tracking Number</Text>
+                <Text style={styles.trackingValue}>{trackingInfo.tracking_number}</Text>
+              </View>
+            </View>
+            {trackingInfo.carrier && (
+              <View style={styles.trackingRow}>
+                <Icon name="car-outline" size={20} color="#6b7280" />
+                <View style={styles.trackingDetails}>
+                  <Text style={styles.trackingLabel}>Carrier</Text>
+                  <Text style={styles.trackingValue}>{trackingInfo.carrier}</Text>
+                </View>
+              </View>
+            )}
+            {trackingInfo.tracking_url && (
+              <TouchableOpacity
+                style={styles.trackingLinkButton}
+                onPress={() => Linking.openURL(trackingInfo.tracking_url)}
+              >
+                <Icon name="open-outline" size={18} color="#3b82f6" />
+                <Text style={styles.trackingLinkText}>Track on Carrier Website</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Tracking History */}
+          {trackingInfo.history && trackingInfo.history.length > 0 && (
+            <View style={styles.trackingHistory}>
+              <Text style={styles.trackingHistoryTitle}>Tracking History</Text>
+              {trackingInfo.history.map((event: any, index: number) => (
+                <View key={index} style={styles.historyItem}>
+                  <View style={styles.historyDot}>
+                    <View style={styles.historyDotInner} />
+                  </View>
+                  <View style={styles.historyContent}>
+                    <Text style={styles.historyStatus}>{event.status}</Text>
+                    <Text style={styles.historyLocation}>{event.location}</Text>
+                    <Text style={styles.historyDate}>
+                      {new Date(event.timestamp).toLocaleString()}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Estimated Delivery */}
+      {order.estimated_delivery && !isCancelled && (
+        <View style={styles.card}>
+          <View style={styles.estimatedDeliveryRow}>
+            <Icon name="calendar-outline" size={20} color="#3b82f6" />
+            <View style={styles.estimatedDeliveryText}>
+              <Text style={styles.estimatedDeliveryLabel}>Estimated Delivery</Text>
+              <Text style={styles.estimatedDeliveryDate}>
+                {new Date(order.estimated_delivery).toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </Text>
+            </View>
           </View>
         </View>
       )}
@@ -385,6 +493,95 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   cancelButtonText: { fontSize: 14, fontWeight: '600', color: '#ef4444', marginLeft: 6 },
+  // Tracking
+  trackingInfo: { marginTop: 8 },
+  trackingRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    gap: 12,
+  },
+  trackingDetails: { flex: 1 },
+  trackingLabel: { fontSize: 12, color: '#9ca3af', marginBottom: 4 },
+  trackingValue: { fontSize: 14, fontWeight: '600', color: '#1f2937' },
+  trackingLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#eff6ff',
+    borderRadius: 8,
+    paddingVertical: 10,
+    marginTop: 8,
+    gap: 6,
+  },
+  trackingLinkText: { fontSize: 14, fontWeight: '600', color: '#3b82f6' },
+  trackingHistory: {
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  trackingHistoryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 16,
+  },
+  historyItem: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  historyDot: {
+    width: 24,
+    alignItems: 'center',
+    paddingTop: 4,
+  },
+  historyDotInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#3b82f6',
+    borderWidth: 3,
+    borderColor: '#bfdbfe',
+  },
+  historyContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  historyStatus: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  historyLocation: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginBottom: 2,
+  },
+  historyDate: {
+    fontSize: 12,
+    color: '#9ca3af',
+  },
+  estimatedDeliveryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    borderRadius: 8,
+    padding: 12,
+    gap: 12,
+  },
+  estimatedDeliveryText: { flex: 1 },
+  estimatedDeliveryLabel: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginBottom: 4,
+  },
+  estimatedDeliveryDate: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#3b82f6',
+  },
   reviewSection: { paddingHorizontal: 16 },
   reviewSectionTitle: { fontSize: 15, fontWeight: '600', color: '#1f2937', marginBottom: 8 },
   reviewButton: {

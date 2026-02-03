@@ -795,23 +795,23 @@ export const supportAPI = {
 
 // ==================== FINANCE API ====================
 export const financeAPI = {
-  getPayouts: async (params?: { status?: string; limit?: number; offset?: number }) => {
-    const response = await apiClient.get('/admin/finance/payouts', { params })
+  getPayouts: async (params?: { status?: string; limit?: number; offset?: number; vendor_id?: string }) => {
+    const response = await apiClient.get('/payouts/admin/payouts', { params })
     return response.data
   },
 
   getPayoutById: async (id: string) => {
-    const response = await apiClient.get(`/admin/finance/payouts/${id}`)
+    const response = await apiClient.get(`/payouts/admin/payouts/${id}`)
     return response.data
   },
 
   processPayout: async (id: string) => {
-    const response = await apiClient.post(`/admin/finance/payouts/${id}/process`)
+    const response = await apiClient.put(`/payouts/admin/payouts/${id}/approve`, {})
     return response.data
   },
 
   rejectPayout: async (id: string, reason: string) => {
-    const response = await apiClient.post(`/admin/finance/payouts/${id}/reject`, { reason })
+    const response = await apiClient.put(`/payouts/admin/payouts/${id}/reject`, { reason })
     return response.data
   },
 
@@ -897,6 +897,46 @@ export const supportChatAPI = {
 
   closeChat: async (chatId: string) => {
     const response = await apiClient.put(`/support-chat/${chatId}/close`)
+    return response.data
+  },
+}
+
+// ==================== BANNERS API ====================
+export const bannersAPI = {
+  getAll: async () => {
+    const response = await apiClient.get('/banners', { params: { active_only: false } })
+    return response.data
+  },
+
+  getFeatured: async () => {
+    const response = await apiClient.get('/banners/featured')
+    return response.data
+  },
+
+  create: async (data: any) => {
+    const response = await apiClient.post('/banners', data)
+    return response.data
+  },
+
+  update: async (id: string, data: any) => {
+    const response = await apiClient.put(`/banners/${id}`, data)
+    return response.data
+  },
+
+  delete: async (id: string) => {
+    const response = await apiClient.delete(`/banners/${id}`)
+    return response.data
+  },
+}
+
+// ==================== UPLOAD API ====================
+export const uploadAPI = {
+  uploadImage: async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await apiClient.post('/upload/image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
     return response.data
   },
 }

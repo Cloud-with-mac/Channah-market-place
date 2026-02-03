@@ -543,7 +543,7 @@ export default function ProductDetailScreen({ route, navigation }: any) {
                 {reviews.length > 3 && (
                   <TouchableOpacity
                     style={styles.viewAllReviews}
-                    onPress={() => Alert.alert('All Reviews', reviews.map(r => `${r.user?.full_name || 'Anonymous'} (${r.rating}/5): ${r.comment || 'No comment'}`).join('\n\n'))}
+                    onPress={() => navigation.navigate('Reviews', { productId: product.id, productName: product.name })}
                   >
                     <Text style={styles.viewAllText}>View All {reviews.length} Reviews</Text>
                     <Icon name="chevron-forward" size={16} color="#3b82f6" />

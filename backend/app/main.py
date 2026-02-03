@@ -11,7 +11,8 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from app.core.config import settings
-from app.core.database import init_db
+from app.core.database import init_db, AsyncSessionLocal
+from app.core.fts5_setup import create_fts5_table, populate_fts5_table, check_fts5_exists
 from app.api.v1.router import api_router
 
 # Configure logging
@@ -26,6 +27,34 @@ async def lifespan(app: FastAPI):
     logger.info("Starting up MarketHub API...")
     await init_db()
     logger.info("Database initialized")
+
+    # Initialize FTS5 for SQLite
+    if settings.DATABASE_URL.startswith("sqlite"):
+        logger.info("Initializing FTS5 full-text search...")
+        async with AsyncSessionLocal() as db:
+            try:
+                # Check if FTS5 table already exists
+                fts5_exists = await check_fts5_exists(db)
+
+                if not fts5_exists:
+                    logger.info("Creating FTS5 table and triggers...")
+                    success = await create_fts5_table(db)
+                    if success:
+                        logger.info("FTS5 table created successfully")
+
+                        # Populate FTS5 table with existing products
+                        count = await populate_fts5_table(db)
+                        logger.info(f"FTS5 table populated with {count} products")
+                    else:
+                        logger.error("Failed to create FTS5 table")
+                else:
+                    logger.info("FTS5 table already exists")
+
+            except Exception as e:
+                logger.error(f"Failed to initialize FTS5: {e}")
+    else:
+        logger.info("FTS5 is only supported for SQLite databases")
+
     yield
     # Shutdown
     logger.info("Shutting down MarketHub API...")

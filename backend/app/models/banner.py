@@ -16,7 +16,9 @@ class Banner(Base):
     color_to = Column(String(7), default="#1d4ed8", nullable=False)  # Gradient end
     link_url = Column(String(500), nullable=True)  # Optional deep link or URL
     image_url = Column(String(500), nullable=True)  # Optional banner image
+    images = Column(Text, nullable=True)  # JSON array of image URLs for carousel ["url1", "url2", ...]
     is_active = Column(Boolean, default=True, nullable=False)
+    is_featured = Column(Boolean, default=False, nullable=False)  # Show as large featured ad
     sort_order = Column(Integer, default=0, nullable=False)
 
     # Flash deal / countdown support
