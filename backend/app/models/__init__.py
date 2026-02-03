@@ -12,6 +12,7 @@ from app.models.notification import Notification
 from app.models.conversation import Conversation, Message
 from app.models.support_chat import SupportChat, SupportChatMessage
 from app.models.banner import Banner
+from app.models.banner_image import BannerImage
 from app.models.verification import VerificationApplication, VerificationDocument
 from app.models.rfq import RFQ, RFQQuote
 from app.models.payout import Payout, PayoutItem
@@ -42,6 +43,7 @@ __all__ = [
     "SupportChat",
     "SupportChatMessage",
     "Banner",
+    "BannerImage",
     "VerificationApplication",
     "VerificationDocument",
     "RFQ",

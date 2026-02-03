@@ -13,11 +13,21 @@ from app.core.database import get_db
 from app.core.security import get_current_admin
 from app.models.user import User
 from app.models.banner import Banner
+from app.models.banner_image import BannerImage
 
 router = APIRouter()
 
 
 # Schemas
+class BannerImageResponse(BaseModel):
+    id: UUID
+    image_url: str
+    sort_order: int
+    alt_text: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
 class BannerResponse(BaseModel):
     id: UUID
     title: str
@@ -27,7 +37,8 @@ class BannerResponse(BaseModel):
     color_to: str
     link_url: Optional[str] = None
     image_url: Optional[str] = None
-    images: Optional[List[str]] = None
+    images: Optional[List[str]] = None  # For backward compatibility, derived from banner_images
+    banner_images: Optional[List[BannerImageResponse]] = None
     is_active: bool
     is_featured: bool = False
     sort_order: int
@@ -39,17 +50,32 @@ class BannerResponse(BaseModel):
 
     @classmethod
     def model_validate(cls, obj):
-        # Parse images JSON string to list
+        # Build data from object
         data = {}
         for field in cls.model_fields:
             value = getattr(obj, field, None)
-            if field == 'images' and isinstance(value, str):
-                try:
-                    data[field] = json.loads(value) if value else []
-                except:
+
+            if field == 'images':
+                # Backward compatibility: derive from banner_images relationship
+                if hasattr(obj, 'banner_images') and obj.banner_images:
+                    data[field] = [img.image_url for img in obj.banner_images]
+                elif isinstance(value, str):
+                    # Fallback to legacy JSON field
+                    try:
+                        data[field] = json.loads(value) if value else []
+                    except:
+                        data[field] = []
+                else:
+                    data[field] = []
+            elif field == 'banner_images':
+                # Convert relationship objects to response models
+                if hasattr(obj, 'banner_images') and obj.banner_images:
+                    data[field] = [BannerImageResponse.model_validate(img) for img in obj.banner_images]
+                else:
                     data[field] = []
             else:
                 data[field] = value
+
         return cls(**data)
 
 
@@ -61,6 +87,7 @@ class BannerCreate(BaseModel):
     color_to: str = "#1d4ed8"
     link_url: Optional[str] = None
     image_url: Optional[str] = None
+    images: Optional[str] = None  # JSON string of image URLs for backward compatibility
     is_active: bool = True
     is_featured: bool = False
     sort_order: int = 0
@@ -76,6 +103,7 @@ class BannerUpdate(BaseModel):
     color_to: Optional[str] = None
     link_url: Optional[str] = None
     image_url: Optional[str] = None
+    images: Optional[str] = None  # JSON string of image URLs for backward compatibility
     is_active: Optional[bool] = None
     is_featured: Optional[bool] = None
     sort_order: Optional[int] = None
@@ -136,8 +164,31 @@ async def create_banner(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a banner (admin only)"""
-    banner = Banner(**data.model_dump())
+    banner_data = data.model_dump()
+
+    # Extract images if provided (backward compatibility)
+    images_json = banner_data.pop('images', None)
+
+    banner = Banner(**banner_data)
     db.add(banner)
+    await db.flush()  # Flush to get banner.id
+
+    # Handle images: parse JSON string and create BannerImage records
+    if images_json:
+        try:
+            image_urls = json.loads(images_json) if isinstance(images_json, str) else images_json
+            if isinstance(image_urls, list):
+                for idx, url in enumerate(image_urls[:10]):  # Max 10 images
+                    banner_image = BannerImage(
+                        banner_id=banner.id,
+                        image_url=url,
+                        sort_order=idx
+                    )
+                    db.add(banner_image)
+        except Exception as e:
+            # Silently fail if JSON parsing fails
+            pass
+
     await db.commit()
     await db.refresh(banner)
     return BannerResponse.model_validate(banner)
@@ -156,8 +207,38 @@ async def update_banner(
     if not banner:
         raise HTTPException(status_code=404, detail="Banner not found")
 
-    for field, value in data.model_dump(exclude_unset=True).items():
+    update_data = data.model_dump(exclude_unset=True)
+
+    # Handle images separately
+    images_json = update_data.pop('images', None)
+
+    # Update banner fields
+    for field, value in update_data.items():
         setattr(banner, field, value)
+
+    # Update banner images if provided
+    if images_json is not None:
+        # Delete existing banner images
+        await db.execute(
+            select(BannerImage).where(BannerImage.banner_id == banner_id)
+        )
+        for img in banner.banner_images:
+            await db.delete(img)
+
+        # Create new banner images
+        try:
+            image_urls = json.loads(images_json) if isinstance(images_json, str) else images_json
+            if isinstance(image_urls, list):
+                for idx, url in enumerate(image_urls[:10]):  # Max 10 images
+                    banner_image = BannerImage(
+                        banner_id=banner.id,
+                        image_url=url,
+                        sort_order=idx
+                    )
+                    db.add(banner_image)
+        except Exception as e:
+            # Silently fail if JSON parsing fails
+            pass
 
     await db.commit()
     await db.refresh(banner)
