@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Union
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -11,7 +11,7 @@ from app.core.config import settings
 from app.core.database import get_db
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_PREFIX}/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_PREFIX}/auth/login", auto_error=False)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -50,10 +50,14 @@ def decode_token(token: str) -> Optional[dict]:
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    request: Request,
+    token: Optional[str] = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get current authenticated user from token"""
+    """
+    Get current authenticated user from HTTP-only cookie or Authorization header.
+    SECURITY FIX: Prioritizes HTTP-only cookie, falls back to header for API clients.
+    """
     from app.models.user import User
 
     credentials_exception = HTTPException(
@@ -62,7 +66,17 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    payload = decode_token(token)
+    # SECURITY FIX: Try to get token from HTTP-only cookie first (more secure)
+    token_value = request.cookies.get("access_token")
+
+    # Fallback to Authorization header for API clients (mobile, etc.)
+    if not token_value:
+        token_value = token
+
+    if not token_value:
+        raise credentials_exception
+
+    payload = decode_token(token_value)
     if payload is None:
         raise credentials_exception
 

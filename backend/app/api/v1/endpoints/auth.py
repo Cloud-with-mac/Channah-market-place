@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, UploadFile, File, Request
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, UploadFile, File, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -28,6 +28,37 @@ router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
 
+def set_auth_cookies(response: Response, access_token: str, refresh_token: str):
+    """Set HTTP-only cookies for access and refresh tokens"""
+    # Access token cookie (short-lived)
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,  # Cannot be accessed by JavaScript
+        secure=not settings.DEBUG,  # Only sent over HTTPS in production
+        samesite="lax",  # CSRF protection
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+
+    # Refresh token cookie (long-lived)
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=not settings.DEBUG,
+        samesite="lax",
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        path="/api/v1/auth",  # Only sent to auth endpoints
+    )
+
+
+def clear_auth_cookies(response: Response):
+    """Clear authentication cookies"""
+    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/api/v1/auth")
+
+
 def verify_image_magic_bytes(contents: bytes) -> bool:
     """Verify file is actually an image by checking magic bytes."""
     signatures = {
@@ -47,6 +78,7 @@ def verify_image_magic_bytes(contents: bytes) -> bool:
 @limiter.limit("5/minute")
 async def register(
     request: Request,
+    response: Response,
     user_data: UserCreate,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
@@ -107,9 +139,13 @@ async def register(
         last_login=user.last_login,
     )
 
+    # SECURITY FIX: Set HTTP-only cookies instead of returning tokens in response
+    # This prevents XSS attacks from stealing tokens
+    set_auth_cookies(response, access_token, refresh_token)
+
     return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
+        access_token="",  # Empty - token is in HTTP-only cookie
+        refresh_token="",  # Empty - token is in HTTP-only cookie
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         user=user_response
     )
@@ -119,6 +155,7 @@ async def register(
 @limiter.limit("5/minute")
 async def login(
     request: Request,
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
@@ -150,9 +187,12 @@ async def login(
     access_token = create_access_token(data={"sub": str(user.id)})
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
+    # SECURITY FIX: Set HTTP-only cookies
+    set_auth_cookies(response, access_token, refresh_token)
+
     return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
+        access_token="",  # Empty - token is in HTTP-only cookie
+        refresh_token="",  # Empty - token is in HTTP-only cookie
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         user=UserResponse.model_validate(user)
     )
@@ -160,11 +200,21 @@ async def login(
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
-    data: RefreshTokenRequest,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db)
 ):
-    """Refresh access token"""
-    payload = decode_token(data.refresh_token)
+    """Refresh access token using HTTP-only cookie"""
+    # SECURITY FIX: Read refresh token from HTTP-only cookie instead of request body
+    refresh_token_value = request.cookies.get("refresh_token")
+
+    if not refresh_token_value:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token not found"
+        )
+
+    payload = decode_token(refresh_token_value)
     if not payload or payload.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -189,9 +239,12 @@ async def refresh_token(
     new_access_token = create_access_token(data={"sub": str(user.id)})
     new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
 
+    # SECURITY FIX: Set new tokens in HTTP-only cookies
+    set_auth_cookies(response, new_access_token, new_refresh_token)
+
     return TokenResponse(
-        access_token=new_access_token,
-        refresh_token=new_refresh_token,
+        access_token="",  # Empty - token is in HTTP-only cookie
+        refresh_token="",  # Empty - token is in HTTP-only cookie
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         user=UserResponse.model_validate(user)
     )
@@ -357,9 +410,11 @@ async def update_avatar(
 
 
 @router.post("/logout", response_model=MessageResponse)
-async def logout(current_user: User = Depends(get_current_user)):
-    """Logout user (client should discard tokens)"""
-    # In a production app, you might want to blacklist the token
+async def logout(response: Response, current_user: User = Depends(get_current_user)):
+    """Logout user and clear authentication cookies"""
+    # SECURITY FIX: Clear HTTP-only cookies on logout
+    clear_auth_cookies(response)
+    # In a production app, you might want to blacklist the token in a database
     return MessageResponse(message="Logged out successfully")
 
 
