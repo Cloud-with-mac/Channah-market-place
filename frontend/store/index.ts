@@ -196,27 +196,17 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: true,
       login: (user, accessToken, refreshToken) => {
-        Cookies.set('access_token', accessToken, { expires: 1 })
-        if (refreshToken) {
-          Cookies.set('refresh_token', refreshToken, { expires: 7 })
-        }
-        // Also save to localStorage for API interceptor
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('access_token', accessToken)
-          if (refreshToken) localStorage.setItem('refresh_token', refreshToken)
-        }
+        // SECURITY FIX: Tokens are now in HTTP-only cookies set by backend
+        // No need to set tokens in js-cookie or localStorage
+        // Just update the auth state
         set({ user, isAuthenticated: true, isLoading: false })
       },
       logout: () => {
-        // Clear all auth-related cookies
-        Cookies.remove('access_token')
-        Cookies.remove('refresh_token')
-        // Clear the persisted auth state from localStorage
+        // SECURITY FIX: Backend clears HTTP-only cookies on logout
+        // Just clear the persisted Zustand state
         if (typeof window !== 'undefined') {
           localStorage.removeItem('auth-storage')
           localStorage.removeItem('cart-storage')
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
         }
         set({ user: null, isAuthenticated: false, isLoading: false })
       },
@@ -227,15 +217,11 @@ export const useAuthStore = create<AuthState>()(
       name: 'auth-storage',
       partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
       onRehydrateStorage: () => (state) => {
-        // Validate tokens on rehydration
+        // SECURITY FIX: Tokens are in HTTP-only cookies (can't check with JS)
+        // Just set loading to false - API calls will fail if token is invalid
+        // and trigger the 401 interceptor which will redirect to login
         if (state) {
-          const hasToken = Cookies.get('access_token')
-          if (!hasToken && state.isAuthenticated) {
-            // Token is gone but state says authenticated - reset
-            state.logout()
-          } else {
-            state.setLoading(false)
-          }
+          state.setLoading(false)
         }
       },
     }

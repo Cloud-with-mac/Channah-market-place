@@ -26,13 +26,12 @@ const apiClient: AxiosInstance = axios.create({
   withCredentials: true,
 })
 
-// Request interceptor to add auth token
+// Request interceptor (no longer needed for cookie auth, but kept for potential future use)
 apiClient.interceptors.request.use(
   (config) => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
+    // SECURITY FIX: Tokens are now in HTTP-only cookies
+    // No need to add Authorization header - cookies are sent automatically
+    // The backend reads from cookies via get_current_user()
     return config
   },
   (error) => {
@@ -46,28 +45,29 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
-    // If token expired, try to refresh
+    // SECURITY FIX: Token refresh now uses HTTP-only cookies
+    // If token expired, try to refresh using cookie
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
 
       try {
-        const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null
-        if (!refreshToken) throw new Error('No refresh token')
+        // Refresh endpoint reads refresh_token from HTTP-only cookie
+        // No need to send token in body - it's automatically sent via cookie
+        const response = await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          {},
+          { withCredentials: true }  // Send cookies
+        )
 
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-          refresh_token: refreshToken,
-        })
-
-        const { access_token } = response.data
-        if (typeof window !== 'undefined') localStorage.setItem('access_token', access_token)
-
-        originalRequest.headers.Authorization = `Bearer ${access_token}`
+        // Token is set in HTTP-only cookie by backend
+        // No localStorage manipulation needed
+        // Retry the original request (cookie will be sent automatically)
         return apiClient(originalRequest)
       } catch (refreshError) {
+        // Token refresh failed - redirect to login
+        // Clear any auth state in Zustand store
         if (typeof window !== 'undefined') {
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('refresh_token')
-          localStorage.removeItem('auth-storage')
+          localStorage.removeItem('auth-storage')  // Clear Zustand persisted state
         }
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
           window.location.href = '/login'
@@ -109,17 +109,15 @@ export const authAPI = {
       },
     })
 
-    if (response.data.access_token) {
-      localStorage.setItem('access_token', response.data.access_token)
-      localStorage.setItem('refresh_token', response.data.refresh_token)
-    }
-
+    // SECURITY FIX: Tokens are now in HTTP-only cookies set by backend
+    // No localStorage manipulation needed
     return response.data
   },
 
   logout: async () => {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
+    // SECURITY FIX: Call backend logout endpoint to clear HTTP-only cookies
+    await apiClient.post('/auth/logout')
+    // Tokens are cleared by backend, no localStorage cleanup needed
   },
 
   getCurrentUser: async (): Promise<UserProfile> => {
