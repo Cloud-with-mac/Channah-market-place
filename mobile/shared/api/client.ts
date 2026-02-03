@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import NetInfo from '@react-native-community/netinfo';
 
 // Set EXPO_PUBLIC_API_URL in your .env file to point to your backend
 // For Android emulator use 10.0.2.2, for physical devices use your machine's IP
@@ -10,6 +11,16 @@ export interface ApiError {
   message: string;
   statusCode?: number;
   errors?: Record<string, string[]>;
+}
+
+// Network connectivity check
+async function checkNetworkConnection(): Promise<boolean> {
+  try {
+    const state = await NetInfo.fetch();
+    return state.isConnected && state.isInternetReachable !== false;
+  } catch (error) {
+    return false; // Assume offline if check fails
+  }
 }
 
 // Global auth expiry callback — set by the auth store to handle logout on token expiry
@@ -44,9 +55,20 @@ class ApiClient {
       },
     });
 
-    // Request interceptor to add auth token
+    // Request interceptor to check network and add auth token
     this.client.interceptors.request.use(
       async (config) => {
+        // NETWORK CHECK: Verify connectivity before making request
+        const isOnline = await checkNetworkConnection();
+        if (!isOnline) {
+          return Promise.reject({
+            message: 'No internet connection. Please check your network settings.',
+            statusCode: 0, // Custom code for network error
+            isNetworkError: true,
+          });
+        }
+
+        // Add auth token if available
         try {
           const token = await SecureStore.getItemAsync(`${this.tokenPrefix}_access_token`);
           if (token) {

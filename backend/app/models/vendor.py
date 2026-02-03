@@ -14,13 +14,6 @@ class VendorStatus(str, enum.Enum):
     REJECTED = "rejected"
 
 
-class PayoutStatus(str, enum.Enum):
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-
 class Vendor(Base):
     __tablename__ = "vendors"
 
@@ -105,27 +98,3 @@ class Vendor(Base):
 
     def __repr__(self):
         return f"<Vendor {self.business_name}>"
-
-
-class VendorPayout(Base):
-    __tablename__ = "vendor_payouts"
-
-    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    vendor_id = Column(GUID(), ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False)
-
-    amount = Column(Numeric(12, 2), nullable=False)
-    currency = Column(String(3), default="USD", nullable=False)
-    status = Column(Enum(PayoutStatus), default=PayoutStatus.PENDING, nullable=False)
-
-    payment_method = Column(String(50), nullable=False)  # bank_transfer, stripe, paypal
-    transaction_id = Column(String(255), nullable=True)
-    notes = Column(Text, nullable=True)
-
-    processed_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-    # Relationships
-    vendor = relationship("Vendor", back_populates="payouts")
-
-    def __repr__(self):
-        return f"<VendorPayout {self.id} - {self.amount}>"
