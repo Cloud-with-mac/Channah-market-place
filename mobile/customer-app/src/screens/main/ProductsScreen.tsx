@@ -15,6 +15,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { productsAPI, categoriesAPI } from '../../../../shared/api/customer-api';
 import { usePrice } from '../../hooks/usePrice';
+import type { Product, Category, NavigationProps } from '../../../../shared/types';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
@@ -22,10 +23,10 @@ const CARD_WIDTH = (width - 48) / 2;
 // PERFORMANCE: Fixed item height for getItemLayout optimization
 const ITEM_HEIGHT = 280; // Approximate height of product card + margin
 
-export default function ProductsScreen({ navigation, route }: any) {
+export default function ProductsScreen({ navigation, route }: NavigationProps) {
   const { formatPrice } = usePrice();
-  const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -130,7 +131,7 @@ export default function ProductsScreen({ navigation, route }: any) {
   }, [navigation]);
 
   // PERFORMANCE: Memoized render function
-  const renderProduct = useCallback(({ item }: any) => (
+  const renderProduct = useCallback(({ item }: { item: Product }) => (
     <TouchableOpacity
       style={styles.productCard}
       onPress={() => handleProductPress(item.slug)}
