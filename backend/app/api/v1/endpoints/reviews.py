@@ -8,6 +8,7 @@ import math
 
 from app.core.database import get_db
 from app.core.security import get_current_user, get_current_vendor
+from app.core.sanitize import sanitize_html
 from app.models.user import User
 from app.models.vendor import Vendor
 from app.models.product import Product
@@ -210,8 +211,8 @@ async def create_review(
         product_id=review_data.product_id,
         order_id=review_data.order_id,
         rating=review_data.rating,
-        title=review_data.title,
-        content=review_data.content,
+        title=sanitize_html(review_data.title),
+        content=sanitize_html(review_data.content),
         images=review_data.images,
         is_verified_purchase=is_verified
     )

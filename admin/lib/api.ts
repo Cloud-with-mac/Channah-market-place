@@ -452,6 +452,26 @@ export const analyticsAPI = {
     const response = await apiClient.get('/admin/analytics/sales-chart', { params: { days } })
     return response.data
   },
+
+  getRevenueByCategory: async () => {
+    const response = await apiClient.get('/admin/analytics/revenue-by-category')
+    return response.data
+  },
+
+  exportCSV: async (days: number = 30) => {
+    const response = await apiClient.get('/admin/analytics/export-csv', {
+      params: { days },
+      responseType: 'blob',
+    })
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `sales-export-${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  },
 }
 
 // ==================== CONTENT API ====================

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
@@ -7,6 +8,8 @@ from datetime import datetime, timedelta
 from uuid import UUID
 from pydantic import BaseModel, EmailStr
 from decimal import Decimal
+import csv
+import io
 
 from app.core.database import get_db
 from app.core.security import get_current_admin, get_password_hash
@@ -2962,6 +2965,61 @@ async def get_sales_chart(
         })
 
     return data
+
+
+@router.get("/analytics/revenue-by-category")
+async def get_revenue_by_category(
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get revenue breakdown by category"""
+    result = await db.execute(
+        select(
+            Category.name,
+            func.coalesce(func.sum(OrderItem.total), 0).label("revenue"),
+            func.count(OrderItem.id).label("orders")
+        )
+        .join(Product, Product.category_id == Category.id)
+        .join(OrderItem, OrderItem.product_id == Product.id)
+        .group_by(Category.name)
+        .order_by(func.sum(OrderItem.total).desc())
+        .limit(20)
+    )
+    rows = result.all()
+    return [{"category": r[0], "revenue": float(r[1]), "orders": r[2]} for r in rows]
+
+
+@router.get("/analytics/export-csv")
+async def export_sales_csv(
+    days: int = Query(30, ge=1, le=365),
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Export sales data as CSV"""
+    today = datetime.utcnow().date()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Date", "Revenue", "Orders"])
+
+    for i in range(days - 1, -1, -1):
+        date = today - timedelta(days=i)
+        day_start = datetime.combine(date, datetime.min.time())
+        day_end = datetime.combine(date, datetime.max.time())
+        result = await db.execute(
+            select(
+                func.coalesce(func.sum(Order.total), 0),
+                func.count(Order.id)
+            ).where(Order.created_at >= day_start, Order.created_at <= day_end)
+        )
+        revenue, orders = result.one()
+        writer.writerow([date.isoformat(), float(revenue or 0), orders or 0])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=sales-{today.isoformat()}.csv"}
+    )
 
 
 # ============ Order Detail Endpoint ============

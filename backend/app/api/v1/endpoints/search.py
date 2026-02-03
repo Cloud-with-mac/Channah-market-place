@@ -8,6 +8,7 @@ from decimal import Decimal
 from pydantic import BaseModel
 
 from app.core.database import get_db
+from app.core.sanitize import sanitize_search_query
 from app.models.product import Product, ProductStatus
 from app.models.category import Category
 from app.models.vendor import Vendor, VendorStatus
@@ -50,6 +51,7 @@ async def global_search(
     db: AsyncSession = Depends(get_db)
 ):
     """Global search across products, categories, and vendors"""
+    q = sanitize_search_query(q) or q
     search_term = f"%{q}%"
 
     # Search products

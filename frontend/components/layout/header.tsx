@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Search,
@@ -39,7 +39,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useAuthStore, useCartStore, useSearchStore, useSampleCartStore } from '@/store'
 import { CurrencySelector } from '@/components/currency-selector'
-import { categoriesAPI } from '@/lib/api'
+import { categoriesAPI, productsAPI } from '@/lib/api'
 import { MegaMenu } from './mega-menu'
 
 interface Category {
@@ -60,8 +60,11 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [megaMenuOpen, setMegaMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [loadingCategories, setLoadingCategories] = useState(true)
+  const searchRef = React.useRef<HTMLDivElement>(null)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -82,8 +85,39 @@ export function Header() {
     fetchCategories()
   }, [])
 
+  // Debounced autocomplete
+  useEffect(() => {
+    if (searchQuery.trim().length < 2) {
+      setSuggestions([])
+      return
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const data = await productsAPI.autocomplete(searchQuery.trim())
+        const names = (data.products || data || []).map((p: any) => p.name || p).slice(0, 6)
+        setSuggestions(names)
+        setShowSuggestions(names.length > 0)
+      } catch {
+        setSuggestions([])
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
+    setShowSuggestions(false)
     if (searchQuery.trim()) {
       router.push(`/search?q=${encodeURIComponent(searchQuery)}`)
     }
@@ -151,7 +185,7 @@ export function Header() {
             onSubmit={handleSearch}
             className="hidden md:flex flex-1 max-w-2xl mx-4"
           >
-            <div className="relative w-full group">
+            <div className="relative w-full group" ref={searchRef}>
               <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <input
                 type="search"
@@ -159,6 +193,7 @@ export function Header() {
                 className="w-full rounded-2xl border-2 border-border bg-card py-3 pl-12 pr-28 text-sm focus:outline-none focus:border-primary focus:shadow-lg focus:shadow-primary/10 transition-all duration-300 placeholder:text-muted-foreground"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
               />
               <Button
                 type="submit"
@@ -167,6 +202,26 @@ export function Header() {
               >
                 Search
               </Button>
+              {/* Autocomplete dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden">
+                  {suggestions.map((suggestion, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-muted flex items-center gap-3 transition-colors"
+                      onClick={() => {
+                        setSearchQuery(suggestion)
+                        setShowSuggestions(false)
+                        router.push(`/search?q=${encodeURIComponent(suggestion)}`)
+                      }}
+                    >
+                      <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="truncate">{suggestion}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </form>
 

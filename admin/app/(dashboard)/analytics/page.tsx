@@ -152,10 +152,16 @@ export default function AnalyticsPage() {
             Comprehensive revenue, orders, and marketplace performance metrics
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchAll}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => analyticsAPI.exportCSV(parseInt(chartDays))}>
+            <Calendar className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchAll}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Revenue Cards */}

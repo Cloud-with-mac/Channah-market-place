@@ -204,6 +204,11 @@ export const productsAPI = {
     return response.data
   },
 
+  autocomplete: async (query: string) => {
+    const response = await apiClient.get('/search/autocomplete', { params: { q: query } })
+    return response.data
+  },
+
   getRecommendations: async (productId?: string, categoryId?: string) => {
     const response = await apiClient.post('/ai/recommendations', {
       product_id: productId,
