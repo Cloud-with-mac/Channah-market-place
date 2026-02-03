@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,9 @@ import { usePrice } from '../../hooks/usePrice';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
+
+// PERFORMANCE: Fixed item height for getItemLayout optimization
+const ITEM_HEIGHT = 280; // Approximate height of product card + margin
 
 export default function ProductsScreen({ navigation, route }: any) {
   const { formatPrice } = usePrice();
@@ -121,10 +124,16 @@ export default function ProductsScreen({ navigation, route }: any) {
     }
   };
 
-  const renderProduct = ({ item }: any) => (
+  // PERFORMANCE: Memoize product press handler
+  const handleProductPress = useCallback((slug: string) => {
+    navigation.navigate('ProductDetail', { slug });
+  }, [navigation]);
+
+  // PERFORMANCE: Memoized render function
+  const renderProduct = useCallback(({ item }: any) => (
     <TouchableOpacity
       style={styles.productCard}
-      onPress={() => navigation.navigate('ProductDetail', { slug: item.slug })}
+      onPress={() => handleProductPress(item.slug)}
     >
       {(item.primary_image || item.images?.[0]?.url) ? (
         <Image
@@ -162,9 +171,10 @@ export default function ProductsScreen({ navigation, route }: any) {
         </View>
       </View>
     </TouchableOpacity>
-  );
+  ), [formatPrice, handleProductPress]);
 
-  const renderEmpty = () => (
+  // PERFORMANCE: Memoized empty component
+  const renderEmpty = useMemo(() => (
     <View style={styles.emptyContainer}>
       <Icon name="cube-outline" size={64} color="#9ca3af" />
       <Text style={styles.emptyText}>No products found</Text>
@@ -180,16 +190,27 @@ export default function ProductsScreen({ navigation, route }: any) {
         </TouchableOpacity>
       )}
     </View>
-  );
+  ), [searchQuery, selectedCategory]);
 
-  const renderFooter = () => {
+  // PERFORMANCE: Memoized footer component
+  const renderFooter = useMemo(() => {
     if (!loading || page === 1) return null;
     return (
       <View style={styles.footerLoader}>
         <ActivityIndicator size="small" color="#3b82f6" />
       </View>
     );
-  };
+  }, [loading, page]);
+
+  // PERFORMANCE: getItemLayout for fixed-height items (2 columns)
+  const getItemLayout = useCallback(
+    (data: any, index: number) => ({
+      length: ITEM_HEIGHT,
+      offset: ITEM_HEIGHT * Math.floor(index / 2), // 2 columns
+      index,
+    }),
+    []
+  );
 
   const sortOptions = [
     { key: 'newest', label: 'Newest' },
@@ -289,6 +310,13 @@ export default function ProductsScreen({ navigation, route }: any) {
               colors={['#3b82f6']}
             />
           }
+          // PERFORMANCE OPTIMIZATIONS
+          getItemLayout={getItemLayout}
+          initialNumToRender={10}
+          maxToRenderPerBatch={5}
+          windowSize={5}
+          removeClippedSubviews={true}
+          updateCellsBatchingPeriod={50}
         />
       )}
     </View>
