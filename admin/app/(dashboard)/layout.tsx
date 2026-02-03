@@ -19,6 +19,7 @@ export default function DashboardLayout({
   const { isAuthenticated, _hasHydrated } = useAuthStore()
   const { isCollapsed } = useSidebarStore()
 
+  // SECURITY FIX: Proper auth check with loading state
   React.useEffect(() => {
     // Wait for hydration to complete before checking auth
     if (!_hasHydrated) return
@@ -28,6 +29,18 @@ export default function DashboardLayout({
       router.replace('/login')
     }
   }, [isAuthenticated, _hasHydrated, router])
+
+  // Show loading during hydration or during redirect
+  if (!_hasHydrated || !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
   // Poll for new support chats and generate notifications
   const { addNotification } = useNotificationStore()
